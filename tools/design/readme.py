@@ -391,8 +391,7 @@ def traffic(selected=None):
     add('AFR59MY', 'A319', 'arr', 'APP', la, lo, 4300, '↓', 196, 254, show='full', field=('→25', ''))
     # departures
     add('TVF61WB', 'B738', 'dep', 'CLB', 49.205, 2.326, 9800, '↑', 288, 357, show='full', field=('→ATREX', ''),
-        trail=[(49.13, 2.321)],
-        )
+        trail=[(49.13, 2.321)], tag=('Transavia six one Whiskey Bravo, identified, climb flight level one two zero', '8 min', .55))
     add('AFR71KE', 'A320', 'dep', 'DEP', 48.79, 2.198, 9000, '↑', 305, 152, show='full' if selected == 'AFR71KE' else 'cs',
         field=('→OKASI', '+1'), selected=selected == 'AFR71KE',
         trail=None if selected == 'AFR71KE' else [(48.971, 2.112), (48.8185, 2.1867)])
@@ -400,7 +399,7 @@ def traffic(selected=None):
     add('EZY27XH', 'A320', 'dep', 'CLB', 48.745, 2.285, 3900, '↑', 220, 240)
     # passing through, from low to cruise
     for cs, typ, la, lo, ft, tr, kt, hdg in (
-            ('AFR23QR', 'A320', 49.24, 2.70, 11500, '↓', 280, 210), ('TVF30KP', 'B738', 48.97, 3.02, 13800, '↓', 300, 260),
+            ('AFR23QR', 'A320', 49.25, 2.84, 11500, '↓', 280, 210), ('TVF30KP', 'B738', 48.97, 3.02, 13800, '↓', 300, 260),
             ('DLH4AN', 'A20N', 49.20, 3.10, 16500, '↓', 310, 230), ('KLM73VZ', 'E190', 48.66, 2.86, 24000, '↑', 380, 160),
             ('RYR4TQ', 'B38M', 48.76, 3.05, 37000, '↔', 452, 200), ('SWR8KJ', 'A20N', 49.29, 3.00, 35000, '↔', 448, 135),
             ('BAW8RT', 'A320', 48.62, 2.47, 33000, '↔', 441, 320), ('UAE7WK', 'A388', 49.13, 3.04, 38000, '↔', 486, 245),
@@ -414,34 +413,34 @@ def traffic(selected=None):
 
 
 def thread_html(selected=None):
+    """The thread as the product draws it (www/index.html): no "pilot replied" line nor "first call" (13/10 screens only),
+    the instructions as internal/transcription/phraseology/explain.go words them, the French ones joined by " ; "."""
     sel = lambda cs: ' is-selected' if cs == selected else ''
     chip = E.chip
     W = E.WHEN
+    head = E.threadhead().replace('5 exchanges in the last 2 min', '3 exchanges in the last 2 min')
     return f'''<section class="cl-app__thread" aria-label="Radio">
-{E.threadhead()}
+{head}
 <div class="cl-app__bottom">
-<article class="cl-exchange{sel('AFR47KX')}">
-  <div class="cl-exchange__head">{W('12:58:31Z · 126.425')}{chip('ARR', 'arr', 'AFR47KX', sel('AFR47KX'))}<span class="cl-exchange__to">→</span><span class="cl-chip cl-chip--atc">ATC</span>{E.STR3}{E.PLAYB}</div>
-  <p class="cl-exchange__text" lang="fr">De Gaulle bonjour, Air France quatre sept Kilo X-ray, niveau un huit zéro en descente vers un cinq zéro.</p>
-  <div class="cl-exchange__explain">First call on this frequency.</div>
-</article>
 <article class="cl-exchange{sel('TVF61WB')}">
-  <div class="cl-exchange__head">{W('13:01:20Z · 124.350')}{chip('CLB', 'dep', 'TVF61WB', sel('TVF61WB'))}<span class="cl-exchange__to">→</span><span class="cl-chip cl-chip--atc">ATC</span>{E.STR3}{E.PLAYB}</div>
+  <div class="cl-exchange__head">{W('13:05:20Z · 124.350')}{chip('CLB', 'dep', 'TVF61WB', sel('TVF61WB'))}<span class="cl-exchange__to">→</span><span class="cl-chip cl-chip--atc">ATC</span>{E.STR3}{E.PLAYB}</div>
   <p class="cl-exchange__text">Approach, good afternoon, Transavia six one Whiskey Bravo, passing three thousand feet climbing flight level six zero, <span class="is-place">ATREX seven Alpha</span> departure.</p>
   <div class="cl-exchange__instr"><button class="cl-chip cl-chip--place">ATREX 7A</button></div>
-  <div class="cl-exchange__explain">First call on this frequency.</div>
 </article>
 <article class="cl-exchange{sel('TVF61WB')}">
-  <div class="cl-exchange__head">{W('13:01:31Z · 124.350')}<span class="cl-chip cl-chip--atc">ATC</span><span class="cl-exchange__to">→</span>{chip('CLB', 'dep', 'TVF61WB', sel('TVF61WB'))}{E.STR3}{E.PLAYB}</div>
+  <div class="cl-exchange__head">{W('13:05:31Z · 124.350')}<span class="cl-chip cl-chip--atc">ATC</span><span class="cl-exchange__to">→</span>{chip('CLB', 'dep', 'TVF61WB', sel('TVF61WB'))}{E.STR3}{E.PLAYB}</div>
   <p class="cl-exchange__text">Transavia six one Whiskey Bravo, identified, climb flight level one two zero.</p>
   <div class="cl-exchange__instr"><span class="cl-chip cl-chip--instr">Climb to FL 120</span></div>
-  <div class="cl-exchange__reply"><span>↩</span><span>Pilot replied, 3 s later</span></div>
+</article>
+<article class="cl-exchange{sel('AFR71KE')}">
+  <div class="cl-exchange__head">{W('13:07:10Z · 124.350')}<span class="cl-chip cl-chip--atc">ATC</span><span class="cl-exchange__to">→</span>{chip('DEP', 'dep', 'AFR71KE', sel('AFR71KE'))}{E.STR3}{E.PLAYB}</div>
+  <p class="cl-exchange__text">Air France seven one Kilo Echo, identified, climb flight level one two zero.</p>
+  <div class="cl-exchange__instr"><span class="cl-chip cl-chip--instr">Climb to FL 120</span></div>
 </article>
 <article class="cl-exchange{sel('EZY82QT')}">
   <div class="cl-exchange__head">{W('13:11:52Z · 124.350')}<span class="cl-chip cl-chip--atc">ATC</span><span class="cl-exchange__to">→</span>{chip('APP', 'arr', 'EZY82QT', sel('EZY82QT'))}{E.STR3}{E.PLAYB}</div>
   <p class="cl-exchange__text">Easy eight two Quebec Tango, descend flight level seven zero, turn left heading two seven zero.</p>
   <div class="cl-exchange__instr"><span class="cl-chip cl-chip--instr">Descend to FL 070</span><span class="cl-chip cl-chip--instr">Turn left heading 270</span></div>
-  <div class="cl-exchange__reply"><span>↩</span><span>Pilot replied, 12 s later</span></div>
 </article>
 <article class="cl-exchange is-unmatched">
   <div class="cl-exchange__head">{W('13:12:04Z · 126.425')}<span class="cl-chip cl-chip--callsign is-away">?</span><span class="cl-plain">no aircraft in range was named</span>{E.PLAYB}</div>
@@ -450,9 +449,8 @@ def thread_html(selected=None):
 <article class="cl-exchange{sel('AFR47KX')}" lang="fr">
   <div class="cl-exchange__head" lang="en">{W('13:12:31Z · 124.350')}<span class="cl-chip cl-chip--atc">ATC</span><span class="cl-exchange__to">→</span>{chip('APP', 'arr', 'AFR47KX', sel('AFR47KX'))}{E.STR2}{E.PLAYB}</div>
   <p class="cl-exchange__text">Air France quatre sept Kilo X-ray, autorisé ILS piste deux six gauche, contactez la tour un deux zéro décimal six cinq.</p>
-  <div class="cl-exchange__instr" lang="en"><span class="cl-chip cl-chip--instr cl-chip--clearance">Cleared ILS runway 26L</span><span class="cl-chip cl-chip--instr">Contact 120.650</span></div>
-  <div class="cl-exchange__explain cl-exchange__explain--boxed">Autorisé à l'approche ILS, piste 26L. Contactez 120.650.</div>
-  <div class="cl-exchange__reply" lang="en"><span>↩</span><span>Pilot replied, 4 s later</span></div>
+  <div class="cl-exchange__instr" lang="en"><span class="cl-chip cl-chip--instr cl-chip--clearance">Cleared for the approach, runway 26L</span><span class="cl-chip cl-chip--instr">Contact 120.650</span></div>
+  <div class="cl-exchange__explain cl-exchange__explain--boxed">Autorisé à l'approche, piste 26L ; Contactez 120.650.</div>
 </article>
 <article class="cl-exchange is-live">
   <div class="cl-exchange__head">{W('now · 124.350')}<span class="cl-level"><i style="height:6px"></i><i style="height:12px"></i><i style="height:9px"></i><i style="height:14px"></i><i style="height:7px"></i></span><span class="cl-plain">someone is speaking</span></div>
@@ -477,7 +475,7 @@ def column_now():
 <div class="cl-section"><span class="cl-label">Arrivals to LFPG 27R</span>{seq_table([('AFR85ZQ', 'A321', '1.3 NM', '0:34', 'first')])}</div>
 <div class="cl-section"><span class="cl-label">Arrivals to LFPO 25</span>{seq_table([('TVF55ME', 'B738', '4.8 NM', '1:58', 'first'), ('AFR59MY', 'A319', '16.0 NM', '4:49', '+11.2 NM')])}</div>
 <div class="cl-section"><span class="cl-label">Worth knowing · last 30 min</span><ul class="cl-events"><li><time>13:09Z</time><span><span class="cl-warn">▲ Go-around</span> EZY14LM on 27R at LFPG, now climbing back.</span></li><li><time>12:57Z</time><span><span class="is-info">●</span> UAE7WK, an A388, is in range, 34 NM north-east.</span></li></ul></div>
-<div class="cl-section"><span class="cl-label">Weather at LFPG</span><span class="cl-metar">LFPG 201300Z 25012KT 9999 FEW030 17/09 Q1018</span><span class="cl-metar__plain">Wind from the west, 12 kt; visibility over 10 km; a few clouds at 3 000 ft; QNH 1018.</span><span class="cl-row"><button class="cl-btn">TAF</button><button class="cl-btn">NOTAM <span class="cl-tabs__count">4</span></button></span></div>
+<div class="cl-section"><span class="cl-label">Weather at LFPG</span><span class="cl-metar">LFPG 201300Z 25012KT 9999 FEW030 17/09 Q1018</span><span class="cl-metar__plain">Wind from the west, 12\u00a0kt; visibility over 10\u00a0km; a few clouds at 3\u202f000\u00a0ft; 17\u00a0°C; QNH 1018.</span><span class="cl-row"><button class="cl-btn">TAF</button><button class="cl-btn">NOTAM <span class="cl-tabs__count">4</span></button><button class="cl-btn">Earlier</button></span></div>
 <div class="cl-section"><span class="cl-label">Traffic</span><div class="cl-stats"><span><b>107</b> airborne</span><span><b>12</b> heard</span><span><b>3</b> on the ground</span></div></div>
 </div>
 </aside>'''
@@ -498,11 +496,11 @@ def column_follow():
 </div>
 <div class="cl-tabs cl-tabs--inset" role="tablist"><button class="cl-tabs__tab" role="tab" aria-selected="true">Story</button><button class="cl-tabs__tab" role="tab" aria-selected="false">Details</button><button class="cl-tabs__tab" role="tab" aria-selected="false">Track <span class="cl-tabs__count">96</span></button><button class="cl-tabs__tab" role="tab" aria-selected="false">Nearby</button></div>'''
     body = '''<ol class="cl-story__events">
-  <li><time>13:01Z</time><i></i><span>Seen by the receiver on the ground at LFPG.</span></li>
-  <li><time>13:04Z</time><i></i><span>Departed runway 26R at LFPG.</span></li>
-  <li><time>13:07Z</time><i class="is-radio"></i><span>First call to Approche De Gaulle, passing 4 000 ft.</span></li>
-  <li><time>13:07Z</time><i class="is-radio"></i><span>Controller on 124.350: Climb to FL 120.</span></li>
-  <li><time>13:13Z</time><i class="is-now"></i><span>Climbing through FL 090, 21 NM south-west of LFPG.</span></li>
+  <li><time>13:01Z</time><i></i><span>Seen by the receiver, on the ground, 13 NM north-east</span></li>
+  <li><time>13:04Z</time><i></i><span>Departed runway 26R at LFPG</span></li>
+  <li><time>13:04Z</time><i></i><span>Departure at LFPG</span></li>
+  <li><time>13:07Z</time><i class="is-radio"></i><span>Pilot on 124.350</span></li>
+  <li><time>13:07Z</time><i class="is-now"></i><span>Controller on 124.350: Climb to FL 120</span></li>
 </ol>'''
     return f'<aside class="cl-app__column" aria-label="AFR71KE">{head}<div class="cl-app__scroll">{body}</div></aside>'
 
@@ -533,11 +531,11 @@ def follow():
     lines_q, _ = route_lines(g, pil, '26R', strong=False)
     lines_s, _ = route_lines(g, ok, '26R', strong=True)
     pts = route_points(g, [(ok, '26R'), (pil, '26R')], strong_names={'DOPAP', 'ODEBU', 'OKASI'})
-    keep = {'AFR71KE', 'EZY27XH', 'BAW8RT', 'AUA61QE', 'KLM73VZ', 'IBE36CZ', 'TVF55ME', 'AFR59MY'}
+    keep = {'AFR71KE', 'EZY27XH', 'BAW8RT', 'AUA61QE', 'KLM73VZ', 'IBE36CZ'}
     P = [p for p in traffic(selected='AFR71KE') if p.cs in keep]
     for p in P:
-        if p.cs != 'AFR71KE':
-            p.show = 'cs'
+        if p.cs == 'AFR71KE':
+            p.tag = ('Air France seven one Kilo Echo, identified, climb flight level one two zero', '6 min', .55)
     # its track since the runway, in the followed colour, with its levels a few minutes back
     trk = [THR[('LFPG', '26R')], (48.991, 2.465), (48.984, 2.346), (48.971, 2.112), (48.8185, 2.1867), (48.79, 2.198)]
     tp = [g.xy(*q) for q in trk]
@@ -568,7 +566,7 @@ def map_routes():
     add('AFR85ZQ', 'A321', 'arr', 'APP', la, lo, 500, '↓', 138, 265, show='full', field=('→27R', ''))
     la, lo = final('LFPG', '26L', 16.0, C26L)
     add('BAW31QX', 'A320', 'arr', 'APP', la, lo, 5200, '↓', 212, 265, show='full', field=('→26L/R', ''))
-    add('TVF61WB', 'B738', 'dep', 'CLB', 49.205, 2.326, 9800, '↑', 288, 357, show='full', field=('→ATREX', ''), trail=[(49.13, 2.321)])
+    add('TVF61WB', 'B738', 'dep', 'CLB', 49.205, 2.326, 9800, '↑', 288, 357, show='full', field=('→ATREX', ''), trail=[(49.13, 2.321)], tag=('Transavia six one Whiskey Bravo, identified, climb flight level one two zero', '8 min', .55))
     add('AFR19ME', 'A21N', 'dep', 'T/O', 48.9975, 2.44, 1300, '↑', 168, 265)
     add('EZY14LM', 'A320', 'dep', 'CLB', 49.07, 2.40, 3000, '↑', 190, 270)
     add('EZY82QT', 'A21N', 'arr', 'ARR', 48.90, 2.95, 7400, '↓', 232, 270)
@@ -591,19 +589,11 @@ def par():
 
 
 def phone():
-    g = Geo(48.985, 2.80, 20, w=390, h=700)
-    keep = {'AFR85ZQ', 'AFR47KX', 'EZY82QT', 'BAW31QX', 'AFR23QR', 'DLH4AN', 'AFR1092'}
-    P = [p for p in traffic() if p.cs in keep]
-    for p in P:
-        if p.cs not in ('AFR85ZQ', 'AFR47KX'):
-            p.show = 'cs'
-        if p.cs == 'AFR47KX':
-            p.tag = None
-    check(g, P, 'phone', ())
-    svg = f'<svg class="cl-sky__map" viewBox="0 0 390 700" preserveAspectRatio="xMidYMid slice">{rings(g, *STATION, radii=(10, 25)) + airports(g, ("LFPG", "LFPB")) + planes_svg(g, P)}</svg>'
+    """Radio and Right now: panes that read the same at any width (the phone's sky, under 24 NM, labels every aircraft in full)."""
     narrow = ('<div class="cl-threadhead"><div class="cl-threadhead__row">' + E.channel('124.350', 'Approche', '', on=True) + E.channel('126.425', 'App. (L)', '')
               + '</div></div><div class="cl-app__bottom">' + thread_html().split('<div class="cl-app__bottom">')[1].rsplit('</section>', 1)[0])
-    phones = E.phone('Radio', narrow) + E.phone('Sky', f'<section class="cl-app__sky" style="height: 100%;">{svg}</section>')
+    now = column_now().split('<div class="cl-app__scroll">', 1)[1].rsplit('</aside>', 1)[0]
+    phones = E.phone('Radio', narrow) + E.phone('Right now', f'<div class="cl-app__scroll">{now}')
     return page('Phone', '<div class="cl-row" style="padding: 24px; align-items: flex-start; gap: 32px;">' + phones + '</div>', width=880, height=900)
 
 
