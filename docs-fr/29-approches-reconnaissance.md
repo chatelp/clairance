@@ -1,6 +1,6 @@
 # Améliorer la transcription : le modèle de langage et le son qui lui arrive
 
-*Document de référence, état au 27 septembre 2026. Il se lit sans jargon ; chaque ligne renvoie au
+*Document de référence, **état au 20 octobre 2026** (revue du 20/10 ; chaque ligne garde la date de sa mesure, les lignes ajoutées le 20/10 sont signalées). Il se lit sans jargon ; chaque ligne renvoie au
 document qui détaille la mesure. À tenir à jour à chaque résultat.*
 
 *Depuis le 27/09, ce document ne couvre plus que **le modèle, la chaîne de transcription et la
@@ -43,10 +43,22 @@ ne portent aucun indicatif (47 %).
 | 9 | Les réglages internes du modèle contre l'invention | aucun ne sépare l'invention de la bonne transcription | ❌ (D45) |
 | 9 bis | Ne donner au modèle que la parole | l'invention baisse avec la marge (presque divisée par deux à 1 s) ; les avions justes ne bougent pas au-delà du bruit, mais la fréquence faible 125,825 en perd à toutes les marges | ⏳ pas adopté en l'état (Q41) |
 | 9 ter | **L'aiguillage vers le modèle français** : aujourd'hui, la seconde lecture ne se déclenche que si le texte *anglais* contient un mot français repère (« bonjour », « niveau »…) | 27/09, 126,425 : le propriétaire entend « Air France 511 » dans des échanges en français ; forcé en anglais, le modèle **anglicise** (« Air France Five One Air we conceded report three zero »), aucun repère, pas de seconde lecture. La détection de langue de Whisper, avec notre modèle affiné sur l'ATC anglais, répond « anglais » sur ces mêmes passages | ✅ **en production depuis le 28/09 (D64, Q50)** : repères **ou** détection de langue (turbo, p(fr) ≥ 0,1) → **+7 à +8 % d'avions justes à précision égale**, sur trois bancs et en direct (+13,4 le 28/09). Français lu sans relance (coût ÷ 2) et **boucles coupées après le modèle** (sans relance, le français bouclait deux à trois fois plus ; avec la coupe, 4,2 et 2,5 % de textes qui bouclent, contre 9,8 et 4,8 % avec relance). Un français plus rapide (distil, medium) perd le gain |
+| 9 quater | *(ligne ajoutée le 20/10)* **La première lecture d'abord, la seconde ensuite** : tout le travail du modèle passe par un seul fil, et la seconde lecture française d'une transmission passait devant la première lecture de la fréquence voisine. De la requête au texte, 300 transmissions sur 48 min (14/10) : 7,8 s en médiane, 31,7 s au 90ᵉ centile, dont 0,5 s et 26,5 s d'attente. Cause annexe : `mlx_whisper` ne gardait qu'un modèle en mémoire, chaque bascule le reconstruisait (lecture anglaise 4,58 → 0,90 s) | ✅ **en production (14/10, D81)** : deux voies sur le fil (`sidecar/lanes.py`), le sidecar répond dès la lecture anglaise et la française rejoint le fil en mise à jour, et les deux modèles restent en mémoire (7f35308). Première lecture : **9,2 s → 1,0 s en médiane** (28,6 s → 3,3 s au 90ᵉ centile), mesuré en direct sur 83 transmissions. La reconnaissance n'y perd rien |
 
 ### B. Du texte à l'avion
 
 → **déplacé dans `30-association-regles-et-reglages.md`** (règles, réglages du panneau, mesures).
+Deux acquis postérieurs au 27/09, ajoutés le 20/10 :
+
+- **Trois préréglages d'appariement** (D73, 12/10) : Mesuré (le défaut, **95 % de précision** sur
+  les journées du 03 et du 04/10), Prudent (chiffres exacts exigés, 97 %, 27 % d'appariements en
+  moins) et Expérimental (95 %, 25 % de plus, à juger à l'oreille). Détail au doc 30.
+- **Les noms officiels de l'AIP** (Q55, 15-16/10) : un outil fabrique la liste des points et
+  procédures autour de la station ; leur **affichage dans le fil** (les procédures entendues sont
+  nommées d'après le son des mots, seuil 0,95 réglable) est **en production depuis le 16/10**,
+  « usage 3 ». Les deux autres usages sont **écartés après mesure** : la règle de grammaire (35
+  appariements perdus, presque tous justes, 0 gagné, sur 18 224 transmissions) et l'indice de direction
+  (39 % des autres avions se rapprochent aussi du point).
 
 ### C. La réception, à la station
 
@@ -116,8 +128,9 @@ production (détecteur, français sans relance, boucles coupées), bancs du 27 e
 5. **Ne donner au modèle que la parole** : mesuré le 25/09 (Q41) — l'invention baisse nettement,
    les avions justes ne gagnent rien de mesurable, et la fréquence faible en perd. À reprendre
    avec un détecteur de voix plus sensible pour ce tri, jugé sur un autre jour.
-6. **Garder les deux modèles en mémoire** : l'attente derrière le modèle français fait perdre des
-   transmissions aux heures chargées (6 le matin du 25/09).
+6. ~~**Garder les deux modèles en mémoire**~~ : fait le 14/10 (7f35308, D81), avec les deux voies du
+   sidecar : première lecture 9,2 s → 1,0 s en médiane (ligne 9 quater). L'attente derrière le
+   modèle français faisait perdre des transmissions aux heures chargées (6 le matin du 25/09).
 7. **Le nettoyage du son par filtres**, mesuré hors ligne avant tout réglage de la station (Q42).
 8. **Le locuteur par la voix**.
 9. **Le modèle « turbo »**, plus rapide, jamais comparé sur l'ADS-B.

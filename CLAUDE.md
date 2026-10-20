@@ -42,12 +42,18 @@ référence : ils décrivent une installation qui existe et qui tourne, pas un p
    la chaîne ADS-B.
 2. **Le développement se fait sur le Mac**, pas sur la station. La station est une
    source de données, pas un environnement de build.
-3. **Tout ce qui est écrit dans `docs-fr/` a été vérifié sur la machine** le
-   15 septembre 2026. Si tu constates un écart, c'est le document qui est périmé :
-   corrige-le dans le même geste.
-4. **Co-ATC amont, tu ne l'as pas lu.** Les notes de `docs-fr/02-co-atc-amont.md`
-   viennent d'une lecture de la page du dépôt, pas du code. **Vérifie chaque
-   affirmation dans les sources avant de t'appuyer dessus**, et corrige le document.
+3. **Ce qui est écrit dans `docs-fr/` a été vérifié sur la machine**, à la date
+   inscrite dans chaque document (le dossier a commencé le 15 septembre 2026). Si tu
+   constates un écart, c'est le document qui est périmé : corrige-le dans le même geste.
+   Les comptes rendus datés restent tels qu'écrits ; on ne réécrit pas une lettre après coup.
+4. **Co-ATC amont** : `docs-fr/02-co-atc-amont.md` a été vérifié dans ses sources le
+   15/09. Ce qui n'y est pas relu reste à vérifier dans le code avant de t'appuyer dessus.
+5. **La production ne se lance pas depuis ta session.** Pour macOS, un processus lancé
+   depuis ton outil Bash appartient à l'application Claude : quand elle se met à jour ou se
+   relance, il continue de tourner mais perd le réseau local (« no route to host » vers la
+   station, sans autre signe). C'est arrivé du 16 au 18/10 : un jour et demi sans
+   transcription. Laisse le propriétaire la lancer (lanceur de la barre des menus), ou
+   passe par le système (`open`). Même règle pour ce qui doit passer la nuit.
 
 ## Langue
 
@@ -73,7 +79,9 @@ et il a dû le rappeler.
 - **Le dépôt reste un fork, mais la rebasabilité n'a plus valeur de contrainte.**
   Mesuré le 16/09 (D19), remesuré le 09/10 (Q52) : l'amont est silencieux depuis le 3 mai
   2026 ; notre empreinte sur ses fichiers, faible au départ (1,7 % de `www/app.js`, 0,2 % de
-  `internal/adsb/service.go`), vaut aujourd'hui 8,8 % et 9 %, et 263 commits d'avance.
+  `internal/adsb/service.go`), valait 8,8 % et 9 % le 09/10. Depuis, l'interface a été
+  refaite (`www/app.js` : 5 512 lignes amont, 1 086 aujourd'hui) et l'avance dépasse
+  800 commits (835 le 20/10).
   **Modifie un fichier amont quand c'est la façon la plus simple d'écrire la chose** ;
   n'ajoute pas d'accesseur pour contourner une signature. **Depuis le 10/10 (D71, validée),
   Clairance est un produit à part** : on ne rebase plus, ce qui n'a pas de rôle ici se
@@ -92,6 +100,10 @@ hors du dépôt depuis le 12/10 (D75), dans la mémoire privée de la session (`
 et dans `configs/config.toml`, non suivi.
 
 ```bash
+go build -o bin/co-atc ./cmd/server          # le serveur (rm bin/co-atc avant : jamais recopier un binaire en place)
+go test ./...                                # les tests Go
+node tools/www-check/check.mjs               # le filet de la page (store, scripts, tests Node de www/)
+tools/tailwind/build.sh                      # la feuille Tailwind, après un changement de classes
 ssh pierre@station.lan                       # la station, sans mot de passe
 curl http://station.lan:8080/data/aircraft.json    # ADS-B temps reel
 curl -H 'Host: station.lan' http://station.lan/radio/etat   # etat de la chaine VHF
@@ -103,9 +115,12 @@ tu n'as pas — passe par le propriétaire.
 
 ## Le dossier `docs-fr/`
 
-L'index et le rôle de chaque fichier sont dans `docs-fr/README.md`. Deux repères :
+L'index et le rôle de chaque fichier sont dans `docs-fr/README.md`. Trois repères :
 
 - **Commence par `docs-fr/00-mission.md`.**
+- **« Où en est-on ? » se répond dans `docs-fr/33-pilotage.md`**, tenu à chaque livraison et
+  décision ; ce qui a été fait, au jour le jour, dans les entrées « État » de
+  `docs-fr/32-audit-produit.md`.
 - **`docs-fr/05-decisions.md` se tient à jour au fil de l'eau** — décisions prises d'un
   côté, questions ouvertes de l'autre. C'est la mémoire du chantier et la seule consigne
   non négociable de ce dossier.

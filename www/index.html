@@ -300,7 +300,7 @@
                                 <!-- When the French reading named the aircraft, its words are in it. -->
                                 <template x-if="t.callsign_source === 'fr' && t.content_second">
                                     <div class="cl-exchange__explain" lang="fr">
-                                        <span class="cursor-help" data-help-title="French reading" data-help="Every transmission is transcribed twice, by an English and a French model. This is the French reading, where the aircraft was recognised.">French reading:</span>
+                                        <span class="cursor-help" data-help-title="French reading" data-help="Every transmission is read by an English model; when its words or its sound suggest French, a French model reads it again. This is that French reading, where the aircraft was recognised.">French reading:</span>
                                         <span x-html="$store.atc.transcriptHtml(t.content_second, t.callsign_evidence, $store.atc.threadSearch)"></span>
                                     </div>
                                 </template>
@@ -1740,7 +1740,7 @@
                                            x-html="$store.atc.transcriptHtml(t.content_processed || t.content, (t.callsign_source !== 'fr' && t.content_processed) ? t.callsign_evidence : null, '', $store.atc.placeSpans(t, !!t.content_processed))"></p>
                                         <template x-if="t.callsign_source === 'fr' && t.content_second">
                                             <div class="cl-exchange__explain" lang="fr">
-                                                <span class="cursor-help" data-help-title="French reading" data-help="Every transmission is transcribed twice, by an English and a French model. This is the French reading, the one that named the aircraft.">French reading:</span>
+                                                <span class="cursor-help" data-help-title="French reading" data-help="Every transmission is read by an English model; when its words or its sound suggest French, a French model reads it again. This is that French reading, the one that named the aircraft.">French reading:</span>
                                                 <span x-html="$store.atc.transcriptHtml(t.content_second, t.callsign_evidence)"></span>
                                             </div>
                                         </template>

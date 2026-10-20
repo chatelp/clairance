@@ -1,5 +1,10 @@
 # La chaîne locale tourne — première transcription sans clé d'API
 
+> **Document historique — revue du 20/10.** Compte rendu du 15/09 ; le corps du texte n'est pas
+> réécrit. Depuis : le processeur OpenAI et `processor.go` sont retirés (91cf595), `LocalProcessor`
+> est le seul moteur ; le démultiplexage stéréo n'a jamais été fait et n'a plus d'objet, la station
+> diffusant un flux par fréquence (D57, D64) ; la grammaire de phraséologie est faite (doc 16).
+
 *15 septembre 2026. Mesures : `runs/etape4-local.log`.*
 
 ## Ce qui est en place

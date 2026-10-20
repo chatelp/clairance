@@ -1,5 +1,14 @@
 # Transcription locale — le cœur technique
 
+> **Document historique — revue du 20/10.** Analyse fondatrice du 15/09, avant toute mesure ;
+> le corps du texte n'est pas réécrit. Les choix qu'elle laissait ouverts sont tranchés :
+> moteur **mlx-whisper** (D10) ; modèle anglais `sfabriece/whisper-large-v3-atco2-asr-mlx` (D12) ;
+> seconde lecture française par `bofenghuang/whisper-large-v3-french`, déclenchée par un mot repère
+> **ou** par un détecteur `whisper-large-v3-turbo` à p(fr) ≥ 0,1 (Q50, D64) ; langue **fixée par
+> fréquence** (la détection automatique se trompait de 16 à 28 %) ; détecteur de voix = le paquet
+> `silero-vad` sous MLX, et non faster-whisper. Pour l'état courant : `29-approches-reconnaissance.md`,
+> `30-association-regles-et-reglages.md` et `sidecar/README.md`.
+
 ## Le problème, en une phrase
 
 Les modèles Whisper affinés pour le contrôle aérien sont **anglophones**. La bande de

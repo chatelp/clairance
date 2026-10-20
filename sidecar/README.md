@@ -7,11 +7,19 @@ leaves the machine.
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r sidecar/requirements.txt
 .venv/bin/python sidecar/whisper_server.py \
-    --model-en <mlx-model-or-hf-repo> \
-    [--model-fr <mlx-model-or-hf-repo>] \
+    [--model-en <mlx-model-or-hf-repo>] \
+    [--model-fr <mlx-model-or-hf-repo>] [--preload] \
     [--second-opinion [--fr-detector <multilingual-mlx-model> [--fr-threshold 0.1]] [--fr-no-fallback [--fr-cut-loops]]] \
     [--save-audio <dir> [--save-audio-min-free-gb 8]]
 ```
+
+`--model-en` defaults to `sfabriece/whisper-large-v3-atco2-asr-mlx`; without
+`--model-fr` French audio is refused. It listens on `127.0.0.1:8178` (`--host`,
+`--port`); `--preload` loads the models at start instead of on first use;
+`--no-vad` and `--min-speech-seconds` set the voice gate; `--log-level`. You seldom
+run it yourself: co-atc starts it from `[transcription.local] command`, restarts it
+if it dies, and it exits on its own when the process that started it goes away
+(`--no-exit-with-parent` to keep it).
 
 `GET /health` reports which languages are served, and in `backend` what the
 models run on: the GPU's name when MLX gives it, else `mlx`. `POST /transcribe` takes raw
@@ -102,7 +110,9 @@ cost true matches.
 
 `--save-audio <dir>` keeps every transmission exactly as it arrived, before
 resampling, rejected ones included, as `<dir>/<YYYYMMDD>/<frequency>/t_*.wav`,
-with one manifest per day, `<dir>/<YYYYMMDD>/manifeste.jsonl`. A line holds:
+with one manifest per day, `<dir>/<YYYYMMDD>/manifeste.jsonl`. A line holds, beside
+the clip (`fichier`), its frequency (`frequency_id`), its length (`duree`), the
+language and models used (`langue`, `modele`, `modele_second`) and `at`:
 - the texts (`texte`, `texte_second`), the gate (`porte`) and `p_fr`;
 - `speech_seconds`, and `rejected` for a clip the voice gate dropped;
 - per decoded segment, `temperature`, `compression_ratio`, `avg_logprob` and
