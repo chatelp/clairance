@@ -5,416 +5,286 @@
 
 # Clairance
 
-**Hear the airband you receive, read it in English and French, and see which
-aircraft is speaking. Runs on your own machine: nothing leaves it. Made for the
-listener; it judges no one.**
+**Listen to the air traffic control radio around you, read it, and see which aircraft
+is speaking. Everything is transcribed on your own Mac: no audio leaves the house.**
 
-*A fork of [Co-ATC](https://github.com/yegors/co-atc) that does the listening on
-your own machine.*
+A receiving station near an airport picks up two things at once: the positions that
+aircraft broadcast every second (ADS-B), and the voices of pilots and controllers on
+the airband. Clairance joins the two. It transcribes each transmission, in English and
+in French, works out which aircraft it was addressed to, says in plain words what was
+asked, and draws the traffic as a controller would read it: the runway in use, the
+arrival sequence, where each departure is heading.
 
-**Listen to the air traffic control radio above your house, and have a computer
-write down what was said — without sending a single second of audio to anyone.**
+It is made for the listener. It explains; it never judges a pilot or a controller.
 
-A small antenna on a rooftop can pick up two things at once: the position reports
-that airliners broadcast continuously, and the voices of the pilots and controllers
-talking to each other. The first is easy for a computer to read. The second is just
-sound.
+![Clairance: the radio thread, the map and the Right now column](.github/readme/hero.png)
 
-This project joins the two. It shows the aircraft on a map, listens to the radio,
-turns the speech into text, and works out **which aircraft each transmission was
-about** — so that clicking a dot on the map shows you what that particular aeroplane
-just said, and what it was told to do.
-
-It is a fork of [Co-ATC](https://github.com/yegors/co-atc), which already did all of
-this beautifully — but by sending the audio to OpenAI. **This fork does the same work
-on the machine in the room**, on a receiving station in France where the radio is
-half French and half English.
-
-> Everything here runs on one Mac mini. No API key, no subscription, no audio leaving
-> the house. The only thing the project needs from the internet is the weather.
-
-![Co-ATC main interface](docs/main_screen.png)
+<sub>Screens composed from Clairance's design system, on the real airports and published
+routes around Paris, with made-up flights and transmissions: real recordings of the airband
+are not published.</sub>
 
 ---
 
-## Why a fork
+## What it does
 
-Upstream Co-ATC calls the OpenAI API in three places: to transcribe the radio, to
-tidy up the transcript and extract clearances, and to run a voice assistant. For a
-station that runs continuously, that means a recurring bill, a dependency on the
-network, and every transmission the receiver hears being uploaded to a third party.
+### Hear and read
 
-It is also, for this station, the wrong tool: the radio here is **bilingual**. French
-and English alternate on the same frequency, sometimes in the same exchange, and the
-models that are good at air-traffic English are good at it precisely because they
-were fine-tuned on English-only corpora.
+- **Every frequency the station listens to, transcribed as it is spoken**, by Whisper
+  models running on the Mac's GPU ([MLX](https://github.com/ml-explore/mlx)). An English
+  model fine-tuned on air traffic control reads every transmission first; when the words
+  or the sound suggest French, a French model reads it again. On this station the radio is
+  half French, half English, often within one exchange.
+- **A voice gate in front of the models.** At night, up to 98 % of squelch openings on some
+  channels carry no speech, and a speech model fed noise does not return silence: it
+  invents plausible sentences. Silero VAD drops them before they are transcribed.
+- **Listen in the page** to any frequency, with its own volume; replay any past
+  transmission from the archive (for the owner's account by default).
 
-So this fork replaces the cloud pieces with local ones, and — because the local
-pieces are worse in some ways and better in others — **measures the difference
-instead of assuming it**. Every number below was recorded on a real receiver, and the
-working notes that produced them are in [`docs-fr/`](docs-fr/) (in French).
+### Know who is speaking
 
-## What is different from upstream
+- **Each transmission is attached to an aircraft** in the receiver's sky: the callsign is
+  read from the words ("Air France four seven kilo x-ray") and matched against the aircraft
+  the station can actually see, within the frequency's sector. Two close candidates and it
+  refuses to choose.
+- **The proof stays with it**: why this aircraft, how strong the evidence is, or why none
+  was named.
+- **Three measured presets** — Measured, Cautious (97 % right, fewer matches),
+  Experimental — instead of eleven knobs, and the knobs are there for whoever wants them.
 
-| | upstream | Clairance |
+### Understand what was said
+
+- **Instructions in plain words**: "Descend to FL 100", "Turn left heading 270", "Cleared
+  for the approach, runway 26L", "Contact 120.650", in French for a French exchange. A phraseology
+  grammar reads them, with no language model.
+- **Procedures named**: when a controller says "elcope seven golf", the thread proposes
+  the official name, **ELCOB 7G, a departure from De Gaulle**, read from the French AIP;
+  a click draws its published route on the map.
+- **French said in French**: a French exchange gets its plain reading in French too
+  ("Autorisé à l'approche, piste 26L ; Contactez 120.650.").
+- **What the aircraft did next**, from its track and without a verdict: "level at 4 000 ft,
+  2 min later".
+
+<p align="center"><img src=".github/readme/thread.png" width="440" alt="The radio thread: each transmission, the aircraft it was addressed to, its instructions in plain words, a procedure named"></p>
+
+### See the traffic
+
+- **The map**: every aircraft the receiver hears, coloured by altitude band, labelled
+  lightly when zoomed out and fully when zoomed in, with the airports' runways, taxiways
+  and aprons drawn from OpenStreetMap. A lost aircraft is drawn as an outline where it was
+  last seen, for ten minutes by default.
+- **Right now**: one sentence that says which runways are in use and since when, the
+  arrival sequence per runway with the time to touchdown and the gaps, the last half
+  hour's events, and the weather read out in plain words.
+- **Probable runway and exit** on each label: an arrival's pair of runways from 20 NM
+  ("→26L/R"), the runway itself from 15 NM ("→26L"); a departure's exit point once it has turned towards it
+  ("→OKASI", or "→OKASI +2" while others remain possible). Select a departure and the
+  published routes of its possible exits are drawn, following it as it flies.
+- **Published procedures**: the SID and STAR of the airports you follow, as a map layer,
+  for the runways in use.
+- **The PAR view**: the approaches to an airport in profile, runway by runway, after the
+  Precision Approach Radar scope — the glide slope, the aircraft on it, the spacing.
+- **Follow a flight**: its story on one page — what it was told, what it did, its phases,
+  its track, the aircraft nearby — and the map keeps it in view.
+- **An event log** for what is worth knowing: an emergency squawk, a go-around, a change of
+  runway in use, a rare aircraft, a frequency that went silent.
+
+<p align="center"><img src=".github/readme/map-routes.png" width="620" alt="A published departure route asked for from the thread, an aircraft on it heading for its exit, and the probable runways of two arrivals"></p>
+
+<p align="center"><img src=".github/readme/follow.png" alt="Following a departure: its story, its track, and the published routes of the exits it may take"></p>
+
+<p align="center"><img src=".github/readme/par.png" width="620" alt="The PAR view: approaches in profile, runway by runway"></p>
+
+It works on a phone too, through the same page.
+
+<p align="center"><img src=".github/readme/phone.png" width="550" alt="On a phone: the radio thread and the sky"></p>
+
+## How well it works
+
+Measured on the station it was built for, near Paris, with the numbers and their method
+in [`docs-fr/`](docs-fr/) (in French). Matching is scored against the ADS-B: what the same
+rules match in the sky of another moment is subtracted as chance. It has not yet been
+checked against a sample verified by ear.
+
+| | Result | When |
 |---|---|---|
-| Speech to text | OpenAI `gpt-4o-transcribe` | local Whisper via [MLX](https://github.com/ml-explore/mlx) in a Python sidecar |
-| Transcript post-processing | GPT-4o with a 90-line prompt | a closed-vocabulary **phraseology grammar**, no model |
-| Callsign → aircraft matching | GPT-4o, given the live ADS-B list | weighted edit distance against the same list |
-| Authentication | none | Argon2id + server-side sessions |
-| Operational state | not exposed | `GET /api/v1/server` — database growth, disk, retention |
-| Voice assistant | OpenAI Realtime | removed (October 2026): it cannot run without the key, and nothing here needs it |
-| Weather | Windy | kept: it works, and only an airport code leaves the house |
-| Runways | runway extensions drawn on the map | a runway judge checked against FlightAware (368 verdicts of 368), and a PAR-style approach view |
-| Audio sources | HTTP streams, plus a native SRT reader | anything FFmpeg reads, with per-source input options (raw PCM over UDP, a receiver on the sound card); SRT through FFmpeg's libsrt |
-| Sources added while running | none | `PUT /api/v1/sources/{id}`, for a station that publishes one stream per channel |
+| Transmissions attached to an aircraft, "Measured" preset | **95 % right**; 2 557 attached of 8 322 transmissions in a day | 03/10/2026 |
+| French second reading | **+7 to +8 %** more aircraft found, at equal precision | 28/09 |
+| From the end of a transmission to its text | **1.0 s** median, 2.4 s at the 90th percentile | night of 14-15/10 |
+| Runway an aircraft landed on or took off from | **1 504 of 1 505** arrivals at De Gaulle, **449 of 449** at Orly, against FlightAware | six days, end of Sept. |
+| Probable runway of an arrival, at 15 NM | **96.6 % right** at De Gaulle (every error the other runway of the pair), 100 % at Orly | 2 338 arrivals, 02-16/10 |
+| Probable exit of a departure, alone on the label | **93 % right at 20 NM**, for half the departures | 813 departures, 02-16/10 |
+| Procedures named in the thread | **18 of 18 right** (a small sample) | the owner's listening, 16/10 |
 
-Upstream's map, ADS-B ingestion and flight-phase detection are the larger half of this
-program and stay close to what they are. The interface started as upstream's and is
-becoming this project's own. **Since October 2026, Clairance is developed as a product
-in its own right, not as a fork that tracks upstream**: nothing is rebased, what has no
-role here is removed rather than left dormant, and what would be useful upstream is kept
-as self-contained commits that can be offered as they are. The reasoning, with the
-numbers, is in [`docs-fr/32-audit-produit.md`](docs-fr/32-audit-produit.md) (in French).
+## Limitations
 
-## Status, honestly
+Said plainly, because they matter more than the features:
 
-**Running on one station since September 2026**, started when its owner listens, and
-incomplete. Figures as of 28 September 2026.
+- **The transcript itself is often poor.** Callsigns, numbers and instructions come through;
+  the rest of the sentence often does not. Most errors are invented words, and the English
+  model's are made of real air-traffic words in the wrong order. Three fine-tuning trials
+  so far, none better than the model in use.
+- **Reception decides a lot.** On the weaker frequencies the squelch cuts in the middle of a
+  third to a half of transmissions; that is the antenna's, not the software's.
+- **Coupled sectors are counted twice.** When controllers merge two frequencies in the
+  evening, the same transmission arrives on both and is transcribed twice.
+- **Only about a third of all transmissions get an aircraft**: the others are too short,
+  too garbled, or name nobody (34.5 % on a full night, 14-15/10). What is attached is
+  mostly right; what is not, is said.
+- **Built around one station, near Paris.** The settings were measured on Paris approaches;
+  the AIP names, procedures and approach charts come from the French eAIP and only cover
+  French airports; the IGN base map is France-only (OpenStreetMap works anywhere). Outside
+  France those parts are simply absent, and the settings say so. Following the station's
+  channel selection (`radio-ctl-sync`) is specific to that station's control API.
+- **Transcription needs Apple Silicon.** The sidecar runs on MLX. Without it the server
+  still runs, with the map, ADS-B and audio, but no transcript; any service honouring
+  upstream's [`docs/LOCAL-STT.md`](docs/LOCAL-STT.md) contract can replace it. A Linux and
+  NVIDIA port is a target, not done; the Windows build compiles but has never been run.
+- **Not yet easy to install elsewhere.** It runs, every day, on its owner's station; nobody
+  else has installed it yet, and there is no installation guide beyond the one below.
+- **Probable runways and exits are inferences**, and labelled as such: nothing is shown for
+  an aircraft the controller vectors off its procedure, and departures already in the air
+  when the server starts have no exit.
 
-What works, with the number that says so:
+## What leaves your machine
 
-- **Local transcription end to end.** English model
-  `sfabriece/whisper-large-v3-atco2-asr-mlx`, chosen not by listening to it but by
-  ADS-B arbitration: on 1 468 real transmissions it produced **94 true callsign
-  matches against 62.6** for the English-only alternative, and won on all five
-  frequencies.
-- **One audio stream per frequency.** The station publishes each channel it listens
-  to on its own stream, and co-atc follows whatever is on air. Transcribed separately,
-  the same traffic gives **four times the true matches** of the mixed stream (235
-  against 60).
-- **Callsign matching.** On the reference capture (four Roissy frequencies, 24/09),
-  the matching rules went from 240 true matches at 73 % precision to **387 at 85 %**.
-  Live, on two De Gaulle approach frequencies for two hours (28/09): **213.6 true
-  matches out of 671 transmissions, 92 % precision**. The control is not a guess:
-  the same rules are run against the ADS-B sky of other moments, and what they match
-  there is subtracted as chance.
-- **A French second reading.** When a transmission holds a French word, or when a
-  multilingual Whisper gives French a probability of at least 0.1, the French model
-  reads it too, once, without temperature fallback. **+7 to +8 % true matches at
-  equal precision**, on three benches and live. Median delay from the end of a
-  transmission to its text: 6.5 s on two frequencies, with no backlog building up.
-- **A voice activity gate that is a correctness requirement, not an optimisation.**
-  On four of this station's seven night-time channels, **up to 98 % of squelch
-  openings carry no speech at all** — and a Whisper model fed silence does not return
-  silence, it returns plausible sentences. Silero VAD in front of the model.
-- **An audio archive.** Every transmission is kept as received, with a daily manifest
-  that joins it to its database row: the raw material for improving recognition.
-- **Authentication**, because the fork made the server worth reaching from outside
-  the LAN. 29 tests in `internal/auth`.
-- **A database that stays bounded.** Upstream opens the daily SQLite file once and
-  never reopens it (measured here at 1.49 GB in 4 h 15). It now rotates at midnight;
-  the per-second ADS-B rows no longer carry a JSON copy of themselves (**−73 %**,
-  9.8 → 2.6 GB a day); and the daily files are kept within a size, 20 GB by default,
-  instead of a number of days.
+Nothing goes to OpenAI or any speech service: there is no API key in Clairance. What does
+go out, and when:
 
-What does not work yet, and is known:
+- **Weather**: the reference airport's ICAO code, to Windy, every 10 minutes (can be turned
+  off).
+- **Map tiles**, fetched by your browser from IGN or OpenStreetMap; none with the "None" base
+  map. The airspace layer (off by default) uses openAIP tiles.
+- **The French eAIP**, from the SIA's site, only when you press "Update from the SIA" or turn
+  on "Update at each new AIRAC cycle" (off by default): a few pages and the procedure coding tables of the airports you
+  follow, once per 28-day cycle, kept on disk.
+- **ADS-B**, only if you choose an external source (OpenSky, ADS-B Exchange through RapidAPI)
+  instead of your own receiver: your position and range.
+- **At setup only**: the reference files (`scripts/download_assets.sh`), the airport layout
+  (OpenStreetMap's Overpass API, `tools/airport-layout/fetch.py`), and the Whisper models
+  (Hugging Face).
 
-- **The transcript itself.** Matching works around it, but beyond callsigns and
-  numbers the text is mostly unusable. Most errors are invented words (59 % of the
-  English model's errors, 93 % of the French model's, on hand-annotated clips), and
-  the English model's gibberish is made of real air-traffic words in the wrong order:
-  only 6 % of its words fall outside the ATC vocabulary, yet 55 to 63 % of its
-  transcripts hold at least one. Three fine-tuning trials so far, none better than
-  production. Improving recognition itself, without transcribing thousands of hours
-  by hand, is now a workstream of its own.
-- **Reception.** On the weaker frequencies the squelch closes for a moment in the
-  middle of transmissions: 33 to 47 % of transmissions chopped on the De Gaulle
-  approaches. It comes from the reception at the station, not from the speaker's
-  distance nor from the software.
-- **Coupled sectors.** In the evening the controllers merge approach sectors, and the
-  same transmission then arrives on two frequencies: 65 to 76 % of them over most of
-  one evening measured. It is transcribed and counted twice.
-- **En-route sectors** get no sector filter: their limits are not published.
-- **Weather** still comes from Windy's private API, which has nothing for the nearest
-  airfield; a French source is still to be chosen.
+The page itself loads nothing from a CDN.
 
-## How it works
+## What you need
 
-Two diagrams: from the radio to the text, then from the text to the aircraft.
-**●** marks a component written for Clairance, **○** an upstream Co-ATC component
-it adapts; unmarked boxes are third-party software, models, or the receiving station.
-
-```mermaid
-flowchart TD
-  station["Receiving station<br/>one audio stream per frequency<br/><i>RTLSDR-Airband · Icecast</i>"]
-  stationlink["● Station link<br/>follows the station's selection every 10 s<br/><i>radio-ctl-sync (Go)</i>"]
-  seg["● Segmenter<br/>a transmission ends after 0.6 s of silence<br/><i>co-atc local backend (Go) · ffmpeg</i>"]
-  subgraph sidecar["● Transcription sidecar · Python, FastAPI, mlx-whisper"]
-    direction LR
-    vad["Speech or noise?<br/><i>Silero VAD</i>"] --> en["English model<br/>first reading<br/><i>whisper-large-v3-atco2</i>"]
-    en --> gate["● French gate<br/>a French word, or p(fr) ≥ 0.1<br/><i>whisper-large-v3-turbo</i>"]
-    gate --> fr["French model<br/>second reading, no fallback<br/><i>whisper-large-v3-french</i>"]
-  end
-  db["○ Database and web interface<br/><i>SQLite · map + radio panel</i>"]
-  archive["● Audio archive<br/>every transmission, as received<br/><i>sidecar --save-audio</i>"]
-  station --> seg
-  stationlink --> seg
-  seg --> sidecar
-  sidecar --> db
-  sidecar --> archive
-  db --> matching["● Matching to aircraft, below"]
-
-  classDef core fill:#E3F2EF,stroke:#1F7A74,color:#0F4A46
-  classDef model fill:#F7E6F0,stroke:#A8336F,color:#6A1C45
-  classDef ext fill:#ECEFEC,stroke:#8C958F,color:#2E3631
-  class stationlink,seg,db,matching core
-  class vad,en,gate,fr model
-  class station,archive ext
-```
-
-```mermaid
-flowchart TD
-  txt["Transcribed text<br/>English first, then French"] --> grammar["● Grammar<br/>callsign, levels, headings<br/><i>phraseology (Go)</i>"]
-  sky["○ ADS-B sky<br/>aircraft in range of the station<br/><i>readsb · tar1090 → ADS-B service</i>"] --> sector["● Sector filter<br/>aircraft in the frequency's sector<br/><i>sector table per frequency</i>"]
-  grammar --> matcher["● Matcher<br/>digits, airline, letters, 2-minute memory<br/><i>OpenFlights airlines.dat</i>"]
-  sector --> matcher
-  matcher --> strict["● Refuse if ambiguous<br/>two close candidates: none"]
-  strict --> ok["● Aircraft attached<br/>shown, remembered 2 minutes"]
-  strict --> retry["● No aircraft yet<br/>retried for 60 s"]
-
-  classDef core fill:#E3F2EF,stroke:#1F7A74,color:#0F4A46
-  classDef ext fill:#ECEFEC,stroke:#8C958F,color:#2E3631
-  class grammar,sector,matcher,strict,ok,retry core
-  class txt,sky ext
-```
-
-What each piece bought, as true callsign matches (attached to the right aircraft, minus
-what shuffled ADS-B skies give by chance), measured on this station:
-
-| Piece | Effect | Measured on |
-|---|---|---|
-| One stream per frequency instead of the mix | ×4 | 235 against 60, 24/09 capture |
-| The week's matching rules | 240 → 387 | the 24/09 reference capture |
-| Language detector at the French gate | +7 to +8 % at equal precision | three benches and a live session, 28/09 |
-| French read without temperature fallback | half the French decoding time, same matches | two benches, 28/09 |
-
-### The sidecar
-
-A ~350-line FastAPI service (`sidecar/`) that upstream itself specified but never
-built — the contract is written down in **upstream's own**
-[`docs/LOCAL-STT.md`](docs/LOCAL-STT.md), and this implements it. It holds the MLX
-Whisper models in memory, runs Silero VAD in front of them, and refuses anything that
-is not speech.
-
-Two settings there are counter-intuitive and both were measured:
-
-- **The upstream transcription prompt is removed, not translated.** It multiplies
-  degeneration loops sevenfold on French audio, doubles decoding time, and leaks into
-  the output (`"Aircraft are at cruise level and use ICA-7, Yankee Papa…"`). It was
-  written for a continuous realtime stream; on a 3-second transmission it outweighs
-  the audio.
-- **The language is chosen per frequency, not detected.** Detection fails mostly on
-  files that are already lost, so the per-frequency prior is both cheaper and safer.
-
-### The phraseology grammar
-
-Upstream's second stage asks GPT-4o for five things. Four of them are not language
-problems at all:
-
-| | what the prompt asks for | grammar? |
-|---|---|---|
-| 1 | freely correct transcription errors | **no** — the only real need for a language model |
-| 2 | write numbers, headings, levels and frequencies as digits | yes |
-| 3 | decide whether the speaker is ATC or a pilot | yes, from verb mood and callsign position |
-| 4 | attach the transmission to a callsign **from the live ADS-B list** | yes — weighted edit distance over a short, known list |
-| 5 | extract clearances and the runway | yes, closed patterns |
-
-Point 4 is the trick that makes the whole product work, and it is not magic: the
-model is handed the aircraft the receiver can currently see and forbidden to invent
-others. Matching `"nonsense three five three"` against 128 known callsigns is
-arithmetic.
-
-Point 1 is the one we do without — and we measured what that costs before giving up
-on it. A dictionary-based text corrector gained **one transmission and lost four
-candidates**. It was deleted.
-
-The grammar plugs in at **upstream's own seam** (`post_processing.backend = "local"`,
-the one backend left) and writes into upstream's tables with upstream's vocabulary.
-Zero schema migration.
-
-Its settings come from a sweep, not from taste — 3 digits minimum, 60-second fleet
-window, ambiguous matches refused, no additional score floor. The full table is in
-`docs-fr/19-appariement-en-ligne.md`, and `configs/config.toml.example` sums it up
-in two lines where the keys would go, so that the trade-off stays the operator's.
-
-One rule that looks obviously good and is not: accepting callsigns whose digits are
-**off by one** was measured to be **81 % noise**. It is off by default.
-
-### Authentication
-
-Upstream says, correctly, that it must never be exposed to the internet. This fork
-adds enough to make that a choice rather than a fact.
-
-- **The first visit asks the question**: this machine only, without sign-in, or
-  reachable with an account. The answer is kept beside the configuration
-  (`configs/users.json`, never `config.toml`) and can be changed later under
-  *Settings → Server → Access*, either way. Going local-only keeps the accounts,
-  unused, for when sign-in is required again.
-- **Without sign-in only where nobody else can reach it**: bound to `127.0.0.1`,
-  with no proxy declared. Otherwise the first visit offers only an account, the
-  settings refuse to turn sign-in off, and a server listening beyond `127.0.0.1`
-  with no account refuses to start.
-- **Argon2id** (m = 64 MiB, t = 3, p = 2), PHC-encoded. Passwords are never written
-  to a file by a human: `co-atc -add-user <name>` reads one without echoing it and
-  prints the block to paste into the config.
-- **Server-side sessions**, 256 bits of randomness, sliding expiry, revocable. No
-  JWT — a token you cannot revoke is not an improvement.
-- **Cookies** are `HttpOnly` and `SameSite=Strict`, and `Secure` as soon as the
-  request is HTTPS.
-- **`X-Forwarded-Proto` and `X-Forwarded-For` are trusted from nothing by default.**
-  You list the proxy CIDRs explicitly. A reverse proxy is supported, not required:
-  the server will terminate TLS itself if you give it a certificate, and will run
-  plain HTTP on a LAN if you do not.
-- An unknown username is verified against a **decoy hash**, so it costs the same as a
-  known one and cannot be told apart.
-
-## Requirements
-
-- **Go 1.23** or later
-- **FFmpeg** — audio ingestion (upstream's installation notes still apply, see
-  [`README-upstream.md`](README-upstream.md))
-- **An ADS-B source** — a local `tar1090`/`readsb` is what this is built against
-- **An audio source** — an Icecast mount, or anything FFmpeg can read: an HTTP
-  stream, raw PCM over UDP from an SDR program, a receiver plugged into the
-  sound card (`ffmpeg_input_options`, see `configs/config.toml.example`), SRT
-  if your FFmpeg has libsrt (Homebrew's does)
-- **Python 3.11+ and Apple Silicon** for the transcription sidecar. MLX is
-  Apple-only; on other hardware, point `[transcription.local] server_url` at any service
-  that honours the `docs/LOCAL-STT.md` contract.
-- **No OpenAI key**: nothing here calls OpenAI.
+- **An ADS-B receiver** with `tar1090` or `readsb` (or an external source, see above).
+- **Audio of the airband**: anything FFmpeg reads — an Icecast stream per frequency (what
+  this was built against), an HTTP stream, raw PCM over UDP from an SDR program, a receiver
+  on the sound card, SRT if your FFmpeg has libsrt.
+- **A Mac with Apple Silicon** for transcription (the station's runs on a Mac mini with
+  24 GB; the three models take 8 GB or more), **Python 3.11+** for the sidecar, **Go 1.23+**,
+  **FFmpeg**, and `pdftotext` (poppler) for the procedure tables.
 
 ## Getting started
 
 ```bash
-git clone https://github.com/<you>/clairance.git
+git clone https://github.com/chatelp/clairance.git
 cd clairance
-cp configs/config.toml.example configs/config.toml
+cp configs/config.toml.example configs/config.toml   # then set your station, sources and airports
 go build -o bin/co-atc ./cmd/server
+python3 -m venv .venv && .venv/bin/pip install -r sidecar/requirements.txt
 ```
 
-To have the settings panel and the sign-in page say which build is running,
-give the binary its version and commit when building; without them it says
-`dev` and `unknown`:
+To have the settings and the sign-in page say which build is running:
 
 ```bash
 go build -ldflags "-X main.version=$(git describe --tags --match '[0-9]*' --always) -X main.commit=$(git rev-parse --short HEAD)" \
   -o bin/co-atc ./cmd/server
 ```
 
-> The binary is still called `co-atc`, and the Go module path is still upstream's.
-> Both are deliberate: on macOS the Local Network permission is granted **per
-> executable**, so renaming the binary means re-granting it — and a permission that
-> was silently not granted looks exactly like a network outage. Changing the module
-> path would touch every import in every Go file, and with it every future diff
-> against upstream.
-
-Install the transcription sidecar's dependencies:
-
-```bash
-pip install -r sidecar/requirements.txt
-```
-
-You do not run it yourself. Set `[transcription.local] command` in the config and
-**co-atc starts the sidecar with it and stops it on exit** — a transcription
-service has no reason to outlive its only client. Measured: a cold sidecar
-answers in 1.6 s, and its first transcription costs 2.2 s more than the next, so
-there is nothing to gain by leaving one running.
-
-If you would rather run it yourself — in another terminal, on another machine,
-in a container — leave `command` empty and point `server_url` at it. Upstream's
-contract is a URL for exactly that reason.
-
-Either way co-atc probes `/health` before it serves anything and **refuses to
-start if nothing answers**. Without that it would start perfectly and transcribe
-nothing, one error line per transmission.
+You do not start the transcription sidecar yourself: set `[transcription.local] command`
+in the configuration and the server starts it, restarts it if it dies, and stops it on
+exit. Leave it empty to run the server without transcription, or point `server_url` at a
+sidecar running elsewhere.
 
 ```bash
 ./bin/co-atc -config configs/config.toml
 ```
 
-Then open `http://localhost:8000`. The first visit asks whether the server is for
-this machine only or needs an account.
+Then open `http://localhost:8000`. The first visit asks whether the server is for this
+machine only (no sign-in) or reachable with an account. A server that listens beyond
+`127.0.0.1` without an account refuses to start.
 
-The map can draw the airports around your station — runways at their real width,
-taxiways, aprons, terminals — from OpenStreetMap. The data is fetched once, for your
-station, and stays on your machine (it is not in the repository):
+Optional, once:
 
-```bash
-python3 tools/airport-layout/fetch.py --config configs/config.toml   # --radius-nm 35 by default
+- `python3 tools/airport-layout/fetch.py --config configs/config.toml` draws the airports'
+  runways, taxiways and aprons around your station (OpenStreetMap, ODbL).
+- In *Settings → Regional data*, **Update from the SIA** fetches the official names and the
+  published procedures of the French airports you follow.
+- `tools/menubar/` builds **Clairance.app**, a menu-bar launcher that starts and stops
+  your installation's own production script and shows every instance running. On macOS,
+  start the server from it, or from a double-click, rather than from a terminal that may
+  quit: the server's Local Network permission is that of the application that started it.
+
+> The binary is still called `co-atc` and the Go module path is still upstream's. On macOS
+> the Local Network permission is granted per executable, and a permission silently not
+> granted looks exactly like a network outage; renaming would re-ask it on every machine.
+
+`configs/config.toml.example` is about 170 lines; a key left out takes its default
+(`internal/config/defaults.go`). At startup the server names, one line each, what it found
+in the file and does not read.
+
+## How it works
+
+```mermaid
+flowchart TD
+  station["Receiving station<br/>one audio stream per frequency · ADS-B"]
+  seg["Segmenter<br/>a transmission ends after 0.6 s of silence<br/><i>Go · FFmpeg</i>"]
+  subgraph sidecar["Transcription sidecar · Python, MLX"]
+    direction LR
+    vad["Speech or noise?<br/><i>Silero VAD</i>"] --> en["English reading<br/><i>whisper-large-v3-atco2</i>"]
+    en --> gate["French?<br/>a French word, or p(fr) ≥ 0.1"]
+    gate --> fr["French reading<br/><i>whisper-large-v3-french</i>"]
+  end
+  grammar["Phraseology grammar<br/>callsign, instructions, procedures"]
+  sky["ADS-B sky<br/>phases, runway judge, sequences"]
+  matcher["Matcher<br/>the aircraft each transmission was addressed to"]
+  page["Web page<br/>thread, map, PAR, story"]
+  station --> seg --> sidecar --> grammar --> matcher
+  station --> sky --> matcher
+  matcher --> page
+  sky --> page
 ```
 
-It writes `www/data/airport-layout.geojson` (Python 3.11+, nothing to install; it asks
-the Overpass API, `overpass.openstreetmap.fr` then `overpass-api.de`). Run it again
-whenever you want fresher data. Without the file the "Airport layout" layer is simply
-empty. The data is © OpenStreetMap contributors, under the ODbL.
+- **The sidecar** (`sidecar/`) implements the local transcription contract upstream wrote
+  but never built ([`docs/LOCAL-STT.md`](docs/LOCAL-STT.md)). Two choices there were
+  measured, and both go against intuition: upstream's transcription prompt is removed (on a
+  three-second transmission it outweighs the audio and multiplies invented loops sevenfold
+  on French), and the language is set per frequency rather than detected.
+- **The phraseology grammar** (`internal/transcription/phraseology`) does what upstream asked
+  GPT-4o to do — numbers as digits, who is speaking, clearances, the callsign — with closed
+  patterns. The one thing it gives up is rewriting the text freely; a dictionary corrector
+  was tried and lost more than it gained.
+- **The matcher** compares the callsign heard with the short list of aircraft the station
+  can see, within the frequency's sector, weighting digits, airline and letters, and keeps a
+  two-minute memory of who was spoken to. The rules and their settings come from measured
+  sweeps (`docs-fr/30-association-regles-et-reglages.md`).
+- **The ADS-B side** detects flight phases, judges the runway each aircraft used, follows the
+  runway in use and the arrival sequence of every airport you follow, and predicts positions
+  between receiver updates so the aircraft glide.
+- **The page** is plain HTML, Alpine.js and OpenLayers, with its own design system
+  (`docs-fr/design/`), and no build step but Tailwind's.
 
-To write an account into the configuration instead, `./bin/co-atc -add-user alice`
-reads a password without echoing it and prints a `[[auth.users]]` block to paste into
-`configs/config.toml`; it writes nothing itself.
+## Built on Co-ATC
 
-### Configuration
+Clairance started as a fork of [**Co-ATC**](https://github.com/yegors/co-atc) by Yegor S,
+which already joined the airband and ADS-B on a map — by sending the audio to OpenAI. This
+project moved the listening to the machine in the room, for a bilingual radio, and measured
+every step. Since October 2026 it is developed as a product in its own right: the interface
+is new, upstream's AI assistant and cloud calls are gone, and nothing is rebased. Upstream's
+ADS-B ingestion and flight-phase detection remain its foundations, and its git history is
+preserved (the `upstream` remote).
 
-`configs/config.toml.example` is about 150 lines, and every key in it does something.
-A key left out takes the default written in `internal/config/defaults.go`, which is
-the value the example carried when every key was written out, so a short file and a
-long one load the same. What no default can guess stays in the file: where the
-receiver is and which airport it watches, where the aircraft and the streams come
-from, whether sign-in is wanted, and the five flight-phase values that differ from
-the code's defaults, kept because the runway judge was validated with them.
-
-The sections, in the order someone installing meets them: `[server]`, `[auth]`,
-`[station]`, `[adsb]`, `[frequencies]` and its `[[frequencies.sources]]`,
-`[transcription]` and `[transcription.local]`, `[post_processing]`, `[storage]`,
-`[logging]`, `[reference]`, `[wx]`, `[flight_phases]`.
-
-At startup the server says, one line each and by name, what it found in the file
-that it does not read: a key or a whole section left over from a removed feature
-(`[atc_chat]`, the OpenAI keys), a misspelling, `db_retention_days`. It never refuses
-to start over such a line. Two keys that used to be written in two sections have one
-home each, `airport_range_nm` in `[station]` and `airlines_dat_path` in
-`[reference]`; the older key is still read when present, and said.
-
-## Also in here
-
-- **`cmd/phraseology`** — the measurement tool. It replays a capture or a database
-  through the exact production rules and reports matches against shuffled controls.
-  Most of the numbers in this README came out of it.
-- **`assets/spoken-operators.csv`** — radio operator names **as this station hears
-  them**, including the mangled ones (`mazda` → Malta Air), with the evidence count
-  behind each line. Not an aeronautical reference; a record of observations.
-- **`tools/annotate`** — a small annotation UI for building ground truth.
+What could be useful back upstream is kept as self-contained commits: the transcription
+sidecar, the database rotation fix, authentication, the server-state endpoint.
 
 ## The working notes
 
-`docs-fr/` is the project's memory, in French, and it is the honest part: it records
-what was measured, what was eliminated, and **what was concluded wrongly and
-withdrawn**. `docs-fr/05-decisions.md` in particular carries decisions on one side
-and open questions on the other, and is kept current as a rule rather than a habit.
-
+[`docs-fr/`](docs-fr/) is the project's memory, in French: what was measured, what was
+dropped, and what was concluded wrongly and withdrawn. `docs-fr/05-decisions.md` holds the
+decisions and the open questions; `docs-fr/33-pilotage.md` says where things stand.
 `docs/` belongs to upstream and is left as it is.
 
-## Credits and licence
+## Licence
 
-This is a fork of **[yegors/co-atc](https://github.com/yegors/co-atc)** by Yegor S,
-MIT licensed, and it stays MIT. Upstream's `LICENSE` and copyright notice are
-preserved unchanged; upstream's git history is preserved and reachable through the
-`upstream` remote.
-
-The map, the ADS-B pipeline, the flight-phase detection and the entire web interface
-are upstream's work.
-
-Several pieces here are meant to be useful back to upstream and are kept separable
-for that: the transcription sidecar (which implements upstream's own documented
-contract), the database rotation fix, the authentication package, and the operational
-state endpoint.
+MIT, as upstream. Upstream's `LICENSE` and copyright notice are kept unchanged.
