@@ -503,11 +503,13 @@
             ? '-'
             : aircraft.adsb.alt_baro === 0 ? 'GND'
             : reading && reading.kind === 'fl' ? 'FL ' + String(reading.fl).padStart(3, '0')
-            : `${Math.round((reading ? reading.ft : aircraft.adsb.alt_baro) / 10) * 10}ft`;
+            // The brand's numbers (MapLabel), as the story and the list
+            // write them: "3 100 ft", "168 kt", a thin space in thousands.
+            : `${groupThousands(Math.round((reading ? reading.ft : aircraft.adsb.alt_baro) / 10) * 10)} ft`;
         const trendArrow = getAltitudeTrendArrow(aircraft);
         const speed = Number.isFinite(aircraft?.adsb?.gs)
-            ? `${Math.round(aircraft.adsb.gs)}kt`
-            : '--kt';
+            ? `${Math.round(aircraft.adsb.gs)} kt`
+            : '-- kt';
 
         let ageSeconds = null;
         if (store && typeof store.getSecondsSinceLastSeen === 'function') {
@@ -553,6 +555,10 @@
             labelMeasure.font = '11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
         }
         return labelMeasure.measureText(text).width;
+    }
+
+    function groupThousands(n) {
+        return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f');
     }
 
     // "1 620 ft", "FL 110", "ground": the brand's numbers (thin space).
