@@ -307,10 +307,16 @@
             if (arr && Number.isFinite(arr.distNM)) {
                 const eta = Number.isFinite(arr.etaSec)
                     ? ` · ${Math.floor(arr.etaSec / 60)}:${String(Math.round(arr.etaSec % 60)).padStart(2, '0')}` : '';
+                // The label's rule (Q57): the pair of runways until 15 NM.
+                const said = window.ProbableExits ? window.ProbableExits.arrivalText(arr.runway, arr.distNM) || arr.runway : arr.runway;
                 second = {
-                    label: `To ${arr.runway}`, value: arr.distNM.toFixed(1), unit: 'NM', extra: eta,
-                    help: `Distance along the approach to runway ${arr.runway} at ${arr.airport}, and the time to touchdown at its present speed: the same estimate as the PAR.`,
+                    label: `To ${said}`, value: arr.distNM.toFixed(1), unit: 'NM', extra: eta,
+                    help: `Distance along the approach to runway ${arr.runway} at ${arr.airport}, and the time to touchdown at its present speed: the same estimate as the PAR.` +
+                        (said !== arr.runway ? ' Until 15 NM out the pair of runways is said: the runway itself is right 97 times in 100 from there.' : ''),
                 };
+            } else if (typeof this.probableCell === 'function' && this.probableCell(a)) {
+                // A departure's probable exit (Q57).
+                second = this.probableCell(a);
             } else {
                 const d = a.distance;
                 second = {

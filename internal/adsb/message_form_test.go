@@ -7,7 +7,7 @@ import (
 )
 
 // keyPaths notes every key of a JSON object, and those of the objects that
-// carry the aircraft (data, aircraft, adsb, delta), as dotted paths; arrays
+// carry the aircraft (data, aircraft, adsb, delta, timing), as dotted paths; arrays
 // and the other objects are leaves.
 func keyPaths(prefix string, v any, into map[string]bool) {
 	obj, ok := v.(map[string]any)
@@ -17,7 +17,7 @@ func keyPaths(prefix string, v any, into map[string]bool) {
 	for k, x := range obj {
 		into[prefix+k] = true
 		switch k {
-		case "data", "aircraft", "adsb", "delta":
+		case "data", "aircraft", "adsb", "delta", "timing":
 			keyPaths(prefix+k+".", x, into)
 		}
 	}
@@ -58,9 +58,12 @@ func TestMotionMessagesKeepTheirForm(t *testing.T) {
 		// An aircraft is added on its first poll, before any hindcast.
 		"aircraft_added": "data data.aircraft data.hex data.observed_at data.type type " +
 			strings.Replace(data(aircraftForm), "data.aircraft.hindcast ", "", 1),
-		"aircraft_update": `data data.aircraft data.delta data.delta.alt_baro data.delta.atc_derived
+		// The delta and the two figures the page dates the position by; the
+		// whole aircraft no longer rides along (16/10).
+		"aircraft_update": `data data.delta data.delta.alt_baro data.delta.atc_derived
 			data.delta.gs data.delta.lat data.delta.lon data.delta.mag_heading data.delta.phase
-			data.delta.track data.delta.true_heading data.hex data.observed_at data.type type ` + data(aircraftForm),
+			data.delta.track data.delta.true_heading data.hex data.observed_at data.timing
+			data.timing.seen data.timing.seen_pos data.type type`,
 	}
 	for typ, form := range want {
 		var got []string

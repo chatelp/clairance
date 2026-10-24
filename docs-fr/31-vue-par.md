@@ -1,5 +1,10 @@
 # 31 — La vue PAR : le ciel de profil, piste par piste
 
+> **Document historique — revue du 20/10.** Conception et suivi arrêtés le 01/10 ; le corps du
+> texte n'est pas réécrit. La vue PAR est **en production**, redessinée sur le système de design à
+> l'étape 9e de la migration (f34cb62) ; le suivi continue dans `32-audit-produit.md` et
+> `33-pilotage.md`.
+
 > **État au 29/09 : implémentation commencée le jour même.** Proposition validée par le
 > propriétaire (D67) ; tranché le même jour : 15° côté départs (V6), altitude de transition relevée
 > (V2), réglages modifiables dans l'outil, calcul dans le navigateur (V4), bascule de l'écran

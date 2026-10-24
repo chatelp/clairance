@@ -1,5 +1,16 @@
 # Co-ATC amont — vérifié dans le code
 
+> **Document historique — revue du 20/10.** Il décrit l'amont tel qu'il a été lu et exécuté le
+> 15/09 ; le corps du texte n'est pas réécrit. Depuis le 10/10 (D71), Clairance est un produit
+> à part et s'écarte de ce qui est décrit ici : le chemin OpenAI, le chat IA, la simulation
+> d'avions et le Docker de l'amont sont **retirés** ; ont été **ajoutés** l'authentification
+> (Argon2id, sessions, rôles), le sidecar de transcription MLX, la grammaire de phraséologie,
+> l'état du serveur, les sources ajoutées en marche, une interface refaite. La liste à jour est
+> dans le README (« What is different from upstream »). Deux repères ont bougé : le commit amont
+> `0e4d685` cité plus bas s'appelle **`de57f07`** (même contenu, même date du 3 mai 2026) depuis
+> la réécriture de l'historique du 12/10 (D75, vérifié par `git log upstream/main`), et le clone
+> `upstream/` n'existe plus — l'amont se lit par le remote `upstream`.
+
 > **Document réécrit le 15 septembre 2026** après lecture, compilation et exécution des
 > sources. La version précédente venait d'une lecture de la page du dépôt ; ce qu'elle
 > annonçait est confirmé, corrigé ou infirmé ci-dessous, avec la mesure à l'appui.

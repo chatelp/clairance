@@ -1,5 +1,25 @@
 # 26 — Ce que co-atc interprète et affiche, par la voix et par l'ADS-B
 
+> **Document historique — revue du 20/10.** Il décrit l'état du 23/09 ; le corps du texte n'est
+> pas réécrit. L'interface a été reconstruite sur le système de design du 13 au 15/10 (migration,
+> étapes 0 à 13), et les §5 et suivants, qui décrivent l'interface de l'amont, ne la décrivent
+> plus. L'état courant : `33-pilotage.md` et le README. Ce qui a changé, vérifié dans le code :
+>
+> - **un journal d'événements** (`www/events.js`) remplace la barre d'alertes de l'amont :
+>   squawks d'urgence (7500, 7600, 7700), remises des gaz, changements de piste en service ;
+> - **plus de chat IA ni d'avions simulés** (retirés, D71) ; l'accès local est enregistré et se
+>   change dans les réglages (D51) ;
+> - **un volume par fréquence**, la relecture de l'audio archivé de chaque transmission
+>   (`store.playClip`) ;
+> - **la fiche d'un avion** en onglets Story / Details / Track / Nearby, et la colonne
+>   « Right now » / « Traffic » ; **un seul fil radio** pour toutes les fréquences (D77) ;
+> - **la vue PAR**, redessinée sur le système de design (étape 9e) ; **les noms officiels de
+>   l'AIP** (procédures entendues, Q55) et **les routes publiées** (Q56) ; **la piste et la sortie
+>   probables** sur l'étiquette de l'avion (Q57) ;
+> - **la preuve de l'appariement** gardée avec la transmission et montrée au survol (D72) ;
+> - **les réglages** réunis dans une page à six sections (Listening, Callsign matching, Regional
+>   data, Display, Account, System), avec trois préréglages d'appariement (D73) : voir doc 30.
+
 *État de l'implémentation au 23 septembre 2026, branche `local`. Mis à jour le même jour
 après D49 : les phases sont désormais jugées par rapport à un aéroport de référence
 réglable.*

@@ -20,6 +20,11 @@ station link and the clean stop stay in one place, and stops it with SIGTERM,
 which that script's trap turns into a clean stop of co-atc, its sidecar and the
 station link. A script started from Terminal is stopped the same way.
 
+That script is the installation's own, not part of the repository (`runs/` is not
+tracked): it starts `bin/co-atc` with its configuration, which starts the
+transcription sidecar, then the station link `bin/radio-ctl-sync`, and stops all
+three on SIGTERM.
+
 ```sh
 tools/menubar/build.sh --install   # builds Clairance.app, copies it to ~/Applications
 ```
@@ -42,12 +47,19 @@ page) only if it was built with its version and commit; a script that builds
 co-atc before starting it should pass them:
 
 ```sh
-go build -ldflags "-X main.version=$(git describe --tags --always) -X main.commit=$(git rev-parse --short HEAD)" \
+go build -ldflags "-X main.version=$(git describe --tags --match '[0-9]*' --always) -X main.commit=$(git rev-parse --short HEAD)" \
   -o bin/co-atc ./cmd/server
 ```
 
 The same actions from a terminal or a Shortcut, through the same code:
 
 ```sh
-~/Applications/Clairance.app/Contents/MacOS/atc-scribe --status   # or --start, --stop
+~/Applications/Clairance.app/Contents/MacOS/clairance --status   # or --start, --stop
 ```
+
+A production started this way from a terminal belongs, for macOS, to the
+application that terminal runs in: its Local Network permission is that
+application's. If that application quits or updates itself, the server keeps
+running but can no longer reach the station on the LAN ("no route to host"),
+with no other sign (16-18/10/2026). Start production from the menu or by a
+double-click on the script when it must outlive the terminal.

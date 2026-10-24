@@ -25,6 +25,9 @@ utiles** vers la station, pas du gigabit. Des boîtiers CPL sont commandés pour
 ça. Dimensionner en conséquence : quelques centaines de kbit/s d'audio passent sans
 problème, un flux IQ brut à 16 Mbit/s non.
 
+> *À re-vérifier côté station (revue du 20/10)* : la latence, le débit et l'arrivée des
+> boîtiers CPL datent du 15/09 et n'ont pas été remesurés depuis.
+
 ## Deux chaînes indépendantes, deux antennes, deux clés
 
 | Chaîne | Clé RTL-SDR | Statut |
@@ -46,6 +49,7 @@ Onze services Docker dans `/opt/adsb/docker-compose.yml`, neuf en permanence ; *
 depuis le 30/09**, avec `opensky`.
 Les noms d'hôte `*.lan` sont résolus par un Pi-hole en 192.0.2.2 — **depuis le M4 ils
 fonctionnent ; depuis un conteneur ou une machine tierce, utiliser l'IP.**
+*À re-vérifier côté station (revue du 20/10) : le nombre de services et leur état.*
 
 | Ce dont Co-ATC a besoin | Où le prendre |
 |---|---|
@@ -62,6 +66,15 @@ fonctionnent ; depuis un conteneur ou une machine tierce, utiliser l'IP.**
 > `http://localhost:8000/` répond « connection refused ». Tout passe par Caddy.
 
 ## L'obstacle principal : un flux, pas N flux
+
+> **Réglé (revue du 20/10).** La section qui suit est écrite au futur, comme l'état du
+> 15/09 ; elle est **faite**. La station diffuse **un flux Icecast par fréquence** (flux
+> séparés en service dès le 26/09), et Clairance les suit depuis le 28/09 (D57, D64, Q45) :
+> `radio-ctl-sync` lit l'état de la station et donne à co-atc, pour chaque fréquence, le
+> `flux_url` publié par `/radio/etat`, sans jamais basculer la station. Le mélangeur
+> `aero.mp3` continue de fonctionner pour l'écoute, mais n'est plus transcrit. L'implantation,
+> les mesures de charge et le piège des sorties fichier ci-dessous restent valables comme
+> raisonnement ; ce qui s'y présente comme à faire ne l'est plus.
 
 **C'est la première chose à traiter, et elle vient avec une contrainte ferme.**
 
@@ -133,6 +146,10 @@ soit l'impression à l'oreille. Comparer à une référence prise **à la même 
 
 ## Les groupes de fréquences
 
+*À re-vérifier côté station (revue du 20/10) : la table des groupes est celle du 15/09 ; les
+groupes et leurs fréquences ont pu changer depuis (le groupe `amas-132-133` a déjà été
+renommé, plus bas).*
+
 La station ne peut pas tout écouter : **une clé RTL-SDR ne voit que 2,56 MHz d'un coup,
 la bande aéro en fait 19**. Le propriétaire a donc dix « groupes d'écoute », des
 gabarits dans `/opt/adsb/modes/*.tmpl`, entre lesquels il bascule.
@@ -158,6 +175,8 @@ gabarits dans `/opt/adsb/modes/*.tmpl`, entre lesquels il bascule.
 
 **Conséquence pour Co-ATC** : la liste des fréquences n'est pas figée, elle change quand
 le propriétaire bascule de groupe. Trois attitudes possibles, à arbitrer —
+*(tranché : la deuxième, hors de co-atc, par `radio-ctl-sync` qui suit l'état de la station
+et ajoute ou retire les sources en marche, D36, D57 ; revue du 20/10)* —
 
 - déclarer toutes les fréquences dans la config et accepter que la plupart soient
   muettes selon le groupe actif ;
@@ -169,7 +188,9 @@ champ `accord` qui dit si ce qui sort d'Icecast correspond bien au gabarit charg
 
 ## Le catalogue des fréquences
 
-52 fréquences identifiées. Les principales pour l'usage :
+Le catalogue (`06-catalogue.csv`) compte **68 lignes, dont 31 identifiées** ; le « 52 fréquences
+identifiées » écrit ici le 15/09 ne correspond à aucun décompte du fichier, Q10 reste ouverte
+(revue du 20/10). Les principales pour l'usage :
 
 | MHz | Service | Langue attendue |
 |---|---|---|
@@ -200,7 +221,10 @@ en Q9 et Q32.
 > 21 h ne porte **pas** de météo : ni vent, ni QNH, ni piste en service. Détail en Q32.
 
 **Quinze fréquences actives ne sont dans aucune liste publique** et restent à
-identifier ; sept d'entre elles sont en cours d'enregistrement nocturne. Le catalogue
+identifier ; sept d'entre elles sont en cours d'enregistrement nocturne. *(Dépassé en
+partie : les sept canaux de la tranche 132-133, ceux qu'on enregistrait la nuit, ont été
+examinés un à un le 16/09 et leur nature établie, `24-identification-amas.md` ; ce paragraphe
+date du 15/09 et le décompte du reste est celui de Q10 ; revue du 20/10.)* Le catalogue
 complet avec niveaux de crête et de médiane est dans l'artefact « Plan de bande aéro »
 du propriétaire.
 

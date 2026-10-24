@@ -1,7 +1,9 @@
 # Audit produit : Clairance n'est plus co-atc — 09/10
 
-*Ouvert le 9 octobre 2026 à la demande du propriétaire. Étude, pas chantier : rien n'est codé
-avant discussion (Q52 dans `05-decisions.md`).*
+*Ouvert le 9 octobre 2026 à la demande du propriétaire (Q52 dans `05-decisions.md`). L'étude du
+09/10 ouvre le document ; D71 a été validée le 10/10 et le document est depuis **le journal du
+chantier produit** : la consolidation et ses paliers, puis, dans la dernière section, « État » (du plus récent
+au plus ancien), chaque livraison datée (revue du 20/10).*
 
 ## Pourquoi maintenant
 
@@ -492,6 +494,33 @@ sur la carte.
 
 ## État
 
+- 20/10 : **revue de la documentation** (revue du 20/10). Les documents de pilotage et d'index ont été remis
+  à jour sur l'état réel : sessions, jalons faits (nom, migration du design, Q55 à Q57, fiches cloud G à M toutes
+  intégrées), décision sur le crédit cloud restant (250 $ jusqu'au 5/11), correction du diagnostic de la troisième
+  famille de sauts (voir l'entrée du 16/10, après-midi), leçon de la production sourde (entrée ci-dessous). Les
+  mesures de la nuit du 16 au 17/10 (`runs/mesures/nuit-2026-10-16/`) n'ont pas encore été analysées ; un coup d'œil
+  de la revue montre que la chaîne était sourde dès 23 h 05 (total de transmissions du relevé figé à 8 109 de
+  23 h 08 à minuit ; une seule tranche de l'instance d'essai porte des données) : à refaire sur une nuit où la
+  chaîne entend.
+- 16 → 18/10 : **la production est restée sourde du 16/10 à 23 h 04 au 18/10 à 13 h 36** (revue du 20/10). Cause :
+  l'application Claude de bureau s'est mise à jour et relancée toute seule, au repos (« stealth update », 23:04:53
+  dans `~/Library/Logs/Claude/main.log`). Tout processus démarré depuis la session Claude — la production, lancée
+  par la ligne de commande du lanceur de la barre des menus, l'instance d'essai, les liens avec la station — a
+  perdu l'accès au réseau local de macOS : « no route to host » vers la station chaque seconde, aucune
+  transcription les 17 et 18/10, alors qu'Internet (la météo) passait. Aucun autre signe. L'instance d'essai a
+  aussi tourné jusqu'au 18/10 à 13 h 35 : le script de nuit n'arrêtait que les sondes. **Leçon** : la production est
+  lancée par le propriétaire (lanceur de la barre des menus) ou par le système (`open`), jamais comme enfant d'une
+  session Claude (`CLAUDE.md`, règle 5, 20/10) ; même règle pour ce qui doit passer la nuit, et un script de nuit
+  arrête tout ce qu'il a lancé.
+- 16/10 (après-midi, 17 h) : **la piste et la sortie probables sur le cartouche** (Q57, décidée par le
+  propriétaire). Mesures d'abord : la piste d'arrivée sur 2 338 arrivées, la sortie de départ sur 3 111 départs, ses
+  probabilités calibrées. Forme de la session design (a0b8201), construite et **en production à 17 h 06** (9fcc281) :
+  le champ en fin de 2ᵉ ligne de l'étiquette, l'histoire de l'avion, et, pour le départ sélectionné, ses sorties
+  possibles dessinées sur la carte. Quatre corrections de la relecture design (un nom par point, silence de la couche
+  sous la route d'une puce, la route d'une puce l'emporte) versées à 17 h 18 (4ba147b). Amorçage de la page sur la
+  trace du serveur versé à 17 h 51 (2c5c6f2) : les premières sorties s'affichent 4 s après l'ouverture, contre
+  environ 70 s. À surveiller : les sorties d'Orly (peu couvertes par la réception) ; après chaque relance, les
+  départs déjà en l'air n'ont pas de sortie.
 - 16/10 (après-midi) : **les avions fantômes, mesurés et corrigés** (le propriétaire : « des avions
   fantômes qui se déplacent à toute vitesse en diagonale »). La station et la base sont saines (aucun
   saut de plus de 15 NM dans la journée) ; une sonde dans Chrome sans fenêtre, sur l'instance d'essai
@@ -507,8 +536,21 @@ sur la carte.
   remesurant : quand l'instance porte aussi les flux audio et leurs transcriptions, l'avion recule
   par moments d'environ 4 s de vol (0,4 à 0,5 NM) puis repart : 380 à 600 sauts par 5 min avec les
   flux, 12 sans (mesure A/B, même serveur, 15 h 52). Ni la correction du cap ni la couche des
-  procédures n'y sont pour rien (essais A/B). Cause à chercher : le retard des messages des avions
-  derrière ceux des transcriptions, piste à mesurer.
+  procédures n'y sont pour rien (essais A/B). **Diagnostic du soir (22 h)** : ni coupure de
+  WebSocket, ni retard de livraison (les prédictions arrivent en 1 ms, avec ou sans flux), ni volume
+  (identique) ; la prédiction du serveur est juste (écart médian 0,01 s de vol sur ~3 500, aucune
+  au-delà de 2 s). Le saut est la règle de l'avion silencieux de la page (D80, 14/10) : un avion dont
+  la station ne reçoit plus la position depuis 5 à 33 s, mais encore prédit par le serveur, est
+  ramené à sa dernière position reçue, puis renvoyé en avant quand une position revient — et elle
+  tombe sur la prédiction (8 cas sur 8). Non expliqué : pourquoi les flux audio multiplient ces cas.
+  Au passage : chaque `aircraft_update` porte l'avion entier en plus du delta, ~5 Ko × 57/s, soit
+  ~300 Ko/s de JSON pour la page.
+  **Corrigé le 16/10 au soir (22 h 47, a09abf1) : le diagnostic de 22 h ci-dessus était faux.** La règle de
+  l'avion silencieux (D80) n'était pas en cause et n'a pas été modifiée. La cause était le rafraîchissement
+  complet de la carte, déclenché par les transcriptions : il replaçait chaque avion à sa position brute, ce
+  qui explique que les flux audio multiplient les sauts. Corrigé (la synchronisation complète garde la pose
+  animée) ; avec flux, 76 sauts en 5 min au lieu de 580 (67 sans flux). Même versement : une mise à jour
+  d'avion porte son delta et sa datation, plus l'avion entier (91 Mo → 5,4 Mo par 5 min).
 - 16/10 (après-midi) : **les routes publiées sur la carte** (Q56, feu vert du propriétaire ; forme de la
   session design, fiche `ProcedureRoute`). Le serveur lit, dans les tables de codage, chaque SID et
   STAR de LFPG et LFPO avec ses points dans l'ordre et ses contraintes par colonne : contraintes lues

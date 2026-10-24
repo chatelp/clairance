@@ -63,6 +63,7 @@
     <script defer src="map/features/proximity-feature.js"></script>
     <script defer src="map/features/minimap-feature.js"></script>
     <script defer src="map/procedure-routes.js"></script>
+    <script defer src="map/probable-exits.js"></script>
     <script defer src="map/features/procedure-feature.js"></script>
 
     <!-- 6) Map renderers (facades first, concrete aircraft renderer second) -->
@@ -299,7 +300,7 @@
                                 <!-- When the French reading named the aircraft, its words are in it. -->
                                 <template x-if="t.callsign_source === 'fr' && t.content_second">
                                     <div class="cl-exchange__explain" lang="fr">
-                                        <span class="cursor-help" data-help-title="French reading" data-help="Every transmission is transcribed twice, by an English and a French model. This is the French reading, where the aircraft was recognised.">French reading:</span>
+                                        <span class="cursor-help" data-help-title="French reading" data-help="Every transmission is read by an English model; when its words or its sound suggest French, a French model reads it again. This is that French reading, where the aircraft was recognised.">French reading:</span>
                                         <span x-html="$store.atc.transcriptHtml(t.content_second, t.callsign_evidence, $store.atc.threadSearch)"></span>
                                     </div>
                                 </template>
@@ -1050,6 +1051,11 @@
                                                     aria-label="Altitude legend" @click="$store.atc.flipSetting('showAltitudeLegend', 'saveSettings')"></button>
                                             <span class="cl-menu__label cursor-help" data-help-title="Altitude legend" data-help="Bottom left of the sky: which colour an aircraft wears from which altitude, and how many fly in each band and at which levels.">Altitude legend</span>
                                         </div>
+                                        <div class="cl-menu__row">
+                                            <button class="cl-switch" role="switch" :class="$store.atc.settings.showProbable !== false ? 'is-on' : ''" :aria-checked="$store.atc.settings.showProbable !== false"
+                                                    aria-label="Probable runway and exit" @click="$store.atc.flipProbable()"></button>
+                                            <span class="cl-menu__label cursor-help" data-help-title="Probable runway and exit" data-help="Read from each aircraft's ADS-B track, not announced by the controllers. An arrival: its pair of runways from 20 NM out (→26L/R), the runway itself from about 15 NM (→26L). A departure, from 15 NM: the exit it is heading for, and how many others stay possible (→OKASI +2). Nothing for an aircraft guided on a heading. Select a departure to see the published routes of its possible exits.">Probable runway and exit</span>
+                                        </div>
                                     </div>
                                     <div class="cl-menu__sep"></div>
                                     <div class="cl-menu__group">
@@ -1439,7 +1445,7 @@
                                     <template x-for="c in $store.atc.storyHead.cells" :key="c.label">
                                         <div class="cursor-help" :data-help-title="c.label" :data-help="c.help">
                                             <div class="cl-label" x-text="c.label"></div>
-                                            <div class="cl-story__val"><span x-text="c.value"></span><span x-show="c.unit" class="cl-unit" x-text="c.unit"></span><span x-text="c.extra"></span></div>
+                                            <div class="cl-story__val"><span x-text="c.value"></span><span x-show="c.unit" class="cl-unit" x-text="c.unit"></span><span x-text="c.extra" :class="c.extraDim ? 'text-[var(--color-text-tertiary)]' : ''"></span></div>
                                         </div>
                                     </template>
                                 </div>
@@ -1734,7 +1740,7 @@
                                            x-html="$store.atc.transcriptHtml(t.content_processed || t.content, (t.callsign_source !== 'fr' && t.content_processed) ? t.callsign_evidence : null, '', $store.atc.placeSpans(t, !!t.content_processed))"></p>
                                         <template x-if="t.callsign_source === 'fr' && t.content_second">
                                             <div class="cl-exchange__explain" lang="fr">
-                                                <span class="cursor-help" data-help-title="French reading" data-help="Every transmission is transcribed twice, by an English and a French model. This is the French reading, the one that named the aircraft.">French reading:</span>
+                                                <span class="cursor-help" data-help-title="French reading" data-help="Every transmission is read by an English model; when its words or its sound suggest French, a French model reads it again. This is that French reading, the one that named the aircraft.">French reading:</span>
                                                 <span x-html="$store.atc.transcriptHtml(t.content_second, t.callsign_evidence)"></span>
                                             </div>
                                         </template>
@@ -1865,6 +1871,7 @@
     <script defer src="store/story.js"></script>
     <script defer src="store/sky.js"></script>
     <script defer src="store/procedures.js"></script>
+    <script defer src="store/probable.js"></script>
     <script defer src="server-settings.js"></script>
     <script defer src="app.js"></script>
     <!-- Alpine starts after every script above has registered its stores and

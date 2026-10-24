@@ -1,54 +1,54 @@
-# Static Assets
+# Static assets
 
-This directory contains static data files used by Co-ATC for metadata enrichment and AI context.
+Reference data the server reads at start: for the map, the flight phases, the runway
+judge, and the phraseology grammar that reads callsigns from the radio. No file here is
+sent anywhere.
 
-## Data Sources
+`scripts/download_assets.sh` (or `.ps1` on Windows) downloads the six public files
+below again; the two observation tables are this project's own and are not downloaded.
+
+## Public data
 
 ### `aircraft.csv`
-Database of aircraft metadata (registration, type code, manufacturer, etc.) used to enrich live ADS-B data, particularly for sources that do not provide full metadata (e.g., OpenSky).
+Aircraft metadata (registration, type, manufacturer), joined to the live ADS-B by hex
+code, for sources that do not carry it.
 
-*   **Source**: [wiedehopf/tar1090-db](https://github.com/wiedehopf/tar1090-db)
-*   **Format**: Semicolon-separated CSV (Hex;Registration;Type;...)
+* **Source**: [wiedehopf/tar1090-db](https://github.com/wiedehopf/tar1090-db)
+* **Format**: semicolon-separated CSV (hex;registration;type;…)
 
 ### `airlines.dat`
-Database of airline operators including ICAO/IATA codes, callsigns, and country of origin. used for flight number matching and operator identification.
+Airline operators: ICAO and IATA codes, radiotelephony callsign, country. The grammar
+matches the operator a pilot or controller says against it.
 
-*   **Source**: [OpenFlights.org](https://openflights.org/data)
-*   **Format**: CSV (ID, Name, Alias, IATA, ICAO, Callsign, Country, Active)
+* **Source**: [OpenFlights](https://openflights.org/data), frozen around 2014: what it
+  gets wrong or lacks is corrected by `telephony-overrides.csv` below.
+* **Format**: CSV (id, name, alias, IATA, ICAO, callsign, country, active)
 
 ### `airports.csv`
-Database of airport locations and attributes used to automatically configure station coordinates and elevation.
+Airports and their positions: the airports drawn on the map, and the reference airport
+the server picks among those followed.
 
-*   **Source**: [OurAirports.com](https://ourairports.com/data/)
-*   **Format**: CSV (id, ident, type, name, latitude_deg, longitude_deg, elevation_ft, ...)
+* **Source**: [OurAirports](https://ourairports.com/data/)
 
 ### `runways.csv`
-Runway threshold coordinates for supported airports, used for accurate landing and takeoff detection relative to specific runways.
+Runway ends and thresholds: the runway judge, take-off and landing detection, the
+arrival sequence and the PAR view.
 
-*   **Source**: [OurAirports.com](https://ourairports.com/data/)
-*   **Format**: CSV (id, airport_ident, le_ident, le_latitude_deg, le_longitude_deg, ...)
+* **Source**: [OurAirports](https://ourairports.com/data/)
 
-### `recat_eu_aircraft.csv`
-Database of aircraft Wake Turbulence Categories (RECAT-EU) based on ICAO aircraft type designators. Used to infer wake turbulence category from aircraft type.
+### `airport-frequencies.csv`, `navaids.csv`
+Airport radio frequencies and radio navaids (VOR, DME, NDB) for the map and the
+frequency names.
 
-*   **Source**: [EASA - Assignment of ICAO Aircraft Types to RECAT-EU Wake Turbulence Categories](https://www.easa.europa.eu/en/assignment-icao-aircraft-types-recat-eu-wake-turbulence-categories)
-*   **Format**: CSV (Manufacturer, Model, ICAO Type Designator, ICAO Legacy WTC, RECAT-EU WTC)
+* **Source**: [OurAirports](https://ourairports.com/data/)
 
-#### Updating `recat_eu_aircraft.csv`
+## This project's observations
 
-The CSV is generated from the official EASA PDF using a Python script.
+### `telephony-overrides.csv`
+Radiotelephony designators that `airlines.dat` gets wrong, lacks or ignores, as heard
+over the receiver. Read by the grammar (`internal/transcription/phraseology`).
 
-**Prerequisites:**
-- [uv](https://github.com/astral-sh/uv) (fast Python package installer and resolver)
-
-**Instructions:**
-1.  Download the latest PDF from the EASA website and save it as `assets/extract-recat-eu/recat-eu.pdf`.
-2.  Navigate to `assets/extract-recat-eu`.
-3.  Run the script:
-    ```bash
-    uv run main.py
-    ```
-4.  The `recat_eu_aircraft.csv` file will be generated in the same directory.
-
------
-Copy/pasted from: https://github.com/stignarnia/co-atc/blob/main/assets/README.md
+### `spoken-operators.csv`
+How operator names come out of the speech recognition on this station, mangled forms
+included (`mazda` for Malta Air), with the evidence count behind each line. Not an
+aeronautical reference: a record of observations, in French.

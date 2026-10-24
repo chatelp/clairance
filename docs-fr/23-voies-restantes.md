@@ -1,5 +1,12 @@
 # 23 — Où en est la chaîne, et ce qu'il reste comme voies
 
+> **Document historique — revue du 20/10.** Bilan du 16/09 ; le corps du texte n'est pas réécrit.
+> Les quatre points de « Ce qu'il reste » (partie B) sont réglés : le test mélange contre canal par
+> canal (Q28, puis le flux par fréquence en production, D64 : ×4 d'avions justes) ; le détecteur
+> d'erreur par les valeurs lues (juge J2, doc 29) ; la base qui ne tournait jamais (Q26, corrigée
+> par D22) ; les annotations du propriétaire (D44, vérité terrain). L'état courant est dans
+> `33-pilotage.md`.
+
 *16 septembre 2026, 13 h. Bilan de deux jours de mesures, puis les voies restantes pour
 la reconnaissance vocale anglaise et l'enrichissement de co-atc — hors entraînement
 d'un modèle français, exclu de la question.*

@@ -1,5 +1,7 @@
 # Décisions et questions ouvertes
 
+*Les sections les plus récentes ne sont pas toutes rangées par numéro : chercher par « ### Dnn » ou « ### Qnn ».*
+
 *Tenir ce fichier à jour est une consigne, pas une option : c'est la mémoire du
 chantier. Une décision prise se déplace dans la première section avec sa date et son
 motif. Une question qui se pose s'ajoute à la seconde.*
@@ -10,7 +12,7 @@ motif. Une question qui se pose s'ajoute à la seconde.*
 |---|---|---|---|
 | D1 | **Le service tournera sur le Mac mini M4**, pas sur la station | 15/09 | Deux cœurs Haswell déjà chargés côté station ; la transcription locale demande de la puissance. L'ADS-B et l'audio traversent le réseau : quelques centaines de kbit/s, sans commune mesure avec le lien disponible. |
 | D2 | **Le mode de diffusion par canal s'ajoute au mélangeur, il ne le remplace pas** — et il est activable à la demande | 15/09 | Le flux mélangé `aero.mp3` est écouté tous les jours et ne doit pas changer. Le mode par canal rejoint la mécanique de bascule existante de `radio-ctl`. |
-| D3 | **Transcription entièrement locale**, l'API OpenAI est retirée | 15/09 | Coût récurrent, envoi de l'audio chez un tiers, dépendance réseau sur une station autonome. C'est la raison d'être du fork. |
+| D3 | **Transcription entièrement locale**, l'API OpenAI est retirée | 15/09 | Coût récurrent, envoi de l'audio chez un tiers, dépendance réseau sur une station autonome. C'est la raison d'être du fork. *(Exécutée le 09/10 : fiche A, intégrée au commit 91cf595 ; le 0c3fb3e de la branche cloud n'est pas dans ce dépôt — revue du 20/10.)* |
 | D4 | ~~**Nom du dépôt : `co-atc-local`**~~ — **remplacée par D20 le 16/09** | 15/09 | Destiné à un dépôt public. C'est ce qu'on cherche quand on veut Co-ATC sans OpenAI. Whisper est le moyen, « local » est la promesse. |
 | D5 | **Le service reste sur le réseau local**, jamais exposé | 15/09 | Co-ATC n'a aucune authentification et son auteur déconseille l'exposition. |
 | D6 | **La licence amont est MIT — le fork est publiable** | 15/09 | Vérifié le 15/09 dans `LICENSE` sur la branche `main` du dépôt amont : « MIT License — Copyright (c) 2025 Yegor S ». MIT autorise la modification et la redistribution sans réciprocité et sans autorisation préalable. **Seule obligation : conserver la notice de copyright et le texte de la licence dans toute copie.** Concrètement : garder le fichier `LICENSE` amont tel quel, et signaler le fork dans le README. |
@@ -90,7 +92,9 @@ corrige l'échantillonnage alphabétique de la première :
 
 Q2 ne bloque plus Q1. Voir aussi D10.
 
-### Q3 — Comment Co-ATC apprend-il quelles fréquences sont actives ?
+### Q3 — Comment Co-ATC apprend-il quelles fréquences sont actives ? *(close — réglée par D57 et Q45)*
+
+**Close (revue du 20/10)** : réglée par D57 (25/09) et Q45 : l'API de sélection des fréquences est à la station, et co-atc la suit par `cmd/radio-ctl-sync` en ajoutant et retirant des sources en marche.
 
 La station change de groupe de fréquences à la demande. Trois options dans
 `01-station.md`. Dépend de ce que la configuration de Co-ATC permet de recharger à
@@ -108,7 +112,9 @@ Deux éléments relevés le 15/09 qui aideront :
   accepter que la plupart soient muettes n'est donc **pas** gratuit : à vérifier sur un
   flux Icecast silencieux, qui n'est pas la même chose qu'un flux absent.
 
-### Q4 — Duplication des gabarits ou injection à la génération ?
+### Q4 — Duplication des gabarits ou injection à la génération ? *(close — réglée par D57 et Q45)*
+
+**Close (revue du 20/10)** : réglée par D57 (25/09) et Q45 : l'API de sélection est à la station, co-atc la suit par `cmd/radio-ctl-sync`.
 
 Pour le mode par canal. L'injection dans `radio-ctl` est recommandée (une seule source
 de vérité pour les fréquences) mais demande de toucher à `serveur.py`, qui tourne en
@@ -206,6 +212,8 @@ le reste est, en principe, téléchargeable.
 
 ### Q10 — Écart de comptage entre les documents et `06-catalogue.csv` *(ouvert, 15/09)*
 
+**Toujours ouvert (revue du 20/10)** : `06-catalogue.csv` compte 68 lignes de données (69 avec l'en-tête), alors que `00-mission.md` et `01-station.md` annoncent encore 52 fréquences identifiées. À trancher.
+
 Relevé le 15/09 en comptant le CSV : **68 lignes**, réparties en 28 « identifiee »,
 14 « non identifiee », 7 « porteuse permanente », 2 « absente de l'AIP » et 17 « sous le
 seuil ». Or `00-mission.md` et `01-station.md` annoncent tous deux « 52 fréquences
@@ -280,7 +288,9 @@ Le pari est asymétrique.
 rempli (dont `LOCAL-STT.md`, qu'on veut garder). Nos documents français ont besoin d'un
 dossier à eux — `dossier/` ou `chantier/`.
 
-### Q12 — Quel `airport_code` pour la station ?
+### Q12 — Quel `airport_code` pour la station ? *(close — D49 et D62)*
+
+**Close (revue du 20/10)** : l'aéroport de référence est réglable depuis le panneau (D49, 23/09) et Orly comme De Gaulle sont suivis ensemble (D62, 26/09).
 
 `[station] airport_code` sert à deux choses : choisir les pistes du « terrain de
 référence » et interroger la météo. Aucun terrain n'est à la station ; le plus proche est
@@ -296,7 +306,9 @@ mettre LFPO Orly, qui publie un METAR mais dont les pistes n'ont rien à voir av
 qu'on entend sur les fréquences d'aéroclub ; ou dissocier les deux réglages, ce qui
 demande de toucher au code.
 
-### Q13 — Faut-il stocker la langue détectée ?
+### Q13 — Faut-il stocker la langue détectée ? *(close — colonne `language`)*
+
+**Close (revue du 20/10)** : la colonne `language` existe dans `transcriptions` (`internal/storage/sqlite/transcriptions.go`).
 
 Le schéma amont (`transcriptions`) n'a **aucun champ pour la langue** : `content`,
 `content_processed`, `speaker_type`, `callsign`. Sur une station bilingue c'est une
@@ -322,7 +334,9 @@ Second usage, pour l'évaluation : **compter les hallucinations de toponymes est
 indicateur en soi**, bien moins coûteux à produire qu'un WER et plus parlant pour ce
 produit qu'un taux d'erreur moyen.
 
-### Q16 — Que publier du jeu d'évaluation ? *(nouvelle, 15/09)*
+### Q16 — Que publier du jeu d'évaluation ? *(nouvelle, 15/09 — close : le jeu reste hors du dépôt)*
+
+**Close (revue du 20/10)** : le jeu d'évaluation reste hors du dépôt ; les voies B (poids entraînés sur du réel) et C (transcriptions réelles publiées) sont fermées depuis le 13/10 (voir `33-pilotage.md`).
 
 Le jeu de 120 transmissions (`09-jeu-de-test.md`) est constitué et **volontairement laissé
 hors du dépôt**. Ce sont des enregistrements de communications radio réelles portant des
@@ -649,7 +663,9 @@ utilisée par câble.
 > aucun moyen de distinguer les deux pannes sans ce relevé côté station.
 
 
-### Q23 — Le lexique des compagnies date de 2014 *(nouvelle, 16/09)*
+### Q23 — Le lexique des compagnies date de 2014 *(nouvelle, 16/09 — résolue autrement le 16/09 : on relève les formes entendues)*
+
+**Close (revue du 20/10)** : résolue autrement, voir plus bas (`assets/spoken-operators.csv`).
 
 `assets/airlines.dat` est la base OpenFlights que l'amont embarque. Mesure sur les
 avions réellement vus au-dessus de la station ce matin :
@@ -774,7 +790,7 @@ fréquence et refuse les ambigus — et remesuré : au plus 3 appariements et 5 
 d'écart, aucune conclusion ne bouge (doc 19). Deux divergences avec la production
 subsistent, listées en Q27.
 
-### Q19 — *(réponse partielle, 16/09)*
+### Q19 (suite) — *(réponse partielle, 16/09)*
 
 La saturation divise presque par deux les appariements vrais sur 125,825 entre sa
 moitié chargée et sa moitié calme — mais 124,350 et 124,625 montrent l'effet inverse.
@@ -841,7 +857,9 @@ catalogue mis à jour.
 **L'amas n'est donc ni un organisme ni un étage** : c'est une tranche de spectre qui
 contient au moins deux centres et deux fonctions.
 
-### Q28 — Le flux mixé fabrique des moyennes trompeuses *(nouvelle, 16/09)*
+### Q28 — Le flux mixé fabrique des moyennes trompeuses *(nouvelle, 16/09 — close : réglée par D64)*
+
+**Close (revue du 20/10)** : réglée par D64 (28/09) : un flux par fréquence est en production, il n'y a plus de flux mixé à échantillonner.
 
 `21-nuit-132-133.md` concluait de trente segments tirés au hasard que l'amas était « de
 l'espace supérieur, FL160 à FL390 ». **Vrai en moyenne, faux canal par canal** :
@@ -932,6 +950,8 @@ amont), et le fait que `docs/` reste à eux.
 
 
 ### D20 — Le dépôt s'appelle `atc-scribe` *(16/09)*
+
+*(Remplacée par D74 le 13/10 : le dépôt est `chatelp/clairance` — revue du 20/10.)*
 
 D4 avait choisi `co-atc-local` le premier jour, avant qu'une ligne soit écrite, sur un
 raisonnement de découvrabilité : *« c'est ce qu'on cherche quand on veut Co-ATC sans
@@ -1108,6 +1128,8 @@ le fichier qu'elle a ouvert n'avait pas de table `transcriptions` — voir D56.)
 touche que leur couche de stockage, et il n'ajoute aucune dépendance.
 
 ### D23 — Le dépôt est publié *(20/09)*
+
+*(Remplacée par D74 le 13/10 : le dépôt est `chatelp/clairance` — revue du 20/10.)*
 
 **https://github.com/chatelp/atc-scribe**, public, 94 commits (l'historique amont
 compris), branche par défaut `main` alimentée par notre `local`.
@@ -1306,7 +1328,9 @@ tableau ci-dessus et dans `14-mesure-modeles-francais.md`.
 ce que ces 3,5 Go rendraient possible pour un coût net de 2,2 Go. La dépendance au disque
 amovible subsiste — elle est au moins visible depuis D24.
 
-### Q30 — 8 % de vrais appariements : où part le reste ? *(nouvelle, 20/09)*
+### Q30 — 8 % de vrais appariements : où part le reste ? *(nouvelle, 20/09 — dépassée par D58, D59 et D73)*
+
+**Dépassée (revue du 20/10)** : D58 (indicatifs à lettres), D59 (secteurs) et D73 (préréglages) ont changé le chiffre : au préréglage « Mesuré », 95 % de précision sur les journées du 03/10 et du 04/10.
 
 Question du propriétaire après avoir vu le filtre « entendu à la radio » monter lentement :
 **après tout ce travail, on est à 8 %.** Le chiffre est juste et mérite d'être regardé en face.
@@ -1620,7 +1644,9 @@ en une nuit — et un modèle nourri de bruit ne rend pas le silence, il rend de
 plausibles. Le VAD n'est pas une optimisation, c'est ce qui empêche la base de se remplir
 de faux.
 
-### Q33 — Les deux lectures se contredisent plus que prévu *(nouvelle, 21/09)*
+### Q58 — Les deux lectures se contredisent plus que prévu *(nouvelle, 21/09)*
+
+*(Numérotée Q33 par erreur jusqu'au 20/10 — revue du 20/10.)*
 
 D24 notait 8 accords sur 8 dans la porte, en soulignant que **0 sur 8 ne borne rien**.
 La nuit donne le premier vrai relevé, sur la base du 21 :
@@ -2874,7 +2900,9 @@ terrain.
   Gaulle, celles du groupe `gros-porteurs` que le propriétaire écoute tous les jours. Pas
   lancé.
 
-### Q35 — Cinq écarts révélés par l'inventaire de ce que co-atc interprète *(ouverte, 23/09)*
+### Q35 — Cinq écarts révélés par l'inventaire de ce que co-atc interprète *(close, 20/10)*
+
+**Close (revue du 20/10)**, vérifié dans le code : (1) sans objet — `UpdateClearanceStatus` n'existe plus, et la fiche K a remplacé le verdict par « Then », qui décrit sans qualifier (`www/story/then.js`) ; (3) fait — `www/store/thread.js` lit `t.language` ; (4) fait — le chat est retiré (D71), la météo suit l'aéroport de référence (D49), l'API de Windy reste gardée (Q36) ; (5) fait — `www/events.js` signale les codes 7500, 7600 et 7700. Le (2) est traité par D49.
 
 `26-ce-que-co-atc-interprete.md` recense, vérifié dans le code, tout ce que co-atc tire de la
 voix et de l'ADS-B et ce qu'il en affiche. Il fait apparaître cinq écarts, aucun traité :
@@ -4234,7 +4262,9 @@ que 125,825 et 126,425 s'ouvrent plus d'une fois sur deux sans parole. Le mélan
 ouvertures à la parole des autres canaux : elles ne sont pas rejetées, **elles partent au modèle**
 (Q41).
 
-### Q45 — Choisir les fréquences une par une à la station, par une API claire *(en grande partie faite le 25/09 ; restent les flux séparés)*
+### Q45 — Choisir les fréquences une par une à la station, par une API claire *(close — faite le 25/09 ; les flux séparés en production depuis D64, 28/09)*
+
+**Close (revue du 20/10)** : un flux par fréquence est en production depuis D64 (28/09).
 
 Demande du propriétaire : *« compléter les groupes par des fréquences spécifiques […] avec une API
 claire pour switcher les fréquences sur la station »*. Aujourd'hui `radio-ctl` ne bascule que sur
@@ -4942,7 +4972,9 @@ lecture anglaise) : sur l'instance d'essai, 83 transmissions en dix minutes, la 
 arrive en **1,0 s en médiane (3,3 s au 90ᵉ centile)**, contre 9,2 s (28,6 s) avant ; la seconde
 voie se vide d'elle-même.
 
+### D80 — Le mouvement des avions : prolonger la trajectoire (stratégie A) *(14/10)*
 
+*(Titre rétabli à la revue du 20/10 : il s'était perdu à l'ajout de D81.)*
 
 **Décidé par le propriétaire le 14/10** (« on garde A »), sur la recommandation de la fiche M.
 Trois façons de dessiner un avion entre deux positions reçues ont été mesurées sur deux bancs
@@ -5233,7 +5265,19 @@ rien jusqu'au rechargement. **Vérifié** dans un navigateur sur une instance d'
 ports annexes en 200, son ouvert sur la tuile cliquée, source ajoutée en cours de route branchée
 sans rechargement. Sans cookie, le même flux répond 401 : c'était l'ancien comportement.
 
-### Q57 — La piste et la sortie probables sur le cartouche de l'avion *(16/10 — ouverte ; mesures lancées le 16/10)*
+### Q57 — La piste et la sortie probables sur le cartouche de l'avion *(16/10 — **décidée par le propriétaire le 16/10, en production à 17 h 06**)*
+
+> **Décision du propriétaire, 16/10** : « oui, construis cette forme directement et on bascule en
+> prod direct », sur la forme de la session design (MapLabel, AircraftStory, MapControls,
+> design-suite a0b8201) ; avec un ajout : les sorties possibles d'un départ montrées sur la carte,
+> leurs routes publiées, « pour suivre l'avion et voir s'il va vraiment vers là », mises à jour en
+> direct. Construit (9fcc281) : le champ en fin de 2ᵉ ligne de l'étiquette, la clé de la fiche, le
+> réglage « Probable runway and exit » (allumé par défaut) ; un départ sélectionné montre les routes
+> de ses sorties encore possibles, la plus probable en plein, les autres comme la couche, recalculées
+> toutes les deux secondes. Les étiquettes étant dessinées sur le canevas, c'est la sélection de
+> l'avion qui montre les routes, pas un clic sur le mot. Vérifié sur le trafic réel : AFR63RM,
+> décollé de la 27L, « →NURMO » à 35 NM, sur la route NURMO 7A tracée. Le chevauchement des étiquettes
+> mesuré avec et sans le champ, à 24 NM de ciel : 24 % dans les deux cas.
 
 > **Demande du propriétaire, 16/10** : afficher sur le cartouche de chaque avion ce que sa
 > trajectoire laisse prévoir, avec son niveau de confiance : la piste d'une arrivée, et le point de
@@ -5300,7 +5344,9 @@ sans rechargement. Sans cookie, le même flux répond 401 : c'était l'ancien co
 > Lecture : rien avant 15 NM ; de 15 à 20 NM, une courte liste élaguée (2 à 3 noms) ; une sortie
 > seule quand sa marge dépasse 10° (93 % juste à 20 NM pour la moitié des départs). Un départ sur
 > deux reste sans prédiction : guidé au cap, il n'a pas de sortie à afficher.
-### Q56 — Les procédures dessinées sur la carte *(16/10 — feu vert du propriétaire le 16/10 ; construit sur `migration` le même jour, relecture design en cours)*
+### Q56 — Les procédures dessinées sur la carte *(16/10 — close : en production le 16/10 à 16 h 02)*
+
+**Close (revue du 20/10)** : construite sur `migration` le 16/10, relue et close par la session design, versée en production le 16/10 à 16 h 02 (`33-pilotage.md`, qui cite ab4d319).
 
 > **Feu vert du propriétaire, 16/10** (« Feu vert ») sur la forme de la session design (fiche
 > `ProcedureRoute`, design-suite 1d04003) : la route au clic sur la puce, jusqu'à fermeture ; la
@@ -5365,7 +5411,9 @@ sans rechargement. Sans cookie, le même flux répond 401 : c'était l'ancien co
 > (sens des décollages vus en ADS-B, ou choix de l'auditeur), et l'ordre (tracé au clic d'abord).
 > Hors de l'eAIP français, rien n'est dessiné et les réglages le disent.
 
-### Q55 — Les noms officiels de l'AIP dans l'appariement *(15/10 — **lancée par le propriétaire le 15/10 au soir pour l'outil et la grammaire** ; l'indice de direction et l'affichage restent ouverts)*
+### Q55 — Les noms officiels de l'AIP dans l'appariement *(15/10 — usages 1 et 2 écartés (mesurés les 15 et 16/10), usage 3 en production le 16/10 à 12 h 21)*
+
+**Réglée (revue du 20/10)** : usages 1 (grammaire) et 2 (indice de direction) écartés après mesure les 15 et 16/10 ; usage 3 (l'affichage du nom réel) en production le 16/10 à 12 h 21, seuil 0,95 réglable (`33-pilotage.md`).
 
 > **Décision du propriétaire, 15/10 au soir** : « lance Q55 : l'outil AIP et la grammaire ». Ce
 > qui part : (1) un outil générique dans le dépôt, qui fabrique la liste des noms sur place pour un
@@ -5499,7 +5547,9 @@ contre 0 vide et 28 pour le Whisper anglais de production ; il lit la voix propr
 pas la radio en bande étroite. Il ne pèse pas dans le choix du portage ; Whisper affiné puis
 converti en CTranslate2 reste la voie.
 
-### Q53 — Un positionnement « espace aérien français » dans le nom, la marque et la présentation ? *(12/10 — propositions livrées, choix du propriétaire attendu)*
+### Q53 — Un positionnement « espace aérien français » dans le nom, la marque et la présentation ? *(12/10 — close : nom choisi le 13/10, D74)*
+
+**Close (revue du 20/10)** : le nom a été choisi le 13/10 — Clairance, voir D74.
 
 > **Livré le 12/10 par la session design** : `docs-fr/design/00-nom.md` (branche `design`,
 > `be329e9`), **la référence pour trancher**. Positionnement recommandé : le français porté comme
@@ -5524,7 +5574,9 @@ US12277862B1 (Aerlogics, 2025) couvre la corrélation transcription ATC / ADS-B 
 conformité ; aucun dépôt européen trouvé par la session communauté, revendications non lues —
 à faire lire par quelqu'un de compétent avant toute diffusion hors de France.
 
-### Q52 — Audit produit : simplifier le code et refaire l'UX, maintenant qu'atc-scribe n'est plus co-atc *(09/10 — ouverte, étude en cours)*
+### Q52 — Audit produit : simplifier le code et refaire l'UX, maintenant qu'atc-scribe n'est plus co-atc *(09/10 — close : tranchée par D71 le 10/10, plan exécuté)*
+
+**Close (revue du 20/10)** : tranchée par D71 (10/10) ; plan exécuté : paliers 0 à 5 faits le 12/10, migration du design faite le 15/10 (`33-pilotage.md`).
 
 **Constat du propriétaire**, mesuré le 09/10 : 263 commits, +33 941 / −1 312 lignes, 130
 fichiers nouveaux depuis un amont muet depuis le 3 mai. Le cœur (sidecar, liaison station,
@@ -5555,6 +5607,8 @@ d'essai d'abord, mesures de référence rejouées, validation à l'usage, rien d
 est enregistré chez lui, retirer avant de déplacer).
 
 ### Q51 — Une source ADS-B externe en renfort de la station, quand elle perd un avion *(29/09 — ouverte)*
+
+**Toujours ouverte (revue du 20/10)** : le relevé du quota OpenSky prévu vers le 10/10 n'a pas été fait (aucun relevé postérieur au 01/10 n'est consigné dans `docs-fr/`).
 
 Idée du propriétaire : *« on pourrait d'ailleurs basculer automatiquement vers une API quand on perd
 le signal local de la station. Mais comme une option dans co-atc »*. Mesuré le même jour : la

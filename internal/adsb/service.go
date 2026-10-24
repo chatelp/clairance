@@ -345,13 +345,22 @@ func (s *Service) broadcastAircraftChange(change AircraftChange) {
 	data["observed_at"] = observedAt.Format(time.RFC3339Nano)
 
 	// For "added", send full aircraft object
-	// For "updated", send only the delta (changed fields)
+	// For "updated", send only the delta (changed fields), and the two
+	// figures the page dates its position by (seen, seen_pos): the whole
+	// aircraft rode along with every delta, ~5 KB 57 times a second, about
+	// 300 KB/s of JSON for each page (measured 16/10), for these two.
 	// For "removed", just send hex
-	if change.Aircraft != nil {
-		data["aircraft"] = normalizeRealtimeAircraft(change.Aircraft)
-	}
 	if change.Delta != nil {
 		data["delta"] = normalizeRealtimeDelta(change.Delta)
+		if change.Aircraft != nil && change.Aircraft.ADSB != nil {
+			// null when the receiver does not say, as the aircraft's own.
+			data["timing"] = map[string]interface{}{
+				"seen":     change.Aircraft.ADSB.Seen,
+				"seen_pos": change.Aircraft.ADSB.SeenPos,
+			}
+		}
+	} else if change.Aircraft != nil {
+		data["aircraft"] = normalizeRealtimeAircraft(change.Aircraft)
 	}
 
 	message := &websocket.Message{

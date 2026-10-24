@@ -445,10 +445,11 @@
 
                 // Update animation engine with delta
                 // The engine: the aircraft with the delta applied, dated by the
-                // seen and seen_pos of the aircraft the message carries
+                // seen and seen_pos the message carries (its timing block; the
+                // whole aircraft, from a server before 16/10)
                 if (this.animationEngine) {
                     this.animationEngine.observe(hex,
-                        this.animationEngine.sampleFromAircraft(existing, observedAtMs, data.aircraft?.adsb));
+                        this.animationEngine.sampleFromAircraft(existing, observedAtMs, data.timing || data.aircraft?.adsb));
                 }
 
                 // Queue map update - map will handle visibility based on filters

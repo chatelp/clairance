@@ -1,5 +1,7 @@
 # Pilotage — stratégie, chantiers, jalons, décisions attendues
 
+*Dernière mise à jour : 20/10/2026 (revue du 20/10).*
+
 *Le document du chef d'orchestre. Tenu par la session Clairance, mis à jour à chaque livraison
 d'une session, à chaque décision du propriétaire et à chaque jalon franchi. Ouvert le 12/10/2026
 à la demande du propriétaire. Le journal détaillé reste dans `32-audit-produit.md` (« État ») et
@@ -15,22 +17,23 @@ la mémoire des décisions dans `05-decisions.md` ; ici, la vue d'ensemble, cour
 3. **Le cap** : un outil installable par d'autres, en France d'abord, pour une communauté de
    radioamateurs, de passionnés et de simmers qui fournisse captations et annotations, vers un
    **modèle de transcription communautaire adapté au français** (étude communauté, 12/10).
-4. **Le nom change** (D74) : « Scribe » est l'outil de la DSNA, contesté par le SNCTA. Le nouveau
-   nom et le positionnement « espace aérien français » (Q53) sont à l'étude ; le propriétaire
-   choisit.
+4. **Le nom a changé le 13/10** (D74 complétée, Q53 close) : « Scribe » était l'outil de la DSNA,
+   contesté par le SNCTA ; le propriétaire a choisi **Clairance** (marques et domaines vérifiés,
+   `design/00-nom.md`), avec le positionnement « espace aérien français ».
 5. **Règles du chantier** : ne rien casser de ce qui marche (sept garde-fous, doc 32), mesurer
    avant de conclure, interface utilisable par un novice, aides contextuelles partout, rien ne
    tourne en permanence sur le Mac sans décision.
 
 ## Les chantiers en cours (sessions parallèles)
 
-| Session | Mission | État au 12/10 | Prochain livrable | Ce que j'en attends |
+| Session | Mission | État au 20/10 (revue du 20/10) | Prochain livrable | Ce que j'en attends |
 |---|---|---|---|---|
-| **Clairance** (cette session) | le produit : code, mesures, documents, coordination | paliers 0 à 5 de l'audit faits ; bulles de dernière transmission ; retours de l'inventaire design traités (palette, 51 règles orphelines) | le renommage, dès le choix du nom | — |
-| **Whisper-lab** (`~/Dev/Aero/whisper-lab`, privé) | reconnaissance : modèles, corpus, mesures, GPU | précision par niveau d'indices mesurée (borne haute) ; Kyutai écarté (28/09) | tirage au hasard de la précision quand l'annotation aura avancé (jalon du labo) | la mesure de non-régression du modèle converti, le jour du portage |
-| **ATC-scribe communauté** (`~/Dev/Aero/atc-scribe-communaute`, privé, dépôt `chatelp/atc-scribe-communaute`) | cadre légal, existant, communautés françaises, prérequis, recommandation | **étude livrée le 12/10** : `SYNTHESE.md` et fiches 01 à 05 | — (session en veille ; reprend sur question de Pierre) | la décision de Pierre sur le premier pas (consultation d'avocat) ; le P0 de la fiche 04 entre dans le jalon « installable ailleurs » |
-| **ATC-scribe design** (branche `design`, index `docs-fr/design/README.md`) | identité, nom, système de design, maquettes, plan de migration | **tout est livré** : inventaire (01), nom (00), principes (02), système et jetons (03), maquettes, migration (04, ≈ 13 j), identité (05, le scope radar, appliquée), esquisses de la structure (07, validées, D77), **système de composants (08, `docs-fr/design/systeme/`, artefact https://claude.ai/artifact/Ut6hWDRRUcWC58HHz6UP2K)** : classes CSS `cl-` avec états pour Alpine, 95 variables de `tokens.css`, chaque fiche nommant ses données (`store.arrivals`, `plainFrench`, `events.recent`, `messages_per_second`, `match_reason`) ; la PAR n'est pas redessinée, seule sa palette de phases change **Quatorze écrans finaux validés le 13/10 (D78, galerie https://claude.ai/artifact/2gZSBGbTkEySxThbNRYhMF)** avec six décisions d'interface (barre du bas supprimée, un seul fil, météo dans « Right now », horloges, téléphone à quatre onglets, « Then » sans verdict) | — | **le plan de migration réécrit le 13/10** (`04-migration.md`, 14 étapes, ≈ 17 j, chacune avec son écran de référence, ce qu'elle change et ses mesures ; relu côté code par cette session : quatre corrections et trois ajouts envoyés ; serveur ≈ 4 h 30 en tout : « depuis quand » de la piste en service, valeurs des consignes, et la **route publique des chiffres avant connexion** choisie par le propriétaire le 13/10 avec la page « le ciel » : agrégats seulement, cache de 10 s, coupable dans Account, trois valeurs à fabriquer : appareil du sidecar, temps moyen par transmission, commit du binaire), **validé par le propriétaire le 13/10** ; référence figée `design-reference-2026-10-13`, branche `design` versée dans `local` le 13/10 (171 fichiers sous `docs-fr/design/` et `tools/design/` ; les captures de la carte réelle restent hors dépôt, D75). **La migration commence par l'étape 0** ; la session design relit chaque étape sur l'instance d'essai avant la soirée d'écoute du propriétaire |
-| **Station radio** (session de la station) | la station : réception, chaîne VHF, captations | en veille ; `radio-ctl-sync` rapporte l'état au bandeau | — | prévenue à chaque bascule d'écoute |
+| **Clairance** (session principale, chef d'orchestre) | le produit : code, mesures, documents, coordination | paliers 0 à 5 de l'audit faits ; migration du design en production depuis le 15/10 ; Q55 à Q57 en production le 16/10 ; mouvement des avions (D79, D80, troisième famille de sauts corrigée le 16/10) ; revue des documents du 20/10 | l'analyse des mesures de la nuit du 16 au 17/10 (non faite) ; les prérequis « installable ailleurs » | — |
+| **Clairance - Design** (branche `design-suite` depuis Q56/Q57 ; index `docs-fr/design/README.md`) | identité, nom, système de design, maquettes, fiches de composants, relecture des livraisons de l'interface | **migration close côté design le 15/10** (étapes 0 à 13, plan `04-migration.md`, relues conformes) ; identité (05), esquisses (07, D77), système de composants (08, artefact https://claude.ai/artifact/Ut6hWDRRUcWC58HHz6UP2K), quatorze écrans finaux (09, D78, galerie https://claude.ai/artifact/2gZSBGbTkEySxThbNRYhMF) ; depuis le 16/10, les fiches de Q56 (`ProcedureRoute`) et de Q57 (étiquette, sorties possibles), relues après construction ; référence figée `design-reference-2026-10-13` ; les captures de la carte réelle restent hors dépôt (D75) | les fiches que demande le propriétaire | relire chaque livraison de l'interface sur l'instance d'essai avant qu'elle parte en production |
+| **Whisper-lab** (`~/Dev/Aero/whisper-lab`, privé) | reconnaissance : modèles, corpus, mesures, GPU | précision par niveau d'indices mesurée (borne haute) ; Kyutai écarté (28/09) ; a proposé Q55 (15/10) ; bases du ciel témoin copiées par le labo (D82, 16/10) ; état depuis le 16/10 non relevé ici | tirage au hasard de la précision quand l'annotation aura avancé (jalon du labo) | la mesure de non-régression du modèle converti, le jour du portage |
+| **ATC-scribe communauté** (`~/Dev/Aero/atc-scribe-communaute`, privé, dépôt `chatelp/atc-scribe-communaute`) | cadre légal, existant, communautés françaises, prérequis, recommandation | étude livrée le 12/10 (`SYNTHESE.md`, fiches 01 à 05) ; premier pas tranché le 13/10 avec le propriétaire (voir « Faits ») ; en veille | — (reprend sur question de Pierre) | le P0 de la fiche 04 entre dans le jalon « installable ailleurs » |
+| **Station radio** (session de la station) | la station : réception, chaîne VHF, captations | en veille au dernier relevé (12/10) ; `radio-ctl-sync` rapporte l'état au bandeau | — | prévenue à chaque bascule d'écoute |
+| **Cardputer / M5Stack** (projet `~/Dev/Aero/aero-cardputeradv`) | appareils de poche | une application d'écoute M5Stack, que le propriétaire a autorisée le 16/10 à appeler l'API `/selection` de la station ; état non relevé ici | — | — |
 
 ## Les jalons
 
@@ -61,33 +64,79 @@ la mémoire des décisions dans `05-decisions.md` ; ici, la vue d'ensemble, cour
   CORS et WebSocket fermés aux origines étrangères, rôle lecture seule, écoute par le serveur
   réservée au propriétaire par défaut, purges réglables (à 0 chez nous). Le voyant
   « Transcription » connaît l'état Off.
+- **Le nom : Clairance** (13/10, D74 complétée, Q53 close) : renommage fait le jour même — dépôt
+  `chatelp/clairance`, page, lanceur `Clairance.app`, dossier de configuration `~/.config/clairance`,
+  documents, README. Reste au propriétaire, quand toutes les sessions seront fermées : déplacer le
+  dossier local `~/Dev/Aero/atc-scribe` et, s'il le souhaite, renommer le dépôt privé de la communauté.
+- **La marque appliquée** (13/10, D76, signe = le scope radar, choisi par le propriétaire sur une planche de
+  huit) : favicon et manifeste, images de la barre de menus, README ; puis le troisième état « à l'écoute »
+  (favicon allumé quand une fréquence est écoutée, lanceur en couleurs quand la production tourne et que
+  l'antenne est à l'antenne). La marque en tête de la connexion et de l'en-tête de l'outil relevait de la
+  migration.
+- **Le premier pas communautaire tranché** (13/10, avec la session communauté) : l'outil strictement local,
+  installable ailleurs (le P0 de la fiche 04), puis un corpus simulé avec consentement (voie A seule) ;
+  les voies sur du réel sont fermées ; ni avocat ni démarche auprès d'une autorité. Reste à décider
+  plus tard : le pilote de corpus simulé.
+- **Fiches cloud de la vague 3 toutes intégrées** (G à M, 13 et 14/10) : voir plus bas.
+- **Migration du design terminée** (plan `04-migration.md`, 14 étapes, ≈ 17 j + 4 h 30 de serveur) : étapes 0 à 4
+  versées dans `local` avant le 13/10 (système, familles de phase et palette F, barre du haut, onglet Traffic) ;
+  5 (« Right now ») le 13/10 dans la nuit, après quatre corrections de la relecture design (dont le sens des
+  pistes, côté serveur) ; 6 (le fil), 7 (la barre radio quitte le grand écran), 8 (suivre un vol avec « Then »
+  et le cadre PAR, b0c4e23), 9 (fenêtres et pages), 10 (états et avis) le 14/10 ; 11 (clavier, focus, mouvement)
+  le 15/10 ; 12 (le téléphone) et 13 (le nettoyage, avec la palette de la carte, choix C du propriétaire)
+  relues conformes par la session design le 15/10 : côté design, la migration est close. Le propriétaire ayant
+  choisi de passer directement en production plutôt que par une soirée sur l'instance d'essai, tout est versé
+  dans `local` le 15/10 au soir (efaaa7a) ; **production démarrée le 15/10 à 18 h 33** sur efaaa7a (page figée
+  3e6a65f), vrai modèle, première transmission en 4,4 s, après la mesure réseau de la station. Versés avec elle,
+  relus conformes le 15/10 : le voyant « Transcription Simulated » d'un faux sidecar (deee2d5), la connexion au
+  serveur perdue (son neutre après 10 s, ligne dans le journal, fil comblé, 9a8ac6b), l'échelle des altitudes
+  aux couleurs des avions (cf144ea) ; la barre du haut au téléphone corrigée sur `main` (6a816f6).
+- **Étiquettes allégées à faible zoom** (demande du 13/10, choisie le 15/10, cad595f, versée avec la migration) :
+  l'indicatif seul au-delà de 24 NM sauf les avions qui comptent, le dernier message en bulle sous l'étiquette ;
+  boîtes chevauchées de 81 à 20 % à 67 NM, de 67 à 37 % au zoom par défaut. Noté pour après : le détecteur de
+  phases (aérodrome attribué loin de l'avion, APP qui retombe en UNK en courte finale).
+- **Les avions fantômes** (16/10) : deux causes trouvées et corrigées (04dc5e3, d0b54d5), mesurées sur le trafic
+  réel ; **en production depuis le 16/10 à 16 h 02** (ab4d319). La troisième famille (un recul de 5 à 40 s de
+  vol) venait du rafraîchissement complet de la carte, déclenché par les transcriptions, qui replaçait chaque
+  avion à sa position brute : corrigé, **en production le 16/10 à 22 h 47** (a09abf1) ; avec flux, 76 sauts en
+  5 min au lieu de 580 (67 sans flux). **La règle de l'avion silencieux (D80) n'était pas en cause** : laissée
+  telle quelle (le diagnostic du 16/10 au soir l'avait accusée, corrigé dans le doc 32). Même versement : les mises
+  à jour d'avions ne portent plus l'avion entier (91 Mo en 5 min → 5,4 Mo).
+- **Les procédures publiées dessinées sur la carte** (Q56, 16/10) : feu vert le 16/10, construit sur `migration`
+  (726b10c, ef10b99), relu et clos par la session design ; **en production le 16/10 à 16 h 02** (ab4d319), le cache
+  complété depuis le disque (fiches DATA, ENR 4.1, AD 2 de Beauvais). Reste son clic sur « Update from the SIA »
+  pour écrire les routes dans la liste.
+- **La piste et la sortie probables sur le cartouche** (Q57, 16/10) : mesurées (2 338 arrivées, 3 111 départs),
+  forme du design, **décidées par le propriétaire et en production le 16/10 à 17 h 06** (9fcc281), avec les routes
+  des sorties possibles du départ sélectionné ; quatre corrections de la relecture design (un nom par point, la
+  route d'une puce l'emporte) versées à 17 h 18 (4ba147b) ; amorçage de la page sur la trace du serveur versé à
+  17 h 51 (2c5c6f2) : premières sorties 4 s après l'ouverture, contre environ 70 s. À surveiller à l'usage : les
+  sorties d'Orly, peu couvertes par la réception ; après chaque relance, les départs déjà en l'air n'ont pas de
+  sortie (la piste de décollage n'est jugée que pour ceux vus décoller).
 
 ### En cours
 
-1. **Le nom et le positionnement** (design, `00-nom.md`) → décision du propriétaire → renommage
-   en une fois par cette session : dépôt GitHub, lanceur et dossier de configuration sur le Mac,
-   titre de page (encore « Co-ATC »), documents, README.
-2. **L'identité et le système de design** (design) → validation du propriétaire → migration par
-   étapes, chacune livrable et vérifiée (filet `www-check`, styles calculés, captures).
-   Demande du propriétaire du 13/10, à traiter à l'étape de la carte avec la session design :
-   **à faible zoom, les cartouches d'avion envahissent l'écran** ; il faut un affichage allégé
-   (par exemple l'indicatif seul sous un seuil de zoom, la cartouche complète en zoomant). Consignée par la session design dans `09-ecrans.md` (§ Demandes ouvertes) : elle mesurera d'abord étiquettes et recouvrements par niveau de zoom sur l'instance, puis proposera une variante compacte de l'étiquette et son seuil.
-3. **Les prérequis pour être installable ailleurs** (communauté, question 4) → liste
-   hiérarchisée → chantier technique dans cette session.
-4. **La recommandation d'un premier pas communautaire** (communauté, question 5) → décision du
-   propriétaire ; aucune publication ni prise de contact avant.
+1. **Les prérequis pour être installable ailleurs** (communauté, question 4) → liste hiérarchisée →
+   chantier technique dans cette session (voir « À venir »).
+2. **À regarder à l'usage par le propriétaire** : le fond clair IGN/OSM et le téléphone (versés avec la
+   migration) ; les étiquettes entre 34 et 48 NM autour de l'approche de Roissy, où les avions qui comptent
+   sont serrés (laissé tel quel pour une soirée, choix du propriétaire, 15/10).
+3. **L'analyse des mesures de la nuit du 16 au 17/10** (`runs/mesures/nuit-2026-10-16/` : relevé de la
+   production toutes les 5 min, instance d'essai avec flux par tranches de 55 min) : **pas encore faite**. Constat de
+   la revue du 20/10, de visu sur les fichiers, non analysé : la production était sourde à partir de 23 h 05
+   (voir « Les risques suivis »), le total de transmissions du relevé reste figé à 8 109 de 23 h 08 à minuit, et
+   seule la première tranche de l'instance (22 h 48) porte des données ; les tranches suivantes sont vides. À refaire sur une nuit où la chaîne entend.
 
 ### À venir, dans l'ordre probable (à confirmer par le propriétaire à chaque étape)
 
+*Le renommage, l'application de la marque et la migration du design, qui figuraient ici, sont faits : voir « Faits ».*
+
 | Jalon | Dépend de | Décidé ? |
 |---|---|---|
-| Renommage | choix du nom | cible : oui (D74) ; nom : non |
-| ~~Application de la marque~~ — **faite le 13/10** (D76, signe = le scope radar, choisi par le propriétaire sur une planche de huit) : favicon et manifeste, images de barre de menus, README ; puis le **troisième état « à l'écoute »** (favicon allumé quand une fréquence est écoutée, lanceur en couleurs quand la production tourne et l'antenne est à l'antenne). Restent pour la migration du design : la marque en tête de la connexion et dans l'en-tête de l'outil | — | fait |
-| **Migration du design** (plan `04-migration.md`, 14 étapes, ≈ 17 j + 4 h 30 serveur) — **terminée le 15/10 : tout versé dans `local` (efaaa7a), le propriétaire ayant choisi de passer directement en production plutôt que par une soirée sur l'instance d'essai ; binaire de production reconstruit** ; **production démarrée le 15/10 à 18 h 33 sur efaaa7a** (page figée 3e6a65f), vrai modèle, première transmission en 4,4 s, après la mesure réseau de la station ; historique : étapes 0 à 4 versées dans `local` (système, familles de phase et palette F, barre du haut, onglet Traffic) ; **étape 5 livrée sur `migration` le 13/10 au soir** (« Right now » : phrase de synthèse, tableaux d'arrivée, événements, météo lue en clair, compteurs ; colonne repliable), **relue conforme par la session design après quatre corrections** (dont le sens des pistes, côté serveur), **versée dans `local` le 13/10 dans la nuit après le coup d'œil du propriétaire** ; **étape 6 (le fil) versée dans `local` le 14/10** ; **étape 7 (la barre radio quitte le grand écran, reste au téléphone jusqu'à l'étape 12) versée dans `local` le 14/10** ; **étape 8 (suivre un vol, avec « Then », cadre PAR sous la carte) versée dans `local` le 14/10** (b0c4e23), après sept corrections de relecture et trois retours du propriétaire ; **étape 9 (fenêtres et pages : rangée du ciel et calques, fiches et journal, réglages, connexion et console de la station, vue PAR adaptée à la hauteur de l'écran) versée dans `local` le 14/10 au soir**, en cinq livraisons relues par la session design ; **étape 10 (états et avis : bandeau de connexion perdue sur le ciel, fil vide qui dit pourquoi, avis de reprise) versée dans `local` le 14/10 au soir** ; **étape 11 (clavier, focus, mouvement) versée dans `local` le 15/10** ; **étapes 12 (le téléphone) et 13 (le nettoyage, avec la palette de la carte, choix C du propriétaire le 15/10) relues conformes par la session design le 15/10 : côté design, la migration est close** ; **versées dans `local` le 15/10 au soir avec tout ce qui suit** ; à regarder en production : le fond clair IGN/OSM, le téléphone ; **étiquettes allégées à faible zoom** (demande du 13/10, choisie le 15/10) : livrées sur `migration` (cad595f), relues conformes, boîtes chevauchées de 81 à 20 % à 67 NM ; elles partent avec 12 et 13, comme, relus conformes le 15/10 : le voyant « Transcription Simulated » d'un faux sidecar (deee2d5), la connexion au serveur perdue (son neutre après 10 s, ligne dans le journal, fil comblé, raison des départs au journal du serveur, 9a8ac6b) et l'échelle des altitudes aux couleurs des avions (légende du ciel et réglette, cf144ea) ; noté pour après : le détecteur de phases (aérodrome attribué loin de l'avion, APP qui retombe en UNK en courte finale) (au passage, la barre du haut au téléphone corrigée sur `main`, 6a816f6) ; chaque étape : commit sur `migration`, relecture par la session design sur l'instance d'essai, soirée d'écoute du propriétaire, puis versement dans `local` ; production au lancement suivant | — | **oui (13/10)** |
-| **Installable ailleurs** — le P0 de la fiche 04 de l'étude, « avant d'en parler à quiconque » : sidecar porté ; **mode sans transcription** (le serveur démarre sans sidecar) ; avertissement légal ; rediffusion de l'audio coupée par défaut et **rôle lecture seule** ; guide d'installation bilingue ; Docker de l'amont retiré. Mesure de sortie : une installation sur une machine vierge, à partir du seul guide, **en moins d'une heure, par quelqu'un qui n'a pas écrit le code** ; précision d'appariement inchangée après portage (95 %, D73) | portage (ci-dessous) pour la transcription ; le reste n'en dépend pas | principe : oui (mission communauté) ; ordre et calendrier : non |
+| **Installable ailleurs** — le P0 de la fiche 04 de l'étude, « avant d'en parler à quiconque » : sidecar porté ; ~~mode sans transcription (le serveur démarre sans sidecar)~~ — **fait le 13/10** (fiche H) ; avertissement légal ; ~~rediffusion de l'audio coupée par défaut et rôle lecture seule~~ — **faits le 13/10** (fiche I : `audio_replay = "owner"`, rôle `viewer`) ; guide d'installation bilingue ; ~~Docker de l'amont retiré~~ — **fait le 13/10** (fiche H). **Restent : le sidecar porté, l'avertissement légal, le guide d'installation** (revue du 20/10). Mesure de sortie : une installation sur une machine vierge, à partir du seul guide, **en moins d'une heure, par quelqu'un qui n'a pas écrit le code** ; précision d'appariement inchangée après portage (95 %, D73) | portage (ci-dessous) pour la transcription ; le reste n'en dépend pas | principe : oui (mission communauté) ; ordre et calendrier : non |
 | Version en/fr de l'interface | après le design (les textes bougent) | principe : oui (10/10) |
 | **Portage du sidecar : Linux x86-64 + NVIDIA** (faster-whisper / CTranslate2, repli processeur ; Pi qui reçoit, transcription déportée) ; **Windows au moins pour l'affinage** (les simmers) ; sous-point pour un mode différé (Pi 5, dix minutes de retard) : apparier contre le ciel de l'instant de la transmission relu dans `adsb_targets`, comme le fait déjà l'outil de mesure, au lieu de la flotte vivante (modification bornée au point d'appariement) | question 4 ; format permettant l'affinage ; non-régression mesurée au labo | **cible : oui (12/10) ; pas dans l'immédiat** (Q54) |
-| **Refonte de la structure de l'écran** — **esquisses validées le 13/10 (D77)** : A par défaut (fil unifié au centre, ciel à côté, colonne « Right now » / « Traffic », la carte suivant les filtres de la liste), B colonne repliée, C suivre un vol (son histoire dans la colonne, son approche dans le cadre PAR, la séquence = le tableau « Arrivals »). La session design passe au système de composants. Si le fil est retenu, deux chantiers serveur bornés : (1) rapprocher chaque instruction ATC de la réponse du pilote qui la suit, **pour la lecture seulement, jamais un jugement d'erreur** (rien de type SLASH) ; (2) ~~enregistrer la raison d'un non-appariement~~ **fait le 13/10** (D72 complétée : `unmatched: …` dans `match_reason`, sans score). **Panneau « Right now », faisabilité vérifiée le 13/10** : tout tient avec l'existant (piste en service et depuis quand, antenne, compteurs, première détection, transferts entendus, plan de descente, heure de toucher) sauf trois petits chantiers, validés par le propriétaire le 13/10 : ~~le journal d'événements qui survit au rechargement~~ et ~~les messages ADS-B par seconde dans le bandeau~~ **faits le 13/10** ; ~~la séquence d'arrivée hors de la PAR~~ et ~~les gabarits français des consignes~~ **faits le 13/10** (`store.arrivals` pour tous les aérodromes suivis, `nextTouchdown`, la PAR dessine depuis le même calcul ; `text_fr` sur chaque consigne, `plainFrench(t)` dans la page avec le nom de la fréquence écoutée) ; « transcription dans 2 s » n'est pas possible (le serveur découpe à la fin de la transmission), « quelqu'un parle » l'est par le niveau audio | esquisses validées par le propriétaire | non |
+| **Refonte de la structure de l'écran** — **esquisses validées le 13/10 (D77)** : A par défaut (fil unifié au centre, ciel à côté, colonne « Right now » / « Traffic », la carte suivant les filtres de la liste), B colonne repliée, C suivre un vol (son histoire dans la colonne, son approche dans le cadre PAR, la séquence = le tableau « Arrivals »). La session design passe au système de composants. Si le fil est retenu, deux chantiers serveur bornés : (1) rapprocher chaque instruction ATC de la réponse du pilote qui la suit, **pour la lecture seulement, jamais un jugement d'erreur** (rien de type SLASH) ; (2) ~~enregistrer la raison d'un non-appariement~~ **fait le 13/10** (D72 complétée : `unmatched: …` dans `match_reason`, sans score). **Panneau « Right now », faisabilité vérifiée le 13/10** : tout tient avec l'existant (piste en service et depuis quand, antenne, compteurs, première détection, transferts entendus, plan de descente, heure de toucher) sauf trois petits chantiers, validés par le propriétaire le 13/10 : ~~le journal d'événements qui survit au rechargement~~ et ~~les messages ADS-B par seconde dans le bandeau~~ **faits le 13/10** ; ~~la séquence d'arrivée hors de la PAR~~ et ~~les gabarits français des consignes~~ **faits le 13/10** (`store.arrivals` pour tous les aérodromes suivis, `nextTouchdown`, la PAR dessine depuis le même calcul ; `text_fr` sur chaque consigne, `plainFrench(t)` dans la page avec le nom de la fréquence écoutée) ; « transcription dans 2 s » n'est pas possible (le serveur découpe à la fin de la transmission), « quelqu'un parle » l'est par le niveau audio | esquisses validées par le propriétaire | structure **livrée par la migration (15/10)** ; chantiers serveur du fil : (2) fait le 13/10 ; (1) rapprocher instruction et réponse, non revérifié à la revue du 20/10 |
 | **Premier pas (recommandation révisée le 13/10)** : rendre Clairance installable comme **outil strictement local** — c'est le jalon « installable ailleurs » ci-dessus, même mesure de sortie ; ses garde-fous (rien ne sort de la machine, rediffusion de l'audio coupée par défaut, avertissement) passent du rang de bonne pratique à celui de **condition** : c'est ce qui rend l'outil défendable sans avocat, comme les guides français qui recommandent déjà une clé SDR pour la bande aviation. **Aucune démarche** auprès de la DGAC, de la DSNA ou de l'ANSSI, ni consultation d'avocat (objection du propriétaire : coût, et attirer l'attention « pour rien ») | — | **oui (13/10)** |
 | Corpus simulé avec consentement (**voie A, la seule retenue**) : une parole simulée n'est pas une communication réelle (ni 226-15 ni le terrain de la DGAC ; reste le RGPD) ; consentement écrit d'après des modèles universitaires gratuits, relecture gratuite possible (CNIL, clinique juridique) ; pilote avec IVAO France ou un cercle proche, **après** l'étape « installable ». C'est aussi la source naturelle du **jeu de validation partageable** | installable ailleurs ; décision du propriétaire sur le pilote | principe : oui ; pilote : non |
 | Affinage communautaire ou fédéré (modèle adapté au français) sur le corpus simulé | corpus ; portage | non |
@@ -96,64 +145,71 @@ la mémoire des décisions dans `05-decisions.md` ; ici, la vue d'ensemble, cour
 
 Plus tard, à discuter (doc 32) : strips de vol, clairance contre trajectoire, vue d'approche en
 plan, procédures du SIA, fréquences comme un pupitre, programmation d'écoute.
+## Les sessions cloud, vague 3 (13/10, validée par le propriétaire) : toutes intégrées
 
-## Les sessions cloud, vague 3 (13/10, validée par le propriétaire)
-
-Cinq fiches dans `docs-fr/fiches-cloud/` (prompts à coller dans son README), du serveur et de la
+Sept fiches (G à M) dans `docs-fr/fiches-cloud/` (prompts à coller dans son README), du serveur et de la
 logique pure, sans la station : **G** la route publique des chiffres avant connexion et les trois
 valeurs qui manquent ; **H** le serveur sans transcription et le Docker amont retiré ; **I** les
 dettes de sécurité (CORS, WebSocket, rôle lecture seule, purges) ; **J** la compilation
 Windows ; **K** « Then » sans verdict ; **L** (ajoutée le 13/10 au soir, après D79) le bloc
 position, trajectoire, prédiction remis d'équerre : banc de rejeu synthétique avec métriques de
 mouvement, un seul prédicteur, la prédiction en direct hors de `service.go`, l'observé séparé
-du déduit dans la page, interface écrite du moteur — à métriques égales ou meilleures. Indépendantes, **G, H et I lancées par le propriétaire le 13/10 au soir** (A, B, C relancées par erreur puis arrêtées, aucune branche à intégrer) ; **G intégrée le 13/10** (route `/api/v1/vitals`, `since` de la piste, valeur et unité des consignes, version et commit du binaire) ; H et I terminées, relues vertes, à intégrer ; **J, K et M lancées par le propriétaire le 13/10 dans la nuit, intégrées le 14/10 au matin** (Windows compile ; « Then » prêt pour l'étape 8 ; banc du mouvement et cinq corrections, stratégie A confirmée par le propriétaire, D80) ; **M** (écrite par la session design, relue ici) : le mouvement mesuré dans un vrai navigateur, les trois cas restants (première minute, reprise après un trou, onglet remontré) et la comparaison de stratégies (extrapolation, dessin dans le passé, hybride), le choix par défaut restant au propriétaire ; **L lancée par le propriétaire le 13/10 au soir, intégrée la nuit même** (le mouvement : vitesse dessinée qui varie de 8 à 13 % contre 38 à 48 %, plus aucun pas à reculons hors trous de réception)  ;
-chaque branche `cloud/…` revient sur le Mac pour relecture et intégration. La migration de
-l'interface, elle, reste sur le Mac.
+du déduit dans la page, interface écrite du moteur — à métriques égales ou meilleures ; **M** (écrite par la session
+design, relue ici) le mouvement mesuré dans un vrai navigateur, les trois cas restants (première minute, reprise
+après un trou, onglet remontré) et la comparaison de stratégies. Lancées par le propriétaire (G, H, I le 13/10 au soir ;
+L le 13/10 au soir ; J, K et M le 13/10 dans la nuit) ; **toutes intégrées** : G le 13/10 (route `/api/v1/vitals`, `since` de
+la piste, valeur et unité des consignes, version et commit du binaire), H et I le 13/10 (soir tard), L dans la nuit
+du 13 au 14/10 (vitesse dessinée qui varie de 8 à 13 % contre 38 à 48 %, plus aucun pas à reculons hors trous de
+réception), J, K et M le 14/10 au matin (Windows compile ; « Then » prêt pour l'étape 8 ; banc du mouvement et cinq
+corrections, stratégie A confirmée par le propriétaire, D80). Les fiches A à F (vagues 1 et 2) l'avaient été le 10/10 ;
+A, B et C relancées par erreur le 13/10 puis arrêtées n'ont laissé aucune branche à intégrer. **Rien n'est en attente**
+(revue du 20/10). La migration de l'interface, elle, est restée sur le Mac.
+
+**Le crédit** : 250 $ au départ, **94 $ restants le 24/10** (relevé du propriétaire), jusqu'au 5/11/2026 ; ce qu'on en lance encore est une décision (n° 10 ci-dessous).
 
 ## Les décisions attendues du propriétaire
 
-0. ~~La stratégie du mouvement~~ — **décidée le 14/10 : A** (D80), prolonger la trajectoire et corriger en douceur ; B et C restent des options du banc.
+1. ~~La stratégie du mouvement~~ — **décidée le 14/10 : A** (D80), prolonger la trajectoire et corriger en douceur ; B et C restent des options du banc.
 
-1. ~~Le nom~~ — **décidé le 13/10 : Clairance** (D74 complétée, Q53 close), renommage fait le
+2. ~~Le nom~~ — **décidé le 13/10 : Clairance** (D74 complétée, Q53 close), renommage fait le
    même jour : dépôt `chatelp/clairance`, page, lanceur `Clairance.app`, dossier de configuration
    `~/.config/clairance`, documents. Reste à faire par le propriétaire, quand toutes les sessions
    seront fermées : déplacer le dossier local `~/Dev/Aero/atc-scribe` (commande fournie le 13/10)
    et, s'il le souhaite, renommer le dépôt privé `atc-scribe-communaute` et les sessions.
-2. ~~**Le système de design**~~ — **tous ses choix tranchés** : (1) police, (2) cinq familles de
+3. ~~**Le système de design**~~ — **tous ses choix tranchés** : (1) police, (2) cinq familles de
    phase, (3) rampe d'altitude (palette F, 13/10), (4) J / K au lieu de Tab (13/10), (5)
    l'interpolation des avions gardée sous « Réduire les animations » (**15/10**), (6) esquisses
    (D77) et écrans finaux (D78). La migration elle-même est suivie dans le tableau des chantiers
    (étapes 0 à 13 versées le 15/10 ; production au lancement suivant).
-3. ~~Le premier pas communautaire~~ — **tranché le 13/10** avec la session communauté : pas
+4. ~~Le premier pas communautaire~~ — **tranché le 13/10** avec la session communauté : pas
    d'avocat ni de démarche auprès d'une autorité ; le premier pas est l'outil strictement local
    installable ailleurs (P0), puis un corpus simulé avec consentement (voie A seule) ; les
    voies sur du réel sont fermées. Reste à décider plus tard : le pilote de corpus simulé.
-4. **Demander à GitHub la purge des anciens objets** (*reportée par le propriétaire le 14/10*) (D75, deux réécritures : le 12/10 pour la
+5. **Demander à GitHub la purge des anciens objets** (*reportée par le propriétaire le 14/10*) (D75, deux réécritures : le 12/10 pour la
    position et les adresses, le 13/10 au soir pour les captures de la carte réelle entrées par
    la fusion du design ; sauvegardes `atc-scribe-sauvegarde-2026-10-12.git` et `-13.git`) :
    les commits d'avant restent servis par GitHub par leur identifiant jusqu'à une demande au
    support, que seul le propriétaire peut faire (texte fourni le 12/10, identifiants à citer :
    `d0b14c3`, `cdbf843`, `a892d77`, `1febe52`, `e786aeb`, `bde4b04`). À vérifier aussi : le réglage de
    précision de la carte de couverture sur FlightAware (« My ADS-B »).
-5. Le moment du **portage** (cible fixée, calendrier non).
-6. Le **tirage au hasard** de la précision d'appariement (jalon du labo, lié à l'annotation).
-7. ~~**Les noms officiels de l'AIP dans l'appariement**~~ — **lancée le 15/10 au soir** : l'outil est fait et se pilote depuis les réglages ; la grammaire, mesurée sur le ciel témoin, **n'est pas adoptée** (35 justes perdus, 0 gagné). L'outil est en production depuis le 16/10 à 10 h 09 (liste faite par le propriétaire). L'indice de direction, mesuré le 16/10, n'est pas adopté (l'avion désigné s'approche du point, mais 39 % des autres aussi) ; l'affichage du nom réel est **en production depuis le 16/10 à 12 h 21** (seuil 0,95, réglable : 18 sur 18 justes sur la séance d'écoute ; liste refaite par le propriétaire à 12 h 23 avec les 100 tables de codage, 25 points de procédure) ; sur le trafic des 15 et 16/10, environ six procédures nommées par jour, toutes justes à la relecture. Énoncé d'origine (Q55, proposée par le labo le 15/10) :
+6. Le moment du **portage** (cible fixée, calendrier non).
+7. Le **tirage au hasard** de la précision d'appariement (jalon du labo, lié à l'annotation).
+8. ~~**Les noms officiels de l'AIP dans l'appariement**~~ — **lancée le 15/10 au soir** : l'outil est fait et se pilote depuis les réglages ; la grammaire, mesurée sur le ciel témoin, **n'est pas adoptée** (35 justes perdus, 0 gagné). L'outil est en production depuis le 16/10 à 10 h 09 (liste faite par le propriétaire). L'indice de direction, mesuré le 16/10, n'est pas adopté (l'avion désigné s'approche du point, mais 39 % des autres aussi) ; l'affichage du nom réel est **en production depuis le 16/10 à 12 h 21** (seuil 0,95, réglable : 18 sur 18 justes sur la séance d'écoute ; liste refaite par le propriétaire à 12 h 23 avec les 100 tables de codage, 25 points de procédure) ; sur le trafic des 15 et 16/10, environ six procédures nommées par jour, toutes justes à la relecture. Énoncé d'origine (Q55, proposée par le labo le 15/10) :
    l'outil générique qui fabrique la liste sur place (rien de l'AIP dans le dépôt), puis la
    grammaire des procédures, l'indice de direction au départ et l'affichage du nom réel ; quoi
    et quand. Recommandation : l'outil et la grammaire après la migration, mesurés par paires.
-8. ~~**Les procédures dessinées sur la carte**~~ (Q56, 16/10) — **feu vert le 16/10, construit sur
+9. ~~**Les procédures dessinées sur la carte**~~ (Q56, 16/10) — **feu vert le 16/10, construit sur
    `migration` le même jour** (726b10c, ef10b99) d'après la fiche `ProcedureRoute` : la route au clic
    sur la puce, la couche « Procedures (SID, STAR) » éteinte par défaut. Relu et clos par la session
    design ; **versé en production le 16/10 à 16 h 02** (ab4d319) sur la demande du propriétaire, le
    cache complété depuis le disque (fiches DATA, ENR 4.1, AD 2 de Beauvais). Reste son clic sur
    « Update from the SIA » pour écrire les routes dans la liste.
-10. **La piste et la sortie probables sur le cartouche** (Q57, 16/10) — demande du propriétaire ;
-   deux mesures lancées le 16/10 (piste d'arrivée selon la distance, sortie d'un départ selon le
-   cap), puis forme au design, puis décision.
-9. **Les avions fantômes** (16/10) — deux causes trouvées et corrigées sur `migration` (04dc5e3,
-   d0b54d5), mesurées sur le trafic réel ; **en production depuis le 16/10 à 16 h 02**. Une troisième famille, plus petite
-   (un recul d'environ 4 s de vol, seulement quand l'instance porte les flux audio), reste à
-   expliquer.
+10. **Le crédit cloud restant** (revue du 20/10) : **94 $ restants le 24/10** (relevé du propriétaire), jusqu'au 5/11, soit douze jours ; toutes les fiches A à M sont
+   intégrées, rien n'est en attente. Quoi lancer avant l'échéance, ou rien ? Pistes, à trancher par le propriétaire (elles doivent se
+   vérifier sans la station et sans audio) : le guide d'installation bilingue et l'avertissement légal du jalon « installable
+   ailleurs » ; la version en/fr de l'interface, que l'achèvement de la migration débloque ; des tests de ce qui tourne sans filet.
+   Chaque fiche demande d'abord une relecture ici et une soirée d'écoute pour tout ce qui se voit ; lancer tard laisse peu de
+   temps à l'intégration.
 
 ## Les risques suivis
 
@@ -170,8 +226,16 @@ l'interface, elle, reste sur le Mac.
   diffusion hors de France (Q53).
 - **Cadre légal** : audio réel non partageable ; corpus simulé seulement avec sessions dédiées et
   accord écrit (les règles de VATSIM et d'IVAO ne valent pas consentement RGPD).
-- **Le nom** : rien de public sous « Clairance » au-delà de l'existant tant que le nom n'est pas
-  choisi.
+- **Le nom** : choisi le 13/10 ; marques vérifiées dans TMview le 13/10 (aucune marque « CLAIRANCE » seule active, aucune à
+  l'EUIPO ni aux États-Unis, `design/00-nom.md`). Le dépôt est public sous ce nom (`chatelp/clairance`).
+- **Production lancée hors session (16-18/10)** : du 16/10 à 23 h 04 au 18/10 à 13 h 36, la production n'a rien entendu. Cause :
+  l'application Claude de bureau s'est mise à jour et relancée seule, au repos (« stealth update », 23:04:53 dans
+  `~/Library/Logs/Claude/main.log`) ; tout processus démarré depuis la session Claude (la production, via la ligne de commande du
+  lanceur de la barre des menus, l'instance d'essai, les liens avec la station) a perdu l'accès au réseau local de macOS :
+  « no route to host » vers la station chaque seconde, aucune transcription les 17 et 18/10, alors qu'Internet (météo)
+  passait. L'instance d'essai a aussi tourné jusqu'au 18/10 à 13 h 35, le script de nuit n'ayant arrêté que les sondes. **Leçon** : la
+  production est lancée par le propriétaire (lanceur de la barre des menus) ou par le système (`open`), jamais comme enfant d'une session Claude
+  (`CLAUDE.md`, règle 5, 20/10) ; même règle pour tout ce qui doit passer la nuit. Les mesures de la nuit du 16 au 17/10 en sont marquées (voir « En cours », n° 3).
 - **Secrets et données** : jamais de clé, de mot de passe, d'audio ni de base dans un dépôt ou
   dans le cloud (règles permanentes).
 - **Dettes à solder avant toute installation ailleurs** (vérifiées dans les sources le 12/10 pour

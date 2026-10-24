@@ -14,10 +14,11 @@ place is the made-up receiver of the replay bench, 45.0 / 4.67.
     node tools/motion-bench/bench.mjs --headed         # a visible window (the real screen)
     node tools/motion-bench/bench.mjs --label X --save-reference   # keep the metrics in reference/X.json
     node tools/motion-bench/analyse.mjs OUT/raw-<label>-<scenario>.json   # measure a run again
+    node tools/motion-bench/bench.mjs --profile 20      # also a CPU profile of the page, 20 s
 
 Needs Go, Node 22 (its built-in WebSocket) and Chrome or Chromium (`--chrome
 PATH`; the default is Google Chrome on macOS). Ports 8790 (generator) and 8791
-(server) must be free. Runs, logs and raw poses go to `$TMPDIR/motion-bench`
+(server) must be free, or set others with `--gen-port` and `--port`. Runs, logs and raw poses go to `$TMPDIR/motion-bench`
 (`--out DIR`).
 
 | scenario | what |

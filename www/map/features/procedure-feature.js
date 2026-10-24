@@ -35,6 +35,7 @@
         let asked = [];
         let layered = [];
         let askedNames = new Set();
+        let candidateNames = new Set();
 
         function ensure() {
             if (layer || !manager._olMap) return;
@@ -105,9 +106,9 @@
                 // points a route ends at alone (an arrival ends 30 to 40 NM
                 // out: its names never showed). Not those the route asked for
                 // names at full strength.
-                if (mode === LAYER) {
+                if (mode === LAYER && !feature.get('candidate')) {
                     if (skyWidthNM(resolution) > NAMES_UP_TO_NM && !feature.get('ends')) return styles;
-                    if (askedNames.has(p.name)) return styles;
+                    if (askedNames.has(p.name) || candidateNames.has(p.name)) return styles;
                 }
                 const at = feature.getGeometry().getCoordinates();
                 const px = (c) => c && [c[0] / resolution, -c[1] / resolution];
@@ -154,6 +155,7 @@
                     f.set('point', p);
                     f.set('prev', coords[i - 1] || null);
                     f.set('next', coords[i + 1] || null);
+                    f.set('ends', i === pts.length - 1);
                     f.setStyle(pointStyle(mode));
                     out.push(f);
                 });
@@ -174,6 +176,7 @@
             if (!source) return;
             asked = replace(asked, featuresOf(route, runways, ASKED));
             askedNames = new Set((route.legs || []).filter((l) => l.named).map((l) => l.point));
+            drawCandidates();
             if (layer) layer.changed();
             const map = manager._olMap;
             const extent = ol.extent.createEmpty();
@@ -188,6 +191,7 @@
         function clear() {
             if (source) asked = replace(asked, []);
             askedNames = new Set();
+            drawCandidates();
             if (layer) layer.changed();
         }
 
@@ -211,12 +215,65 @@
             layered = replace(layered, next);
         }
 
+        // The selected departure's candidate exits (Q57): their lines, the
+        // likeliest as a route asked for, the others as the layer's; their
+        // points as one set, each named once, at full strength when the
+        // likeliest passes it, at 60 % otherwise (design review 16/10). The
+        // view does not move. A route asked for from a chip wins: while it is
+        // shown the candidates are not drawn; they come back when it closes.
+        let candidates = [];
+        let candidateItems = [];
+        function setCandidates(items) {
+            candidateItems = items || [];
+            drawCandidates();
+        }
+
+        function drawCandidates() {
+            ensure();
+            if (!source) return;
+            const items = asked.length ? [] : candidateItems;
+            const next = [];
+            for (const it of items) next.push(...featuresOf(it.route, it.runways, it.strong ? ASKED : LAYER, false));
+            const strong = items.find((it) => it.strong);
+            const strongPoints = new Map();
+            if (strong) {
+                for (const pts of window.ProcedureRoutes.lines(strong.route, strong.runways)) {
+                    for (const p of pts) if (p.named || p.runway) strongPoints.set(p.name, p);
+                }
+            }
+            const runwaysOf = (r) => (items.find((it) => it.route === r) || {}).runways || [];
+            for (const p of window.ProcedureRoutes.layerPoints(items.map((it) => it.route), runwaysOf)) {
+                const onStrong = strongPoints.get(p.name);
+                const f = new ol.Feature({ geometry: new ol.geom.Point(manager._toMapCoordinate(p.lat, p.lon)) });
+                f.set('point', { name: p.name, named: true, constraints: onStrong ? onStrong.constraints : [] });
+                f.set('neighbours', p.neighbours.map(([la, lo]) => manager._toMapCoordinate(la, lo)));
+                f.set('ends', p.ends);
+                f.set('candidate', true);
+                f.setStyle(pointStyle(onStrong ? ASKED : LAYER));
+                next.push(f);
+            }
+            // The runway the departure took off from, once, on the likeliest.
+            if (strong) {
+                const thr = [...strongPoints.values()].find((p) => p.runway);
+                if (thr) {
+                    const f = new ol.Feature({ geometry: new ol.geom.Point(manager._toMapCoordinate(thr.lat, thr.lon)) });
+                    f.set('point', thr);
+                    f.set('candidate', true);
+                    f.setStyle(pointStyle(ASKED));
+                    next.push(f);
+                }
+            }
+            candidateNames = new Set(items.length ? next.filter((f) => f.get('candidate')).map((f) => f.get('point').name) : []);
+            candidates = replace(candidates, next);
+            if (layer) layer.changed();
+        }
+
         // The palette changed (a bright base map): restyle.
         function refresh() {
             if (layer) layer.changed();
         }
 
-        return { show, clear, setLayer, refresh };
+        return { show, clear, setLayer, setCandidates, refresh };
     }
 
     window.MapProcedureFeature = { create };

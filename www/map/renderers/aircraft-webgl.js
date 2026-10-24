@@ -503,11 +503,13 @@
             ? '-'
             : aircraft.adsb.alt_baro === 0 ? 'GND'
             : reading && reading.kind === 'fl' ? 'FL ' + String(reading.fl).padStart(3, '0')
-            : `${Math.round((reading ? reading.ft : aircraft.adsb.alt_baro) / 10) * 10}ft`;
+            // The brand's numbers (MapLabel), as the story and the list
+            // write them: "3 100 ft", "168 kt", a thin space in thousands.
+            : `${groupThousands(Math.round((reading ? reading.ft : aircraft.adsb.alt_baro) / 10) * 10)} ft`;
         const trendArrow = getAltitudeTrendArrow(aircraft);
         const speed = Number.isFinite(aircraft?.adsb?.gs)
-            ? `${Math.round(aircraft.adsb.gs)}kt`
-            : '--kt';
+            ? `${Math.round(aircraft.adsb.gs)} kt`
+            : '-- kt';
 
         let ageSeconds = null;
         if (store && typeof store.getSecondsSinceLastSeen === 'function') {
@@ -536,7 +538,27 @@
             ageText: (aircraft.status === 'signal_lost' || ageSeconds === null || !Number.isFinite(ageSeconds) || ageSeconds < 5)
                 ? ''
                 : `-${Math.max(0, ageSeconds)}s`,
+            // Where it is probably going (Q57, MapLabel): "→26L/R", "→OKASI"
+            // and the count of the others, read by store/probable.js.
+            probable: aircraft.status === 'signal_lost' || store?.settings?.showProbable === false
+                ? null
+                : (store?.probable?.[aircraft.hex] || null),
         };
+    }
+
+    // The width of a label's text in its own font, for what is drawn over it
+    // in another colour (the probable runway or exit).
+    let labelMeasure = null;
+    function labelTextWidth(text) {
+        if (!labelMeasure) {
+            labelMeasure = document.createElement('canvas').getContext('2d');
+            labelMeasure.font = '11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+        }
+        return labelMeasure.measureText(text).width;
+    }
+
+    function groupThousands(n) {
+        return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f');
     }
 
     // "1 620 ft", "FL 110", "ground": the brand's numbers (thin space).
@@ -771,6 +793,12 @@
             const fade = Number.isFinite(properties.fade) ? properties.fade : 1; // relocation (aircraft-animation.js)
             const textOpacity = baseTextOpacity * labelAgeFade * fade;
             const labelLineOne = `${labelParts.phaseText || ''}${labelParts.callsignText || ''}${labelParts.typeText || ''}`;
+            // The probable runway or exit ends the second line, two spaces after
+            // the speed; the line keeps their room in no-break spaces, and
+            // they are drawn over it in their own colours.
+            const probable = labelMode === 'full' ? labelParts.probable : null;
+            const probableWords = probable ? `  ${probable.main}${probable.rest || ''}` : '';
+            if (probableWords) labelParts.detailsText = `${labelParts.detailsText || ''}${'\u00a0'.repeat(probableWords.length)}`;
             const labelLineTwo = `${labelParts.detailsText || ''}`;
             const longestLabelLineLength = Math.max(labelLineOne.length, labelLineTwo.length);
             const estimatedLabelWidthPx = Math.max(72, Math.round(longestLabelLineLength * 6.4) + 12);
@@ -916,9 +944,28 @@
                 })
                 : null;
 
+            // Over the second line: the runway or exit in the secondary text
+            // colour, the count of the others in the tertiary (MapLabel, Q57).
+            const probableStyles = [];
+            if (probable && labelMainStyle && labelMode === 'full') {
+                const details = labelLineTwo.slice(0, labelLineTwo.length - probableWords.length);
+                const x0 = labelTextWidth(details + '  ');
+                const lineTwoY = -(iconSize / 2 + 1) - lift;
+                const over = (text, x, role) => new window.ol.style.Style({
+                    text: new window.ol.style.Text({
+                        text, offsetX: x, offsetY: lineTwoY, textAlign: 'left',
+                        font: '11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                        fill: new window.ol.style.Fill({ color: hexToRgba(labelTextColor(role), textOpacity) }),
+                    }),
+                });
+                probableStyles.push(over(probable.main, x0, 'secondary'));
+                if (probable.rest) probableStyles.push(over(probable.rest, x0 + labelTextWidth(probable.main), 'tertiary'));
+            }
+
             const textStyles = [];
             if (labelMainStyle) textStyles.push(labelMainStyle);
             if (phasePrefixStyle) textStyles.push(phasePrefixStyle);
+            textStyles.push(...probableStyles);
             if (voiceTagStyle) textStyles.push(voiceTagStyle);
 
             return labelAgeStyle
@@ -1181,7 +1228,13 @@
             stats.removes++;
         }
 
-        function bulkSyncAircraft(aircraftMap, shouldRender, visualResolver) {
+        // options.preservePose: an aircraft already drawn keeps the pose the
+        // animation engine gave it. Set from the raw position, an aircraft
+        // whose position the receiver lost 10 to 40 s ago was drawn back
+        // there at each full sync -- the transcriptions trigger them -- and
+        // forward again the next frame (owner, 16/10: "the third family of
+        // jumps", 580 visible jumps in 5 min with the audio streams on).
+        function bulkSyncAircraft(aircraftMap, shouldRender, visualResolver, options = {}) {
             const activeHexes = new Set();
             const collection = aircraftMap || {};
 
@@ -1199,7 +1252,7 @@
                     ? (visualResolver(aircraft.hex) || { selected: false, hovered: false })
                     : { selected: false, hovered: false };
 
-                upsertAircraftFeature(aircraft, visualState);
+                upsertAircraftFeature(aircraft, visualState, { preservePose: options.preservePose === true });
                 activeHexes.add(aircraft.hex);
             });
 
