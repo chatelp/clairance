@@ -215,6 +215,12 @@ A, B et C relancées par erreur le 13/10 puis arrêtées n'ont laissé aucune br
    Chaque fiche demande d'abord une relecture ici et une soirée d'écoute pour tout ce qui se voit ; lancer tard laisse peu de
    temps à l'intégration.
 
+11. **Qui porte la production quand le lanceur se ferme** (Q59, 24/10, avant l'étape 1b du lanceur) : (a) le lanceur
+   reste ouvert, et le mettre à jour relance la production ; ou (b) un « porteur », une instance à part de
+   `Clairance.app` par production. Mesuré par l'agent du lanceur : quand l'application dont dépend la production
+   se ferme, la production perd le réseau local pour de bon. Recommandation : (b). Aussi à accorder : la
+   fusion de l'étape 1a (`lanceur`, 4c63292 et 796379e) dans `local`.
+
 ## Les risques suivis
 
 - ~~**Latence de transcription**~~ — **réduite le 14/10 au soir** (D81 et correctif du sidecar).

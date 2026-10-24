@@ -5265,6 +5265,29 @@ rien jusqu'au rechargement. **Vérifié** dans un navigateur sur une instance d'
 ports annexes en 200, son ouvert sur la tuile cliquée, source ajoutée en cours de route branchée
 sans rechargement. Sans cookie, le même flux répond 401 : c'était l'ancien comportement.
 
+### Q59 — Qui porte la production quand le lanceur se ferme ? *(24/10 — ouverte, à trancher par le propriétaire avant l'étape 1b du lanceur)*
+
+**Le constat, mesuré le 24/10 par l'agent du lanceur** (doc 34, « L'étape 1 », branche `lanceur`) sur une
+instance d'essai qui ne lit que l'ADS-B (port 8013, aucun auditeur sur la station). Une instance lancée
+par le lanceur, lui-même ouvert par `open`, dépend du lanceur pour macOS. **Quand le lanceur se ferme,
+l'instance continue de tourner, mais perd le réseau local aussitôt et pour de bon** : dernière lecture
+ADS-B à 14:01:25,76 UTC, lanceur fermé à 14:01:26, plus rien en deux minutes de suivi. Rouvrir le
+lanceur ne lui rend rien. Le 16-18/10 n'était donc pas propre à la mise à jour de Claude : il suffit que
+l'application dont dépend la production se ferme. La règle 5 de `CLAUDE.md` (« passe par `open` ») reste
+juste, avec une condition : l'application ouverte doit rester ouverte tant que ce qu'elle a lancé doit
+entendre la station. Depuis 1a, quitter le lanceur demande confirmation tant que quelque chose dépend de
+lui ; restent un plantage du lanceur et sa mise à jour.
+
+**Les deux voies** :
+- **(a) en rester là** : le lanceur doit rester ouvert ; le mettre à jour, c'est relancer la production.
+- **(b) un porteur** : chaque production démarrée dans une instance à part de `Clairance.app`, ouverte par
+  le système, qui ne fait que la porter et se ferme avec elle ; le menu peut alors se fermer, planter ou
+  être mis à jour sans toucher à la production. Reste à mesurer : le porteur garde-t-il le réseau local
+  quand l'application est remplacée sur le disque ?
+
+**Recommandation de l'agent du lanceur, que je partage** : (b). Le gardien de l'étape 1b ne peut pas
+signaler sa propre chute, et (a) ferait de chaque mise à jour du lanceur une coupure de la production.
+
 ### Q57 — La piste et la sortie probables sur le cartouche de l'avion *(16/10 — **décidée par le propriétaire le 16/10, en production à 17 h 06**)*
 
 > **Décision du propriétaire, 16/10** : « oui, construis cette forme directement et on bascule en
