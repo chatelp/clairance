@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Clairance">
+  <title>Clairance — the application's icon (Clairance.app, its notifications)</title>
+  <!-- The macOS icon grid: a 824 tile at 100, 100 on the 1024 canvas, corner
+       radius 185, its own soft shadow below. The favicon's dark tile (panel
+       colour, a faint light from above) and the sign at 64 × 8 = 512, centred:
+       the scope, its range ring, the sweep, its afterglow and the blip.
+       Export: rsvg-convert -w N app-icon.svg for 16 to 1024, then iconutil. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#262626"/>
+      <stop offset="1" stop-color="#151515"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000000" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#tile)" filter="url(#shadow)"/>
+  <rect x="100.5" y="100.5" width="823" height="823" rx="184.5" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
+  <g transform="translate(256 256) scale(8)">
+    <circle cx="32" cy="32" r="26.5" fill="none" stroke="#e0e0e0" stroke-width="4"/>
+    <circle cx="32" cy="32" r="13" fill="none" stroke="#e0e0e0" stroke-width="2" opacity="0.55"/>
+    <path d="M32 32 L32 6 A26 26 0 0 1 50.385 13.615 Z" fill="#4caf50" fill-opacity="0.35"/>
+    <path d="M32 32 L50.385 13.615" fill="none" stroke="#4caf50" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="39.18" cy="16.59" r="3.8" fill="#4caf50"/>
+  </g>
+</svg>

@@ -24,6 +24,7 @@ et des écrans (revue du 20/10).
 | `07-esquisses.md` | le fil au centre : A et sa colonne à deux onglets, B replié, suivre un vol ; d'où vient chaque donnée | esquisses validées le 13/10 (A, B replié, C) |
 | `08-design-system.md`, `systeme/` | le design system Clairance : livre de marque, 95 jetons, 27 composants et 2 compositions en classes CSS `cl-`, le signe et les avions ; publié comme artefact, source dans `systeme/project/` | fait le 13/10 |
 | `09-ecrans.md`, `ecrans/` | les quatorze écrans finaux, faits du seul design system, et où va chaque fonction d'aujourd'hui | faits et validés le 13/10 (six propositions retenues) |
+| `10-lanceur.md` | le lanceur de la barre des menus en Clairance natif macOS (`docs-fr/34-lanceur.md`) : les six états de l'icône, le menu, le catalogue des notifications, l'icône de l'application | étape 1 proposée le 24/10 ; la fenêtre (étape 2) à venir |
 | `connexion/` | trois propositions pour la page de connexion : A le scope, B un échange, C le ciel (`a-scope.html`, `b-echange.html`, `c-ciel.html`), produites par `tools/design/connexion.py` ; **C retenue** par le propriétaire le 13/10 ; décrites dans `09-ecrans.md` | fait |
 
 Outils, dans `tools/design/` :
