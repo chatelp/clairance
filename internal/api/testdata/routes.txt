@@ -14,6 +14,7 @@ GET /api/v1/config (*Handler).GetConfig locked
 GET /api/v1/frequencies (*Handler).GetAllFrequencies locked
 GET /api/v1/frequencies/{id} (*Handler).GetFrequencyByID locked
 GET /api/v1/health (*Handler).GetHealth open
+GET /api/v1/health/detail (*Handler).GetHealthDetail open
 GET /api/v1/heliports (*Handler).GetHeliports locked
 GET /api/v1/navaids (*Handler).GetNavaids locked
 GET /api/v1/navaids/{ident} (*Handler).GetNavaidByIdent locked

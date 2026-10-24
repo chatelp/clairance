@@ -36,6 +36,7 @@ type Handler struct {
 	audioArchive         *audioarchive.Archive      // the sidecar's clips, nil without one
 	status               statusCache                // the receiver as reported, the sidecar as last read
 	vitals               vitalsCache                // the sign-in page's figures, see vitals_handlers.go
+	healthDetail         healthDetailCache          // the launcher's health, see health_detail_handlers.go
 
 	// Who is asking. See internal/auth and auth_handlers.go.
 	auth *auth.Service

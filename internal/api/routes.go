@@ -93,6 +93,9 @@ func (r *Router) Routes() http.Handler {
 		// anyone needs to sign in, and health has to answer a probe that has no
 		// credentials to offer.
 		router.Get("/health", r.handler.GetHealth)
+		// The launcher's health: this machine without a session, or the
+		// owner's session; 403 to anyone else. See health_detail_handlers.go.
+		router.Get("/health/detail", r.handler.GetHealthDetail)
 		router.Get("/auth/status", r.handler.GetAuthStatus)
 		router.Post("/auth/login", r.handler.PostLogin)
 		router.Post("/auth/logout", r.handler.PostLogout)

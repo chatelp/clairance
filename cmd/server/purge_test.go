@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yegors/co-atc/internal/audioarchive"
 	"github.com/yegors/co-atc/pkg/logger"
 )
 
@@ -89,6 +90,10 @@ func TestTheArchiveLosesItsOldestClipsFirst(t *testing.T) {
 	log, written := fileLogger(t)
 	if err := purgeAudioArchive(root, 11000, purgeNow, log); err != nil {
 		t.Fatal(err)
+	}
+	// What is left is the size the health route reports (docs-fr/34).
+	if bytes, at, ok := audioarchive.New(root).Size(); !ok || bytes != 10400 || !at.Equal(purgeNow) {
+		t.Errorf("the size kept after the purge: %d at %v (%v), want 10400", bytes, at, ok)
 	}
 	got := files(t, root)
 	d3, d2 := dayName(-3), dayName(-2)

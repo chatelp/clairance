@@ -78,7 +78,17 @@ type Health struct {
 	// What the models run on, as the sidecar declares it: the GPU's name, or
 	// "mlx". Empty from a sidecar that does not say.
 	Backend string `json:"backend"`
-	Models  map[string]struct {
+	// The model's queue by lane (sidecar/lanes.py), the second readings not
+	// fetched yet, and whether clips are being archived -- what the launcher's
+	// health shows (docs-fr/34).
+	Queue struct {
+		First  int `json:"first"`
+		Second int `json:"second"`
+	} `json:"queue"`
+	SecondPending           int  `json:"second_pending"`
+	Archiving               bool `json:"archiving"`
+	ArchivingStoppedLowDisk bool `json:"archiving_stopped_low_disk"`
+	Models                  map[string]struct {
 		ID        string `json:"id"`
 		Kind      string `json:"kind"`
 		Available bool   `json:"available"`
