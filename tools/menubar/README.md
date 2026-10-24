@@ -55,22 +55,31 @@ go build -ldflags "-X main.version=$(git describe --tags --match '[0-9]*' --alwa
   -o bin/co-atc ./cmd/server
 ```
 
-## What depends on the launcher
+## What production depends on
 
 For macOS, a process depends on the app that started it, and runs on that
-app's Local Network permission. Measured on 24/10/2026:
+app's Local Network permission. When that app quits, the process keeps running
+but loses the local network at once and for good: no station, nothing
+transcribed (measured on 24/10/2026; this is what happened from 16 to 18/10,
+when production depended on a Claude session that restarted).
 
-- What the launcher starts depends on the launcher, when the system opened it
-  (a double-click, a login item, `open`). Run from a terminal, the launcher has
-  the system open it again, and leaves.
-- When that app quits, the process keeps running but loses the local network
-  at once and for good: no station, nothing transcribed. A test instance's last
-  ADS-B read was the one before the launcher quit; reopening the launcher did
-  not give it back. This is what happened from 16 to 18/10, when production
-  depended on a Claude session that restarted.
+So the launcher does not start production as its own child. It opens a
+carrier: another instance of Clairance.app, opened by the system, that waits
+for the station to answer, runs the production script, and leaves with it. Test
+instances run the same way. Measured on 24/10:
 
-So the launcher must stay open while production runs. Quitting it while
-something depends on it asks first.
+- what a carrier runs depends on the carrier, not on the menu;
+- the menu can quit, and the app can be replaced on disk by an update, while
+  what it carries keeps hearing the station;
+- a SIGTERM to the carrier stops what it carries, and the carrier leaves when
+  what it carries stops.
+
+While a carrier runs, macOS takes Clairance for open: opening it again (a
+double-click, Spotlight, `open`) reaches the carrier, which then opens the
+menu. The launcher itself, run from a terminal, has the system open it again
+and leaves. A process that still depends on the menu, or on another app, is
+shown as such in its details ("Depends on:"), and quitting the menu asks first
+while something depends on it.
 
 ## From a terminal, a Shortcut or an agent
 
@@ -85,8 +94,8 @@ $C --stop-test runs/my-test/config.toml
 `--start` and `--start-test` never start anything themselves: they ask the
 running launcher, through a socket in `~/Library/Application Support/Clairance/`
 open to this user only, and open the launcher first if it does not run. What
-starts then depends on the launcher, not on the terminal or the agent that
-typed the command; the command shows what the launcher does, and ends when the
+starts then runs in a carrier, not under the terminal or the agent that typed
+the command; the command shows what the launcher does, and ends when the
 server answers (with production: once its station link runs and its sidecar is
 ready). `--stop` goes through the launcher too when it runs.
 
