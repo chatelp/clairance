@@ -30,7 +30,7 @@ Les fichiers sont dans `docs-fr/design/identite/`, en 18 pt, à copier dans `too
 | État | Dessin | Image | Quand |
 |---|---|---|---|
 | **Stopped** | l'écran vide et son centre, à 55 % | modèle (`barre-menus-arret.svg`) | arrêtée par choix ; ce n'est jamais une panne |
-| **Switching** | l'écran et ◐ au centre | modèle (`barre-menus-bascule.svg`) | un démarrage ou un arrêt demandé au lanceur, le temps qu'il aboutisse (15 s au plus) |
+| **Switching** | l'écran et ◐ au centre | modèle (`barre-menus-bascule.svg`) | un démarrage ou un arrêt demandé au lanceur, le temps qu'il aboutisse : au démarrage, le porteur attend la station 20 s au plus (moins d'une seconde d'habitude), puis le serveur ; au-delà, l'icône dit ce que disent les contrôles |
 | **Running** | le balayage et son plot | modèle (`barre-menus-marche.svg`) | elle tourne, tous les contrôles passent, rien n'est à l'antenne de la station |
 | **On air** | l'écran allumé, en vert | couleur (`barre-menus-ecoute.svg`) | elle tourne, tous les contrôles passent, la station a des fréquences à l'antenne |
 | **Fault** | ▲ ambre dans l'écran, sur disque sombre | couleur (`barre-menus-defaut.svg`) | elle tourne, mais un contrôle échoue (liste ci-dessous) |
@@ -186,11 +186,13 @@ sortie propre, celle qu'on cherche le plus souvent en quittant. « Quit Anyway �
 d'aujourd'hui, en le nommant pour ce qu'il est. Les titres des boutons suivent la casse des boutons
 du Mac (chaque mot en capitale).
 
-**À venir, le porteur** (choix du propriétaire, 24/10) : la production tournera dans un processus
-« porteur » séparé du menu, si bien que le lanceur pourra se fermer ou se mettre à jour sans la
-couper. Alors l'alerte ne concernera plus la production, seulement les instances qui dépendent du
-menu lui-même ; l'en-tête « Production without local network » restera, pour une production lancée
-à l'ancienne. Les textes changeront après la mesure de l'agent, pas avant.
+**Le porteur** (choix du propriétaire, 24/10 ; livré en 8c1182b) : ce que le lanceur démarre tourne
+dans un porteur, une autre instance de Clairance.app ouverte par macOS, sans icône dans le Dock ni
+fenêtre. Fermer le menu ou mettre l'application à jour ne coupe plus la production : le menu dit
+donc « Quit launcher », sans points de suspension, et l'alerte ne reste qu'en garde-fou, pour ce qui
+dépendrait encore du menu lui-même. Dans le détail d'une instance, la ligne reste « Depends on:
+Clairance ». « Started from Terminal… » et « Production without local network » restent utiles,
+pour une production lancée par un double-clic sur le script ou par une version ancienne.
 
 **Relancer depuis le lanceur** (« Restart from Clairance », et « Restart production » du menu)
 passe par une confirmation, comme tout ce qui interrompt la production :
