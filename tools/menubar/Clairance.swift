@@ -649,18 +649,71 @@ final class Production: ObservableObject {
     // instance kept running when the launcher quit, but lost the local network
     // at once and for good (its last ADS-B read was the one before the quit).
     // Quitting says so first.
+    // Texts and buttons: docs-fr/design/10-lanceur.md.
     func quit() {
         let c = carried
         guard !c.isEmpty else { return NSApplication.shared.terminate(nil) }
+        let names = c.map { i in i.production ? "production" : i.port.map { "the test instance on port \($0)" } ?? "the test instance \(i.name)" }
+        var who = names.count == 1 ? names[0] : names.dropLast().joined(separator: ", ") + " and " + names.last!
+        who = who.prefix(1).uppercased() + who.dropFirst()
+        let subject = c.count > 1 ? "they keep" : c[0].production ? "production keeps" : "it keeps"
         let alert = NSAlert()
+        alert.alertStyle = .warning
         alert.messageText = "Quit the launcher?"
-        alert.informativeText = c.map(\.name).joined(separator: ", ") + (c.count == 1 ? " depends" : " depend")
-            + " on it. If it quits, they keep running without the local network: no station, nothing transcribed."
-        alert.addButton(withTitle: "Cancel")
+        alert.informativeText = "\(who) \(c.count > 1 ? "run" : "runs") from the launcher. If it quits, \(subject) running without the local network: no station, nothing transcribed."
+        alert.addButton(withTitle: "Cancel") // the default: Return and Escape
+        alert.addButton(withTitle: c.contains(where: \.production) ? "Stop Production and Quit" : "Stop and Quit")
         alert.addButton(withTitle: "Quit Anyway")
         NSApplication.shared.activate(ignoringOtherApps: true)
+        switch alert.runModal() {
+        case .alertSecondButtonReturn: stopAndQuit(c)
+        case .alertThirdButtonReturn: NSApplication.shared.terminate(nil)
+        default: break
+        }
+    }
+
+    /// Stops cleanly what depends on the launcher, then quits; stays open if
+    /// something has not stopped after two minutes.
+    private func stopAndQuit(_ c: [Instance]) {
+        for i in c {
+            if i.production { stop() } else { targets(i).forEach { terminate($0.proc) } }
+        }
+        Task {
+            for _ in 0..<60 where c.contains(where: { $0.proc.alive }) {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+            }
+            if c.contains(where: { $0.proc.alive }) {
+                note = "Not everything stopped: the launcher stays open"
+                await refresh()
+            } else {
+                NSApplication.shared.terminate(nil)
+            }
+        }
+    }
+
+    /// Production stops, then starts again from the launcher, which it then
+    /// depends on: the way out for a production started from elsewhere.
+    func restart() {
+        guard production != nil, !busy else { return }
+        let alert = NSAlert()
+        alert.messageText = "Restart production from the launcher?"
+        alert.informativeText = "It stops, then starts again from the launcher. Nothing is transcribed in between."
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Restart")
+        NSApplication.shared.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertSecondButtonReturn else { return }
-        NSApplication.shared.terminate(nil)
+        stop()
+        Task {
+            for _ in 0..<60 where running {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                await refresh()
+            }
+            guard !running else {
+                note = "Production did not stop: not restarted"
+                return
+            }
+            start()
+        }
     }
 
     func open(_ url: String) {
@@ -847,7 +900,22 @@ enum Entry {
                 }
                 i += 2
             }
-            ok = send(request, open: cmd == "--start-test")
+            if cmd == "--start-test" || connectControl().map({ close($0) }) != nil {
+                ok = send(request, open: cmd == "--start-test")
+            } else if let config = request.config {
+                // No launcher: like --stop, the command line stops it by its own PIDs.
+                let p = Production()
+                block { await p.refresh() }
+                guard let i = p.instances.first(where: { $0.configPath == config && !$0.production }) else {
+                    print("no test instance runs with that config")
+                    exit(1)
+                }
+                let t = p.targets(i)
+                t.forEach { terminate($0.proc) }
+                for _ in 0..<30 where t.contains(where: { $0.proc.alive }) { Thread.sleep(forTimeInterval: 1) }
+                ok = !t.contains(where: { $0.proc.alive })
+                print(ok ? "\(i.name) stopped" : "still running after 30 s")
+            }
         default:
             print(usage)
             exit(2)
@@ -900,7 +968,7 @@ func instanceLines(_ i: Instance) -> [String] {
     // Measured on 24/10: when the app a process depends on quits, macOS makes the
     // process depend on itself, and a bare program has no Local Network access.
     if let d = i.dependence {
-        lines.append(d.pid == i.pid ? "Depends on: itself, no local network" : "Depends on: \(d.app)")
+        lines.append(d.pid == i.pid ? "Depends on: no app · no local network" : "Depends on: \(d.app)")
     }
     if let u = i.until {
         let left = u.timeIntervalSinceNow
@@ -938,8 +1006,13 @@ struct ClairanceLauncher: App {
         MenuBarExtra {
             Text(p.running ? "Production running · \(p.elapsed)" : "Production stopped")
             if let prod = p.production, let d = prod.dependence, !d.launcher {
-                Text(d.pid == prod.pid ? "▲ Production depends on no app: no local network"
-                                       : "▲ Started from \(d.app): it stops hearing if \(d.app) quits")
+                if d.pid == prod.pid {
+                    Text("▲ Production without local network")
+                    Text("The app that started it quit: macOS took its local network")
+                } else {
+                    Text("▲ Started from \(d.app): it stops hearing if \(d.app) quits")
+                }
+                Button("Restart from Clairance") { p.restart() }.disabled(p.busy)
             }
             if p.running { Text("Sidecar: \(p.sidecar)") }
             Text("On air: \(p.onAir)")
@@ -978,6 +1051,7 @@ struct ClairanceLauncher: App {
             }
             Divider()
             Button(p.carried.isEmpty ? "Quit launcher" : "Quit launcher…") { p.quit() }
+                .keyboardShortcut("q")
         } label: {
             // The brand's two states (docs-fr/design/05-identite.md): the scope with
             // its sweep and plot while production runs, the empty screen when it is
