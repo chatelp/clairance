@@ -3,7 +3,7 @@
 *24/10/2026, session design, à la demande de l'agent du lanceur (« Plan lanceur de Clairance ») et
 du propriétaire (`docs-fr/34-lanceur.md`). Étape 1, le gardien : l'icône et ses états, le menu, les
 notifications, l'icône de l'application. La fenêtre de l'étape 2 viendra dans une fiche à part.
-Proposition : le propriétaire tranche.*
+Validée par le propriétaire le 24/10 (relayé par l'agent du lanceur) ; l'étape 1b est codée sur cette forme.*
 
 ## Le principe : Clairance, dans les règles du Mac
 
@@ -185,6 +185,12 @@ L'alerte (`NSAlert`, style avertissement, l'icône de l'application) :
 sortie propre, celle qu'on cherche le plus souvent en quittant. « Quit Anyway » garde le sens
 d'aujourd'hui, en le nommant pour ce qu'il est. Les titres des boutons suivent la casse des boutons
 du Mac (chaque mot en capitale).
+
+**À venir, le porteur** (choix du propriétaire, 24/10) : la production tournera dans un processus
+« porteur » séparé du menu, si bien que le lanceur pourra se fermer ou se mettre à jour sans la
+couper. Alors l'alerte ne concernera plus la production, seulement les instances qui dépendent du
+menu lui-même ; l'en-tête « Production without local network » restera, pour une production lancée
+à l'ancienne. Les textes changeront après la mesure de l'agent, pas avant.
 
 **Relancer depuis le lanceur** (« Restart from Clairance », et « Restart production » du menu)
 passe par une confirmation, comme tout ce qui interrompt la production :
