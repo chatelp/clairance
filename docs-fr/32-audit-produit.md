@@ -494,6 +494,18 @@ sur la carte.
 
 ## État
 
+- 24/10 : **le lanceur de la barre des menus devient le poste de surveillance de Clairance** (proposition
+  `34-lanceur.md`, 1eb83a3, demandée par le propriétaire ; agent dédié « Plan lanceur de Clairance », branche
+  `lanceur`, coordonné avec la session design). Côté serveur, la seule modification demandée : **`GET
+  /api/v1/health/detail`** (3307610, commit autonome), format arrêté avec l'agent. Réservée à la machine elle-même
+  sans session (connexion depuis la boucle locale, en-tête Host de boucle locale avec ou sans port, aucun en-tête de
+  mandataire) ou au propriétaire connecté ; 403 sinon. Une réponse sert 5 s, sans requête en base. Ce qu'elle ajoute
+  à `/status` : **les octets sortis de ffmpeg par fréquence sur la dernière minute** (« connected » ne disait que
+  « ffmpeg a démarré » : c'est ce qui aurait vu la production sourde du 16 au 18/10), l'heure du dernier segment
+  envoyé au sidecar et celle du dernier texte rendu (fréquence silencieuse contre transcription sourde), la file du
+  sidecar par voie, la taille de l'archive relevée par la purge horaire face à son plafond, la place libre, le PID
+  de co-atc. Mesuré : ffmpeg réel sur une tonalité à 16 kHz, 102 400 octets en 3 s environ (32 ko/s, attendu). Pas
+  encore vu sur la production : elle est arrêtée depuis le 18/10.
 - 20/10 : **revue de la documentation** (revue du 20/10). Les documents de pilotage et d'index ont été remis
   à jour sur l'état réel : sessions, jalons faits (nom, migration du design, Q55 à Q57, fiches cloud G à M toutes
   intégrées), décision sur le crédit cloud restant (250 $ jusqu'au 5/11), correction du diagnostic de la troisième

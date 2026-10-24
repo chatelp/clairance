@@ -98,6 +98,26 @@ la dernière erreur ; l'état du sidecar. Une route en lecture seule, réservée
 au propriétaire (`GET /api/v1/health`, à préciser). C'est la seule modification du serveur ; elle
 se fait dans la session principale, en commit à part.
 
+**Faite le 24/10 (3307610) : `GET /api/v1/health/detail`**, format arrêté avec l'agent du lanceur ;
+`/api/v1/health` est inchangé. Accès : sans session depuis la machine elle-même (connexion depuis
+127.0.0.1 ou ::1, en-tête Host de boucle locale avec ou sans port, aucun en-tête `X-Forwarded-For`,
+`Forwarded`, `X-Real-IP` ni `X-Forwarded-Host`), ou par la session du propriétaire ; 403 sinon. Une
+réponse sert 5 s ; le sidecar est relu au plus toutes les 15 s (même lecture que `/status`) ; aucune
+requête en base. Heures en RFC 3339 UTC ; une valeur inconnue est absente, pas à zéro.
+
+| Clé | Contenu |
+|---|---|
+| `pid`, `uptime_s`, `version`, `commit` | le processus co-atc |
+| `adsb` | `ok`, `last_fetch`, `failing_since`, `failing_why`, `aircraft`, `messages_per_second` |
+| `frequencies[]` | `id`, `name`, `status`, `error`, `transcribes`, **`bytes_last_60s`**, `last_byte_at` (sortie de ffmpeg), `last_segment_at` (dernière transmission envoyée au sidecar), `last_transcribed_at` (dernier texte rendu) |
+| `sidecar` | `reachable`, `status` (`off` si rien ne transcrit), `degraded`, `pid`, `queue {first, second}`, `second_pending`, `archiving`, `archiving_stopped_low_disk`, `read_at` |
+| `receiver` | le dernier rapport de `radio-ctl-sync`, comme `/status`, ou `null` |
+| `audio_archive` | `available`, `bytes` et `measured_at` (relevés par la purge horaire, absents sans plafond), `cap_bytes`, `disk_free_bytes` |
+| `databases` | `dir_bytes` (bases quotidiennes et leurs journaux), `disk_free_bytes` |
+
+La mémoire du sidecar ne figure pas dans la réponse : le serveur ne la connaît pas, et le lanceur
+la lit lui-même par le PID.
+
 ## Comment on le mène
 
 - **Un agent dédié**, en Swift et SwiftUI, sur `tools/menubar/` ; la session principale tient le

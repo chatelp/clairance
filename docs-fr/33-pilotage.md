@@ -1,6 +1,6 @@
 # Pilotage — stratégie, chantiers, jalons, décisions attendues
 
-*Dernière mise à jour : 20/10/2026 (revue du 20/10).*
+*Dernière mise à jour : 24/10/2026 (chantier du lanceur).*
 
 *Le document du chef d'orchestre. Tenu par la session Clairance, mis à jour à chaque livraison
 d'une session, à chaque décision du propriétaire et à chaque jalon franchi. Ouvert le 12/10/2026
@@ -30,6 +30,7 @@ la mémoire des décisions dans `05-decisions.md` ; ici, la vue d'ensemble, cour
 |---|---|---|---|---|
 | **Clairance** (session principale, chef d'orchestre) | le produit : code, mesures, documents, coordination | paliers 0 à 5 de l'audit faits ; migration du design en production depuis le 15/10 ; Q55 à Q57 en production le 16/10 ; mouvement des avions (D79, D80, troisième famille de sauts corrigée le 16/10) ; revue des documents du 20/10 | l'analyse des mesures de la nuit du 16 au 17/10 (non faite) ; les prérequis « installable ailleurs » | — |
 | **Clairance - Design** (branche `design-suite` depuis Q56/Q57 ; index `docs-fr/design/README.md`) | identité, nom, système de design, maquettes, fiches de composants, relecture des livraisons de l'interface | **migration close côté design le 15/10** (étapes 0 à 13, plan `04-migration.md`, relues conformes) ; identité (05), esquisses (07, D77), système de composants (08, artefact https://claude.ai/artifact/Ut6hWDRRUcWC58HHz6UP2K), quatorze écrans finaux (09, D78, galerie https://claude.ai/artifact/2gZSBGbTkEySxThbNRYhMF) ; depuis le 16/10, les fiches de Q56 (`ProcedureRoute`) et de Q57 (étiquette, sorties possibles), relues après construction ; référence figée `design-reference-2026-10-13` ; les captures de la carte réelle restent hors dépôt (D75) | les fiches que demande le propriétaire | relire chaque livraison de l'interface sur l'instance d'essai avant qu'elle parte en production |
+| **Plan lanceur de Clairance** (depuis le 24/10 ; branche `lanceur`, arbre `.claude/worktrees/lanceur` ; mission dans `docs-fr/34-lanceur.md`) | le lanceur de la barre des menus, devenu poste de surveillance : gardien, tableau de bord natif, poste de commande ; en Swift, sur `tools/menubar/` seulement ; forme confiée à la session design (« Clairance natif macOS ») | étape 1a en cours : lancement délégué au lanceur, instances repérées par PID ; la route de santé du serveur est livrée (`/api/v1/health/detail`, 3307610, 24/10) | l'étape 1, le gardien : santé et notifications | mesurer le temps entre une coupure provoquée et la notification (cible : moins de 2 min), et zéro fausse alerte sur une journée normale |
 | **Whisper-lab** (`~/Dev/Aero/whisper-lab`, privé) | reconnaissance : modèles, corpus, mesures, GPU | précision par niveau d'indices mesurée (borne haute) ; Kyutai écarté (28/09) ; a proposé Q55 (15/10) ; bases du ciel témoin copiées par le labo (D82, 16/10) ; état depuis le 16/10 non relevé ici | tirage au hasard de la précision quand l'annotation aura avancé (jalon du labo) | la mesure de non-régression du modèle converti, le jour du portage |
 | **ATC-scribe communauté** (`~/Dev/Aero/atc-scribe-communaute`, privé, dépôt `chatelp/atc-scribe-communaute`) | cadre légal, existant, communautés françaises, prérequis, recommandation | étude livrée le 12/10 (`SYNTHESE.md`, fiches 01 à 05) ; premier pas tranché le 13/10 avec le propriétaire (voir « Faits ») ; en veille | — (reprend sur question de Pierre) | le P0 de la fiche 04 entre dans le jalon « installable ailleurs » |
 | **Station radio** (session de la station) | la station : réception, chaîne VHF, captations | en veille au dernier relevé (12/10) ; `radio-ctl-sync` rapporte l'état au bandeau | — | prévenue à chaque bascule d'écoute |
@@ -116,6 +117,9 @@ la mémoire des décisions dans `05-decisions.md` ; ici, la vue d'ensemble, cour
 
 ### En cours
 
+0. **Le lanceur en poste de surveillance** (doc 34, 24/10) : agent dédié, étape 1 (le gardien) d'abord.
+   Côté serveur, la route de santé est faite (3307610). Ce qui doit précéder la prochaine relance de la
+   production : rien ; elle portera la route dès qu'elle sera relancée sur un binaire reconstruit.
 1. **Les prérequis pour être installable ailleurs** (communauté, question 4) → liste hiérarchisée →
    chantier technique dans cette session (voir « À venir »).
 2. **À regarder à l'usage par le propriétaire** : le fond clair IGN/OSM et le téléphone (versés avec la
