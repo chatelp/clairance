@@ -30,11 +30,11 @@ Les fichiers sont dans `docs-fr/design/identite/`, en 18 pt, à copier dans `too
 | État | Dessin | Image | Quand |
 |---|---|---|---|
 | **Stopped** | l'écran vide et son centre, à 55 % | modèle (`barre-menus-arret.svg`) | arrêtée par choix ; ce n'est jamais une panne |
-| **Switching** | l'écran et ◐ au centre | modèle (`barre-menus-bascule.svg`) | un démarrage ou un arrêt demandé au lanceur, le temps qu'il aboutisse : au démarrage, le porteur attend la station 20 s au plus (moins d'une seconde d'habitude), puis le serveur ; au-delà, l'icône dit ce que disent les contrôles |
+| **Switching** | l'écran et ◐ au centre | modèle (`barre-menus-bascule.svg`) | un démarrage ou un arrêt demandé au lanceur, le temps qu'il aboutisse : au démarrage, le porteur attend la station 20 s au plus (moins d'une seconde d'habitude), puis le serveur ; au-delà, l'icône dit ce que disent les contrôles ; elle cesse dès que co-atc répond ou disparaît, sans attendre que le script abandonne |
 | **Running** | le balayage et son plot | modèle (`barre-menus-marche.svg`) | elle tourne, tous les contrôles passent, rien n'est à l'antenne de la station |
 | **On air** | l'écran allumé, en vert | couleur (`barre-menus-ecoute.svg`) | elle tourne, tous les contrôles passent, la station a des fréquences à l'antenne |
 | **Fault** | ▲ ambre dans l'écran, sur disque sombre | couleur (`barre-menus-defaut.svg`) | elle tourne, mais un contrôle échoue (liste ci-dessous) |
-| **Down** | ■ rouge dans l'écran, sur disque sombre | couleur (`barre-menus-panne.svg`) | elle devrait tourner et ne tourne pas : arrêtée d'elle-même, ou serveur muet |
+| **Down** | ■ rouge dans l'écran, sur disque sombre | couleur (`barre-menus-panne.svg`) | elle devrait tourner et ne tourne pas : arrêtée d'elle-même, serveur muet, ou démarrage manqué |
 
 **Priorité** : Switching, puis Down, puis Fault, puis On air, puis Running, puis Stopped. Une
 production en défaut n'a jamais l'air à l'écoute : c'est exactement ce qui a trompé le 16-18/10.
@@ -102,7 +102,9 @@ Quit launcher…                              ⌘Q
 - `Production starting…` et `Production stopping…` ;
 - `Production running · 2 h 14 min` ;
 - `▲ Production deaf · 3 min` ;
-- `■ Production down · stopped by itself 3 min ago`, ou `■ Production not answering · 1 min`.
+- `■ Production down · stopped by itself 3 min ago`, ou `■ Production not answering · 1 min` ;
+- `■ Production did not start` (un démarrage demandé qui n'a pas abouti ; mesuré le 24/10 : sans
+  réponse de la station, co-atc s'arrête à sa vérification de l'ADS-B).
 
 **La cause**, en défaut ou en panne : une seconde ligne, sous la première, en une phrase de 60
 caractères au plus. Si elle est plus longue, elle se coupe en deux lignes, jamais en ellipse : une
@@ -124,6 +126,22 @@ attendre que le contrôle de la station s'en aperçoive :
 The app that started it quit: macOS took its local network
 Restart from Clairance
 ```
+
+**Un démarrage manqué** : la cause, quand le lanceur la reconnaît, sinon la dernière ligne utile du
+journal (deux lignes au plus, jamais en ellipse) ; puis deux actions. « Leave stopped » ramène
+l'icône à Stopped sans rien faire d'autre : on a vu l'échec, on n'insiste pas.
+
+```
+■ Production did not start
+The station does not answer: co-atc stopped at its ADS-B check
+Start production
+Leave stopped
+Show production log                         ⌘L
+```
+
+Cause inconnue : `co-atc stopped while starting: <dernière ligne du journal>`. La commande
+`clairance --start` écrit la même phrase et se termine en échec : `Production did not start: the
+station does not answer (see the log)`.
 
 **Lancée hors du lanceur** : une ligne d'avertissement, juste sous l'état, avec l'action
 juste après :
@@ -220,6 +238,8 @@ encore ou ce qu'il faut faire) et un clic. Le son et le niveau suivent la gravit
 |---|---|---|---|---|
 | co-atc arrêté de lui-même | Production stopped by itself | co-atc exited at 14:05 (status 2). Nothing is transcribed or archived until it starts again. | journal ; Start production, Show log | oui |
 | … rétabli | Production running again | Started at 14:11, after 6 min stopped. | menu | — |
+| démarrage manqué | Production did not start | The station does not answer: co-atc stopped at its ADS-B check, 20 s after the start. (cause inconnue : co-atc stopped while starting: <dernière ligne du journal>.) | journal ; Start production, Show log | oui |
+| … rétabli | Production running | Started at 14:12, after the start that failed at 14:05. | Clairance | — |
 | le serveur ne répond plus | Production not answering | co-atc is running but its server has not answered for 1 min. The page and the map are frozen. | journal ; Restart production, Show log | oui |
 | … rétabli | Production answering again | After 3 min without an answer. | Clairance | — |
 | réseau local retiré | Production deaf: no local network | The station answers this Mac but not co-atc: macOS has taken the local network from it. Restarting it from Clairance gives it back. | journal ; Restart production | oui |
