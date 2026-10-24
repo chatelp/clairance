@@ -218,6 +218,32 @@ propriétaire, avant 1b :
 
 Recommandation de l'agent : (b), parce que le gardien de 1b ne peut pas signaler sa propre chute.
 
+**Décision du propriétaire, le 24/10 au soir : (b), « séparer les deux »** (Q59), avec l'accord
+d'essayer aussi la piste de l'orchestrateur, un agent launchd rattaché à Clairance, le temps de
+la mesure.
+
+### Le porteur, mesuré puis livré le 24/10
+
+Deux porteurs essayés, sur la même instance d'essai (port 8013, ADS-B seul) :
+
+| Mesure | Résultat |
+|---|---|
+| **Agent launchd** rattaché à Clairance (`AssociatedBundleIdentifiers`), chargé depuis `runs/lanceur/` | **écarté** : trois démarrages sur trois sans réseau local (« no route to host »). Retiré de launchd aussitôt après (`bootout`) |
+| **Porteur** : une autre instance de `Clairance.app`, ouverte par le système (`open -n`), qui lance le programme et part avec lui | le programme dépend du porteur, pas du menu (lu par `responsibility_get_pid_responsible_for_pid`) |
+| Le menu se ferme pendant que le porteur tourne | l'instance continue de lire la station : lecture ADS-B fraîche à chaque relevé, 2 min de suivi (19:31:51 → 19:34:00 UTC), puis 1 min dans la version intégrée |
+| L'application est remplacée sur le disque (mise à jour) pendant que le porteur tourne | même chose : aucune lecture manquée sur 2 min |
+| Arrêt | un SIGTERM au porteur arrête proprement ce qu'il porte ; quand ce qu'il porte s'arrête, le porteur part |
+| **Première connexion d'une compilation que macOS ne connaît pas encore** | **elle échoue** (« no route to host »), puis tout passe : vu trois fois (deux porteurs dont co-atc s'est arrêté au démarrage, puis la sonde : station jointe au 2ᵉ essai, 0,5 s après). La compilation est déterministe (même empreinte pour le même code), ce qui a d'abord masqué la règle. Le porteur interroge donc la station lui-même, jusqu'à 20 s, avant de lancer quoi que ce soit, et note dans le journal à quel essai elle a répondu |
+| Rouvrir Clairance pendant qu'un porteur tourne | macOS la croit déjà ouverte et ne fait que réveiller le porteur : le menu ne revenait pas. Corrigé : le porteur ouvre alors le menu s'il n'en trouve aucun, et la ligne de commande ouvre toujours une nouvelle instance. Revérifié : le menu revient |
+
+Livré : la production et les instances d'essai démarrées par le lanceur tournent chacune dans son
+porteur. Le menu peut être fermé ou mis à jour sans couper l'écoute ; l'alerte de fermeture ne
+concerne plus que ce qui dépendrait encore du menu lui-même. Non vérifié sur la production, que
+l'agent ne lance pas (règle 5) : son premier démarrage par le nouveau lanceur le dira.
+
+Corrigé au passage : chaque démarrage de la production vidait `runs/launcher.log` au lieu d'y
+ajouter (il ne restait que les lignes du 16/10 à 22 h 47).
+
 ## Les garde-fous
 
 - **Jamais toucher la station** : le lanceur la lit, comme aujourd'hui ; il ne bascule pas

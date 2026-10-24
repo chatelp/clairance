@@ -11,9 +11,10 @@
 // into a clean stop of co-atc, its sidecar and the station link. Nothing starts
 // on its own: production runs only when asked (owner's choice, 10/10).
 //
-// What it starts, it starts as itself, so that for macOS production depends on
-// the launcher and not on whatever typed the command: `clairance --start` asks
-// the running launcher, opening it first if needed (Control.swift). Processes
+// What it starts runs in a carrier, an instance of Clairance.app of its own
+// (Entry.carry), so that for macOS production depends on neither the menu nor
+// whatever typed the command: `clairance --start` asks the running launcher,
+// opening it first if needed (Control.swift). Processes
 // are known by their PID, their exact arguments and their start time, never by
 // a pattern in a command line (Processes.swift).
 //
@@ -408,34 +409,45 @@ final class Production: ObservableObject {
 
     // MARK: Production
 
-    func start() {
+    // What the launcher starts runs in a carrier (Entry.carry), an instance of
+    // Clairance.app of its own, and depends on it rather than on the menu: the
+    // menu can then quit, crash or be updated without production losing the
+    // station (Q59, measured on 24/10).
+    func start() async {
         guard serving, !running, !busy else { return }
         guard FileManager.default.isExecutableFile(atPath: script) else {
             note = "Not found: \(script)"
             return
         }
+        busy = true
+        note = "Starting…"
         let log = (repo as NSString).appendingPathComponent("runs/launcher.log")
-        FileManager.default.createFile(atPath: log, contents: nil)
-        guard let out = FileHandle(forWritingAtPath: log) else { return }
-        out.seekToEndOfFile()
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/bin/sh")
-        p.arguments = [script]
-        p.currentDirectoryURL = URL(fileURLWithPath: repo)
-        p.standardOutput = out
-        p.standardError = out
-        p.standardInput = FileHandle.nullDevice // no terminal: the password comes from its file
-        do {
-            try p.run()
-            if let proc = Proc.read(p.processIdentifier) {
-                remember(Started(role: "production", pid: proc.pid, start: proc.start, config: productionConfig))
-            }
-            busy = true
-            note = "Starting…"
-            setPlanningRow(true)
-        } catch {
-            note = "Could not start: \(error.localizedDescription)"
+        guard let pid = await carry(["/bin/sh", script], log: log), let proc = Proc.read(pid) else {
+            busy = false
+            note = "Could not start: " + lastLine(log)
+            return
         }
+        remember(Started(role: "production", pid: proc.pid, start: proc.start, config: productionConfig))
+        setPlanningRow(true)
+    }
+
+    /// Opens a carrier that runs the command, from the checkout, its output
+    /// appended to the log; returns the command's PID once the carrier has
+    /// started it. The carrier first waits for the station to answer it.
+    private func carry(_ command: [String], log: String) async -> Int32? {
+        let bundle = Bundle.main.bundleURL
+        guard bundle.pathExtension == "app" else { return nil }
+        let pidfile = (supportDir as NSString).appendingPathComponent("carried-\(UUID().uuidString).pid")
+        defer { unlink(pidfile) }
+        var args = ["-n", "-g", bundle.path, "--args", "--carry", "--cwd", repo, "--log", log, "--pidfile", pidfile]
+        if let probe = cfg.station_status_url { args += ["--probe", probe] }
+        guard run("/usr/bin/open", args + ["--"] + command).status == 0 else { return nil }
+        for _ in 0..<120 { // 30 s, the carrier's wait for the station included
+            if let s = try? String(contentsOfFile: pidfile, encoding: .utf8),
+               let pid = Int32(s.trimmingCharacters(in: .whitespacesAndNewlines)) { return pid }
+            try? await Task.sleep(nanoseconds: 250_000_000)
+        }
+        return nil
     }
 
     // Production stops through its script, whose trap stops co-atc, its sidecar
@@ -461,10 +473,10 @@ final class Production: ObservableObject {
 
     // MARK: Test instances
 
-    /// Starts a test instance as the launcher, for a given time: co-atc with its
+    /// Starts a test instance in a carrier, for a given time: co-atc with its
     /// config, the co-atc beside that config if there is one, else the
     /// checkout's. Its output goes to co-atc.log beside the config.
-    func startTest(config: String, binary: String?, seconds: TimeInterval) -> (proc: Proc?, message: String) {
+    func startTest(config: String, binary: String?, seconds: TimeInterval) async -> (proc: Proc?, message: String) {
         guard serving else { return (nil, "only the launcher starts instances") }
         let config = (config as NSString).standardizingPath
         guard FileManager.default.fileExists(atPath: config) else { return (nil, "Not found: \(config)") }
@@ -477,21 +489,11 @@ final class Production: ObservableObject {
         let exe = binary ?? (FileManager.default.isExecutableFile(atPath: beside) ? beside : resolve("bin/co-atc", from: repo))
         guard FileManager.default.isExecutableFile(atPath: exe) else { return (nil, "Not found: \(exe)") }
         let log = (dir as NSString).appendingPathComponent("co-atc.log")
-        FileManager.default.createFile(atPath: log, contents: nil)
-        guard let out = FileHandle(forWritingAtPath: log) else { return (nil, "Cannot write \(log)") }
-        out.seekToEndOfFile()
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: exe)
-        p.arguments = ["-config", config]
-        p.currentDirectoryURL = URL(fileURLWithPath: repo)
-        p.standardOutput = out
-        p.standardError = out
-        p.standardInput = FileHandle.nullDevice
-        do { try p.run() } catch { return (nil, "Could not start: \(error.localizedDescription)") }
-        guard let proc = Proc.read(p.processIdentifier) else { return (nil, "co-atc stopped at once: " + lastLine(log)) }
+        guard let pid = await carry([exe, "-config", config], log: log) else { return (nil, "Could not start: " + lastLine(log)) }
+        guard let proc = Proc.read(pid) else { return (nil, "co-atc stopped at once: " + lastLine(log)) }
         let until = Date().addingTimeInterval(seconds)
         remember(Started(role: "test", pid: proc.pid, start: proc.start, config: config, until: until))
-        return (proc, "started \(exe) -config \(config), pid \(proc.pid), until \(clockTime(until)); log \(log)")
+        return (proc, "started \(exe) -config \(config) in a carrier, pid \(proc.pid), until \(clockTime(until)); log \(log)")
     }
 
     /// What stopping an instance stops: co-atc, the station links that feed it,
@@ -577,7 +579,7 @@ final class Production: ObservableObject {
         case "start-test":
             guard let config = r.config else { return reply(.end(false, "no config given")) }
             let seconds = min(r.seconds ?? 7200, 86_400)
-            let (proc, message) = startTest(config: config, binary: r.binary, seconds: seconds)
+            let (proc, message) = await startTest(config: config, binary: r.binary, seconds: seconds)
             guard let proc else { return reply(.end(false, message)) }
             reply(.step(message))
             await waitForServer(proc, config: config, reply)
@@ -607,9 +609,9 @@ final class Production: ObservableObject {
             return reply(.end(true, "production already running for \(p.elapsed), pid \(p.pid)"))
         }
         let tail = LogTail(productionLog)
-        start()
+        await start()
         guard busy, let s = started.last(where: { $0.role == "production" }) else { return reply(.end(false, note)) }
-        reply(.step("production script started by the launcher, pid \(s.pid)"))
+        reply(.step("production script started in a carrier, pid \(s.pid)"))
         for _ in 0..<120 {
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             tail.newLines().forEach { reply(.step($0)) }
@@ -712,7 +714,7 @@ final class Production: ObservableObject {
                 note = "Production did not stop: not restarted"
                 return
             }
-            start()
+            await start()
         }
     }
 
@@ -785,6 +787,7 @@ enum Entry {
         // A launcher that closes mid-answer ends the command, not by a signal.
         signal(SIGPIPE, SIG_IGN)
         let args = Array(CommandLine.arguments.dropFirst())
+        if args.first == "--carry" { carry(Array(args.dropFirst())) }
         if let cmd = args.first, cmd.hasPrefix("--") {
             MainActor.assumeIsolated { cli(cmd, Array(args.dropFirst())) }
             return
@@ -803,6 +806,105 @@ enum Entry {
             exit(0)
         }
         ClairanceLauncher.main()
+    }
+
+    // The carrier: an instance of Clairance.app of its own, opened by the
+    // system, that runs one program and leaves with it. What it runs depends on
+    // it for macOS, not on the launcher in the menu bar, which can then quit,
+    // crash or be updated without the program losing the local network (Q59,
+    // 24/10). A SIGTERM to the carrier goes to what it carries.
+    //   clairance --carry [--cwd <dir>] [--log <file>] [--pidfile <file>] [--probe <url>] -- <program> <args>…
+    static func carry(_ args: [String]) -> Never {
+        var cwd = FileManager.default.currentDirectoryPath
+        var log = "/dev/null"
+        var pidfile: String?
+        var probe: URL?
+        var i = 0
+        while i + 1 < args.count, args[i] != "--" {
+            switch args[i] {
+            case "--cwd": cwd = args[i + 1]
+            case "--log": log = args[i + 1]
+            case "--pidfile": pidfile = args[i + 1]
+            case "--probe": probe = URL(string: args[i + 1])
+            default: exit(2)
+            }
+            i += 2
+        }
+        let command = Array(args.dropFirst(i + 1))
+        guard i < args.count, args[i] == "--", let exe = command.first else { exit(2) }
+        if !FileManager.default.fileExists(atPath: log) { FileManager.default.createFile(atPath: log, contents: nil) }
+        guard let out = FileHandle(forWritingAtPath: log) else { exit(1) }
+        out.seekToEndOfFile()
+        func say(_ s: String) {
+            let f = DateFormatter()
+            f.dateFormat = "dd/MM HH:mm:ss"
+            out.write(Data("\(f.string(from: Date())) carrier: \(s)\n".utf8))
+        }
+        // Started as an app, so that macOS knows it as Clairance.
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+        let delegate = CarrierDelegate()
+        app.delegate = delegate
+        app.finishLaunching()
+        // Twice on 24/10, the first connection to the station from a build of
+        // the launcher macOS had not seen yet failed ("no route to host"), and
+        // co-atc, which checks its ADS-B source when it starts, gave up. The
+        // carrier waits for the station to answer it first, 20 s at most.
+        if let url = probe {
+            var attempts = 0
+            var answered = false
+            while attempts < 40 && !answered {
+                attempts += 1
+                answered = answers(url)
+                if !answered { Thread.sleep(forTimeInterval: 0.5) }
+            }
+            say(answered ? "the station answered at attempt \(attempts)" : "the station did not answer in \(attempts) attempts")
+        }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: exe)
+        p.arguments = Array(command.dropFirst())
+        p.currentDirectoryURL = URL(fileURLWithPath: cwd)
+        p.standardOutput = out
+        p.standardError = out
+        p.standardInput = FileHandle.nullDevice
+        p.terminationHandler = { exit($0.terminationStatus) }
+        do { try p.run() } catch { exit(1) }
+        if let f = pidfile { try? "\(p.processIdentifier)\n".write(toFile: f, atomically: true, encoding: .utf8) }
+        signal(SIGTERM, SIG_IGN)
+        let term = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        term.setEventHandler { kill(p.processIdentifier, SIGTERM) }
+        term.resume()
+        app.run()
+        exit(0)
+    }
+
+    // While a carrier runs, macOS takes Clairance for open: a double-click,
+    // Spotlight or `open` only brings the carrier forward, and the menu would
+    // never come back (measured on 24/10). The carrier opens it then, unless
+    // a launcher already answers.
+    final class CarrierDelegate: NSObject, NSApplicationDelegate {
+        func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+            if let fd = connectControl() {
+                close(fd)
+            } else {
+                run("/usr/bin/open", ["-n", "-g", Bundle.main.bundleURL.path])
+            }
+            return false
+        }
+    }
+
+    /// Whether an address answers at all, within half a second.
+    static func answers(_ url: URL) -> Bool {
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 0.5
+        let done = DispatchSemaphore(value: 0)
+        var ok = false
+        URLSession.shared.dataTask(with: req) { _, response, _ in
+            ok = response != nil
+            done.signal()
+        }.resume()
+        done.wait()
+        return ok
     }
 
     static let usage = """
@@ -833,7 +935,9 @@ enum Entry {
             return nil
         }
         print("opening the launcher (\(bundle.path))")
-        run("/usr/bin/open", ["-g", bundle.path])
+        // A new instance: while a carrier runs, macOS takes Clairance for open
+        // and would only bring that carrier forward.
+        run("/usr/bin/open", ["-n", "-g", bundle.path])
         for _ in 0..<60 {
             Thread.sleep(forTimeInterval: 0.25)
             if let fd = connectControl() { return fd }
@@ -1018,7 +1122,7 @@ struct ClairanceLauncher: App {
             Text("On air: \(p.onAir)")
             if !p.note.isEmpty { Text(p.note) }
             Divider()
-            Button("Start production") { p.start() }.disabled(p.running || p.busy)
+            Button("Start production") { Task { await p.start() } }.disabled(p.running || p.busy)
             Button("Stop production") { p.stop() }.disabled(!p.running)
             Divider()
             Button("Open Clairance") { p.open(p.production?.url ?? "http://127.0.0.1:8000/") }.disabled(!p.running)
