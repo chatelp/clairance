@@ -165,7 +165,7 @@ corrections, stratégie A confirmée par le propriétaire, D80). Les fiches A à
 A, B et C relancées par erreur le 13/10 puis arrêtées n'ont laissé aucune branche à intégrer. **Rien n'est en attente**
 (revue du 20/10). La migration de l'interface, elle, est restée sur le Mac.
 
-**Le crédit** : 250 $ jusqu'au 5/11/2026 ; ce qu'on en lance encore est une décision (n° 10 ci-dessous).
+**Le crédit** : 250 $ au départ, **94 $ restants le 24/10** (relevé du propriétaire), jusqu'au 5/11/2026 ; ce qu'on en lance encore est une décision (n° 10 ci-dessous).
 
 ## Les décisions attendues du propriétaire
 
@@ -204,7 +204,7 @@ A, B et C relancées par erreur le 13/10 puis arrêtées n'ont laissé aucune br
    design ; **versé en production le 16/10 à 16 h 02** (ab4d319) sur la demande du propriétaire, le
    cache complété depuis le disque (fiches DATA, ENR 4.1, AD 2 de Beauvais). Reste son clic sur
    « Update from the SIA » pour écrire les routes dans la liste.
-10. **Le crédit cloud restant** (revue du 20/10) : 250 $ jusqu'au 5/11, soit seize jours ; toutes les fiches A à M sont
+10. **Le crédit cloud restant** (revue du 20/10) : **94 $ restants le 24/10** (relevé du propriétaire), jusqu'au 5/11, soit douze jours ; toutes les fiches A à M sont
    intégrées, rien n'est en attente. Quoi lancer avant l'échéance, ou rien ? Pistes, à trancher par le propriétaire (elles doivent se
    vérifier sans la station et sans audio) : le guide d'installation bilingue et l'avertissement légal du jalon « installable
    ailleurs » ; la version en/fr de l'interface, que l'achèvement de la migration débloque ; des tests de ce qui tourne sans filet.
