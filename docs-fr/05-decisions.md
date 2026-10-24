@@ -5265,7 +5265,7 @@ rien jusqu'au rechargement. **Vérifié** dans un navigateur sur une instance d'
 ports annexes en 200, son ouvert sur la tuile cliquée, source ajoutée en cours de route branchée
 sans rechargement. Sans cookie, le même flux répond 401 : c'était l'ancien comportement.
 
-### Q59 — Qui porte la production quand le lanceur se ferme ? *(24/10 — ouverte, à trancher par le propriétaire avant l'étape 1b du lanceur)*
+### Q59 — Qui porte la production quand le lanceur se ferme ? *(24/10 — **tranchée par le propriétaire le 24/10 : (b), séparer la production du menu**)*
 
 **Le constat, mesuré le 24/10 par l'agent du lanceur** (doc 34, « L'étape 1 », branche `lanceur`) sur une
 instance d'essai qui ne lit que l'ADS-B (port 8013, aucun auditeur sur la station). Une instance lancée
@@ -5287,6 +5287,15 @@ lui ; restent un plantage du lanceur et sa mise à jour.
 
 **Recommandation de l'agent du lanceur, que je partage** : (b). Le gardien de l'étape 1b ne peut pas
 signaler sa propre chute, et (a) ferait de chaque mise à jour du lanceur une coupure de la production.
+
+**Décidé par le propriétaire le 24/10** (réponse dans la session du lanceur, rapportée par son agent) :
+**(b)**, « séparer les deux ». La production est portée à part du menu, qui peut se fermer, planter ou être
+mis à jour sans la couper. Le porteur reste à choisir par la mesure. **Essai accordé** de deux candidats :
+une instance à part de `Clairance.app`, et un agent launchd chargé le temps de la mesure puis retiré (plist
+sous `runs/`, `AssociatedBundleIdentifiers` = Clairance). Est retenu celui qui garde le réseau local quand le
+menu se ferme et quand l'application est remplacée sur le disque. Mesures consignées dans le doc 34. Le même
+jour, l'étape 1a est fusionnée dans `local` (14c39e6) et la fiche design 10 du lanceur est validée :
+l'étape 1b se codera dessus.
 
 ### Q57 — La piste et la sortie probables sur le cartouche de l'avion *(16/10 — **décidée par le propriétaire le 16/10, en production à 17 h 06**)*
 
