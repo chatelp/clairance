@@ -238,7 +238,7 @@ encore ou ce qu'il faut faire) et un clic. Le son et le niveau suivent la gravit
 |---|---|---|---|---|
 | co-atc arrêté de lui-même | Production stopped by itself | co-atc exited at 14:05 (status 2). Nothing is transcribed or archived until it starts again. | journal ; Start production, Show log | oui |
 | … rétabli | Production running again | Started at 14:11, after 6 min stopped. | menu | — |
-| démarrage manqué | Production did not start | The station does not answer: co-atc stopped at its ADS-B check, 20 s after the start. (cause inconnue : co-atc stopped while starting: <dernière ligne du journal>.) | journal ; Start production, Show log | oui |
+| démarrage manqué (demandé hors du menu : `--start`, un raccourci ; le menu ouvert le dit déjà) | Production did not start | The station does not answer: co-atc stopped at its ADS-B check, 20 s after the start. (cause inconnue : co-atc stopped while starting: <dernière ligne du journal>.) | journal ; Start production, Show log | oui |
 | … rétabli | Production running | Started at 14:12, after the start that failed at 14:05. | Clairance | — |
 | le serveur ne répond plus | Production not answering | co-atc is running but its server has not answered for 1 min. The page and the map are frozen. | journal ; Restart production, Show log | oui |
 | … rétabli | Production answering again | After 3 min without an answer. | Clairance | — |
