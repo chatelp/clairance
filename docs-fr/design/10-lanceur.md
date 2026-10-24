@@ -177,12 +177,23 @@ L'alerte (`NSAlert`, style avertissement, l'icône de l'application) :
 | Titre | Quit the launcher? |
 | Texte, la production seule | Production runs from the launcher. If it quits, production keeps running without the local network: no station, nothing transcribed. |
 | Texte, plusieurs instances | Production and the test instance on port 8020 run from the launcher. If it quits, they keep running without the local network: no station, nothing transcribed. |
-| Boutons | **Cancel** (par défaut, Retour et Échap) · **Stop Production and Quit** · **Quit Anyway** |
+| Texte, une instance d'essai seule | The test instance on port 8013 runs from the launcher. If it quits, it keeps running without the local network: no station, nothing transcribed. |
+| Boutons | **Cancel** (par défaut, Retour et Échap) · le bouton d'arrêt · **Quit Anyway** |
+| Le bouton d'arrêt nomme ce qu'il arrête | la production seule : **Stop Production and Quit** ; une instance d'essai seule : **Stop Instance and Quit** ; plusieurs : **Stop All and Quit** |
 
 « Stop Production and Quit » arrête proprement ce qui dépend du lanceur, puis le ferme : c'est la
 sortie propre, celle qu'on cherche le plus souvent en quittant. « Quit Anyway » garde le sens
 d'aujourd'hui, en le nommant pour ce qu'il est. Les titres des boutons suivent la casse des boutons
 du Mac (chaque mot en capitale).
+
+**Relancer depuis le lanceur** (« Restart from Clairance », et « Restart production » du menu)
+passe par une confirmation, comme tout ce qui interrompt la production :
+
+| | |
+|---|---|
+| Titre | Restart production from the launcher? |
+| Texte | It stops, then starts again from the launcher. Nothing is transcribed in between. |
+| Boutons | **Restart** (par défaut) · **Cancel** (Échap) |
 
 ## Les notifications
 
