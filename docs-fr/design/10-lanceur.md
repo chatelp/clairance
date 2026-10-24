@@ -94,7 +94,7 @@ INSTANCES
 Production · port 8000                       ›
 Test · port 8020 · stops at 18:00            ›
 ──────────────────────────────────────────
-Quit Clairance (production keeps running)   ⌘Q
+Quit launcher…                              ⌘Q
 ```
 
 **La première ligne** dit l'état, et depuis quand :
@@ -112,6 +112,17 @@ cause tronquée ne sert à rien.
 ▲ Production deaf · 3 min
 The station answers this Mac, not co-atc:
 macOS took the local network from co-atc
+```
+
+**Sans application responsable** (mesuré par l'agent du lanceur le 24/10) : quand l'application
+qui a lancé la production se ferme (le lanceur, un terminal, Claude), la production continue de
+tourner, mais macOS lui retire aussitôt le réseau local, et pour de bon. Le menu le dit sans
+attendre que le contrôle de la station s'en aperçoive :
+
+```
+▲ Production without local network
+The app that started it quit: macOS took its local network
+Restart from Clairance
 ```
 
 **Lancée hors du lanceur** : une ligne d'avertissement, juste sous l'état, avec l'action
@@ -146,9 +157,32 @@ serveur ne répond pas.
   instance`).
 
 Dans le détail d'une instance, les deux lignes nouvelles de l'étape 1a :
-- `Depends on: Clairance`, ou `Depends on: Terminal`, `Depends on: Claude` : l'application dont
-  elle tient le réseau local ;
+- `Depends on: Clairance`, ou `Depends on: Terminal`, `Depends on: claude` : l'application dont
+  elle tient le réseau local, au nom que macOS lui donne ; et quand cette application s'est
+  fermée : `Depends on: no app · no local network` ;
 - `Stops at 18:00 (in 2 h 10 min)`, ou `Was to stop at 18:00 (2 h ago)`.
+
+## Quitter le lanceur
+
+Le lanceur est l'application responsable de ce qu'il démarre : s'il se ferme, la production
+continue sans réseau local. Le menu le dit donc :
+- `Quit launcher` (⌘Q), sans alerte, quand rien ne dépend de lui ;
+- `Quit launcher…` (⌘Q), avec les points de suspension des commandes qui demandent une
+  confirmation, quand une instance en dépend.
+
+L'alerte (`NSAlert`, style avertissement, l'icône de l'application) :
+
+| | |
+|---|---|
+| Titre | Quit the launcher? |
+| Texte, la production seule | Production runs from the launcher. If it quits, production keeps running without the local network: no station, nothing transcribed. |
+| Texte, plusieurs instances | Production and the test instance on port 8020 run from the launcher. If it quits, they keep running without the local network: no station, nothing transcribed. |
+| Boutons | **Cancel** (par défaut, Retour et Échap) · **Stop Production and Quit** · **Quit Anyway** |
+
+« Stop Production and Quit » arrête proprement ce qui dépend du lanceur, puis le ferme : c'est la
+sortie propre, celle qu'on cherche le plus souvent en quittant. « Quit Anyway » garde le sens
+d'aujourd'hui, en le nommant pour ce qu'il est. Les titres des boutons suivent la casse des boutons
+du Mac (chaque mot en capitale).
 
 ## Les notifications
 
