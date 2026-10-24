@@ -662,7 +662,7 @@ final class Production: ObservableObject {
         alert.messageText = "Quit the launcher?"
         alert.informativeText = "\(who) \(c.count > 1 ? "run" : "runs") from the launcher. If it quits, \(subject) running without the local network: no station, nothing transcribed."
         alert.addButton(withTitle: "Cancel") // the default: Return and Escape
-        alert.addButton(withTitle: c.contains(where: \.production) ? "Stop Production and Quit" : "Stop and Quit")
+        alert.addButton(withTitle: c.count > 1 ? "Stop All and Quit" : c[0].production ? "Stop Production and Quit" : "Stop Instance and Quit")
         alert.addButton(withTitle: "Quit Anyway")
         NSApplication.shared.activate(ignoringOtherApps: true)
         switch alert.runModal() {
@@ -698,10 +698,10 @@ final class Production: ObservableObject {
         let alert = NSAlert()
         alert.messageText = "Restart production from the launcher?"
         alert.informativeText = "It stops, then starts again from the launcher. Nothing is transcribed in between."
-        alert.addButton(withTitle: "Cancel")
-        alert.addButton(withTitle: "Restart")
+        alert.addButton(withTitle: "Restart") // the default: it was just asked for
+        alert.addButton(withTitle: "Cancel")  // Escape
         NSApplication.shared.activate(ignoringOtherApps: true)
-        guard alert.runModal() == .alertSecondButtonReturn else { return }
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
         stop()
         Task {
             for _ in 0..<60 where running {
