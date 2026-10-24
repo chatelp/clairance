@@ -35,7 +35,8 @@ Trois rôles, du plus utile au plus confortable.
   le faire (communication locale entre processus), et c'est le lanceur, application à part
   entière, qui devient responsable de la production. S'il ne tourne pas, la commande l'ouvre
   par le système (`open`) avant. Ainsi aucune relance de Claude ni fermeture de terminal ne
-  coupe plus le réseau local de la production.
+  coupe plus le réseau local de la production — à condition que le lanceur, lui, reste ouvert
+  (mesuré le 24/10, voir « L'étape 1 »).
 - **Des instances connues par leur PID, pas par un motif.** Le lanceur note ce qu'il démarre
   (production, instance d'essai) ; il retrouve aussi ce qu'il n'a pas démarré, mais par le port
   et la configuration, jamais par un motif dans la ligne de commande.
@@ -132,6 +133,90 @@ la lit lui-même par le PID.
 - **Mesurer avant de conclure**, comme le reste du projet : pour l'étape 1, le temps entre une
   coupure provoquée et la notification (cible : moins de 2 minutes), et l'absence de fausse
   alerte sur une journée normale.
+
+## L'étape 1 : le plan retenu, ce qui est fait, ce qui est mesuré
+
+*Tenu par l'agent du lanceur (session « Plan lanceur de Clairance »), sur la branche `lanceur`.*
+
+### Le plan, accepté par le propriétaire le 24/10
+
+- **Le canal** entre la ligne de commande et le lanceur : une prise Unix dans
+  `~/Library/Application Support/Clairance/` (dossier en 700, identité de l'appelant vérifiée).
+  Ni port TCP ni schéma d'URL, qu'une page web pourrait atteindre ; ni XPC, qui demanderait un
+  agent launchd.
+- **`--start` ne lance plus rien lui-même** : il demande au lanceur, l'ouvre par `open` s'il ne
+  tourne pas, et échoue en le disant s'il ne s'ouvre pas.
+- **Les processus par PID** : nom exact, arguments exacts, heure de départ (contre la réutilisation
+  d'un PID) ; plus aucun `pgrep -f`.
+- **Les contrôles de santé (étape 1b), toutes les 15 s, une alerte par incident** et une autre au
+  retour à la normale ; leurs textes sont ceux de la session design (`design/10-lanceur.md`).
+
+| Contrôle | Lu où | Alerte quand | Détection |
+|---|---|---|---|
+| co-atc vivant | PID | disparu sans arrêt demandé | ≤ 15 s |
+| Le serveur répond | `/api/v1/health` | 3 échecs de suite | ≤ 45 s |
+| La production voit la station | `last_fetch` | plus vieux que 30 s, deux relevés de suite ; le lanceur interroge lui-même la station pour départager « la station répond au lanceur, pas à co-atc » et « la station ne répond pas » | ≤ 60 s |
+| L'audio arrive | `bytes_last_60s` de `/api/v1/health/detail` | à définir sur mesure, la route étant livrée | ≤ 60 s |
+| Liaison avec la station | PID de `radio-ctl-sync` | disparu | ≤ 15 s |
+| Transcription | sidecar | 3 échecs ; dégradé (langue) ; relancé (PID changé) | ≤ 45 s |
+| Silence | transmissions du jour, station en mode « chaîne » | inchangé 10 min de 8 h à 23 h, 45 min la nuit | 10 / 45 min |
+| Disques | externe ; interne | externe absent ; interne sous 20 Go puis 5 Go | ≤ 15 s |
+| Mémoire | pression mémoire de macOS | avertissement ou critique pendant 2 min | ≤ 2 min |
+| Lancée hors du lanceur | processus responsable | autre que le lanceur | au démarrage |
+
+Seuils du silence relevés sur les bases du 03/10 et du 16/10, recoupés avec les arrêts de
+`runs/production.log` : de 8 h à 23 h, le plus long silence d'une heure est de 83 s ; la nuit, il va
+jusqu'à 21 min (03/10 vers 5 h). Deux journées, sur les approches de Roissy : à revoir si la
+station écoute des fréquences plus calmes.
+
+Constat du même jour, dans le code : `channels_on_air` de `/vitals` ne prouve pas que l'audio
+arrive. Pour le serveur, « connected » voulait seulement dire « ffmpeg a démarré », et ffmpeg est
+relancé toutes les 5 s. C'est ce qui a motivé `bytes_last_60s`.
+
+### 1a, livrée le 24/10 (4c63292) : le lancement par le lanceur, les processus par PID
+
+- `clairance --start`, `--stop`, `--start-test <config> --for 2h`, `--stop-test <config>` passent par
+  le lanceur ; `--status` reste autonome. Une instance d'essai s'arrête seule à son échéance, même si
+  le lanceur a été fermé et rouvert entre-temps (`started.json`, à côté de la prise).
+- La production est le co-atc dont la configuration résolue est `configs/config.toml` du dépôt ; son
+  script est son parent, reconnu à ses arguments ; un PID n'est signalé que s'il est encore le
+  processus lu.
+- Chaque instance dit de quelle application elle dépend (« Depends on: Clairance »).
+- Un lanceur tapé dans un terminal se fait rouvrir par le système et s'efface ; un second lanceur
+  s'efface devant le premier.
+
+### Mesures du 24/10
+
+Sur une instance d'essai dédiée (`runs/lanceur/`, port 8013, ADS-B seul, ni audio ni transcription,
+donc aucun auditeur de plus sur la station). La production, arrêtée depuis le 18/10, n'a pas été
+touchée.
+
+| Mesure | Résultat |
+|---|---|
+| Qui est responsable d'une instance lancée par le lanceur | le lanceur : pour macOS, le lanceur (ouvert par `open`, parent launchd) répond de lui-même et de l'instance, lu par `responsibility_get_pid_responsible_for_pid` |
+| Une instance lancée directement depuis une session Claude | « Depends on: claude » : elle dépend de l'application Claude, comme la production du 16/10 |
+| **Le lanceur se ferme** | **l'instance continue de tourner, mais perd le réseau local aussitôt et pour de bon** : dernière lecture ADS-B à 14:01:25,76 UTC, lanceur fermé à 14:01:26, plus aucune lecture en 2 min de suivi ; macOS la rend responsable d'elle-même, et un programme nu n'a pas accès au réseau local. Rouvrir le lanceur ne lui rend rien |
+| Échéance d'une instance d'essai | lancée pour 1 min, arrêtée seule à +62 s (vérification toutes les 5 s) |
+| `--status` | 0,3 s |
+| La version reconstruite (signée ad hoc) | a lu la station dès son premier lancement : rien n'a bloqué l'accès au réseau local |
+| Défaut trouvé pendant la mesure | une connexion vide sur la prise faisait tomber le lanceur (SIGPIPE, statut 141, malgré `SO_NOSIGPIPE`) ; corrigé en ignorant SIGPIPE, puis revérifié |
+
+**Ce que change la fermeture mesurée.** Le 16-18/10 n'est pas une affaire de mise à jour : il
+suffit que l'application dont dépend la production se ferme. Le lanceur ne règle donc le problème
+que s'il reste ouvert. Le menu disait « Quit launcher (production keeps running) » : c'était vrai,
+mais la production restait sourde. Depuis 1a, quitter le lanceur demande confirmation tant que
+quelque chose dépend de lui. Restent deux risques : un plantage du lanceur, et sa mise à jour, qui
+rendent la production sourde sans que personne ne puisse le signaler. Décision à prendre par le
+propriétaire, avant 1b :
+
+- **(a) en rester là** : le lanceur doit rester ouvert ; le mettre à jour, c'est relancer la
+  production ;
+- **(b) un porteur** : chaque production démarrée dans une instance à part de `Clairance.app`, ouverte
+  par le système, qui ne fait que la porter et se ferme avec elle. Le menu pourrait alors se
+  fermer, planter ou être mis à jour sans toucher à la production. À mesurer avant : le porteur
+  garde-t-il le réseau local quand l'application est remplacée sur le disque par une mise à jour ?
+
+Recommandation de l'agent : (b), parce que le gardien de 1b ne peut pas signaler sa propre chute.
 
 ## Les garde-fous
 
