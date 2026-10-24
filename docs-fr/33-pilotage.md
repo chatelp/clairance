@@ -30,7 +30,7 @@ la mémoire des décisions dans `05-decisions.md` ; ici, la vue d'ensemble, cour
 |---|---|---|---|---|
 | **Clairance** (session principale, chef d'orchestre) | le produit : code, mesures, documents, coordination | paliers 0 à 5 de l'audit faits ; migration du design en production depuis le 15/10 ; Q55 à Q57 en production le 16/10 ; mouvement des avions (D79, D80, troisième famille de sauts corrigée le 16/10) ; revue des documents du 20/10 | l'analyse des mesures de la nuit du 16 au 17/10 (non faite) ; les prérequis « installable ailleurs » | — |
 | **Clairance - Design** (branche `design-suite` depuis Q56/Q57 ; index `docs-fr/design/README.md`) | identité, nom, système de design, maquettes, fiches de composants, relecture des livraisons de l'interface | **migration close côté design le 15/10** (étapes 0 à 13, plan `04-migration.md`, relues conformes) ; identité (05), esquisses (07, D77), système de composants (08, artefact https://claude.ai/artifact/Ut6hWDRRUcWC58HHz6UP2K), quatorze écrans finaux (09, D78, galerie https://claude.ai/artifact/2gZSBGbTkEySxThbNRYhMF) ; depuis le 16/10, les fiches de Q56 (`ProcedureRoute`) et de Q57 (étiquette, sorties possibles), relues après construction ; référence figée `design-reference-2026-10-13` ; les captures de la carte réelle restent hors dépôt (D75) | les fiches que demande le propriétaire | relire chaque livraison de l'interface sur l'instance d'essai avant qu'elle parte en production |
-| **Plan lanceur de Clairance** (depuis le 24/10 ; branche `lanceur`, arbre `.claude/worktrees/lanceur` ; mission dans `docs-fr/34-lanceur.md`) | le lanceur de la barre des menus, devenu poste de surveillance : gardien, tableau de bord natif, poste de commande ; en Swift, sur `tools/menubar/` seulement ; forme confiée à la session design (« Clairance natif macOS ») | **étape 1a fusionnée dans `local` le 24/10** (14c39e6) : lancement délégué au lanceur, instances repérées par PID, instances d'essai à échéance ; route de santé du serveur livrée (`/api/v1/health/detail`, 3307610) ; Q59 tranchée en (b), fiche design 10 validée | la mesure des deux porteurs, puis l'étape 1b (santé et notifications) | mesurer le temps entre une coupure provoquée et la notification (cible : moins de 2 min), et zéro fausse alerte sur une journée normale |
+| **Plan lanceur de Clairance** (depuis le 24/10 ; branche `lanceur`, arbre `.claude/worktrees/lanceur` ; mission dans `docs-fr/34-lanceur.md`) | le lanceur de la barre des menus, devenu poste de surveillance : gardien, tableau de bord natif, poste de commande ; en Swift, sur `tools/menubar/` seulement ; forme confiée à la session design (« Clairance natif macOS ») | **étape 1a fusionnée dans `local` le 24/10** (14c39e6) : lancement délégué au lanceur, instances repérées par PID, instances d'essai à échéance ; route de santé du serveur livrée (`/api/v1/health/detail`, 3307610) ; Q59 tranchée en (b), fiche design 10 validée | l'étape 1b (santé et notifications), après le premier démarrage de la vraie production par le porteur (e71e4bd), que fait le propriétaire | mesurer le temps entre une coupure provoquée et la notification (cible : moins de 2 min), et zéro fausse alerte sur une journée normale |
 | **Whisper-lab** (`~/Dev/Aero/whisper-lab`, privé) | reconnaissance : modèles, corpus, mesures, GPU | précision par niveau d'indices mesurée (borne haute) ; Kyutai écarté (28/09) ; a proposé Q55 (15/10) ; bases du ciel témoin copiées par le labo (D82, 16/10) ; état depuis le 16/10 non relevé ici | tirage au hasard de la précision quand l'annotation aura avancé (jalon du labo) | la mesure de non-régression du modèle converti, le jour du portage |
 | **ATC-scribe communauté** (`~/Dev/Aero/atc-scribe-communaute`, privé, dépôt `chatelp/atc-scribe-communaute`) | cadre légal, existant, communautés françaises, prérequis, recommandation | étude livrée le 12/10 (`SYNTHESE.md`, fiches 01 à 05) ; premier pas tranché le 13/10 avec le propriétaire (voir « Faits ») ; en veille | — (reprend sur question de Pierre) | le P0 de la fiche 04 entre dans le jalon « installable ailleurs » |
 | **Station radio** (session de la station) | la station : réception, chaîne VHF, captations | en veille au dernier relevé (12/10) ; `radio-ctl-sync` rapporte l'état au bandeau | — | prévenue à chaque bascule d'écoute |
@@ -118,8 +118,9 @@ la mémoire des décisions dans `05-decisions.md` ; ici, la vue d'ensemble, cour
 ### En cours
 
 0. **Le lanceur en poste de surveillance** (doc 34, 24/10) : agent dédié, étape 1 (le gardien) d'abord.
-   Côté serveur, la route de santé est faite (3307610). Étape 1a fusionnée (14c39e6) ; prochaine étape, choisir
-   le porteur de la production par la mesure (Q59), puis 1b. Ce qui doit précéder la prochaine relance de la
+   Côté serveur, la route de santé est faite (3307610). Étape 1a fusionnée (14c39e6) ; porteur livré (e71e4bd,
+   Q59). À faire par le propriétaire : démarrer la vraie production par le nouveau lanceur, en prévenant la
+   station. Puis 1b. Ce qui doit précéder la prochaine relance de la
    production : rien ; elle portera la route dès qu'elle sera relancée sur un binaire reconstruit.
 1. **Les prérequis pour être installable ailleurs** (communauté, question 4) → liste hiérarchisée →
    chantier technique dans cette session (voir « À venir »).
@@ -217,9 +218,9 @@ A, B et C relancées par erreur le 13/10 puis arrêtées n'ont laissé aucune br
    temps à l'intégration.
 
 11. ~~**Qui porte la production quand le lanceur se ferme**~~ (Q59) — **tranchée le 24/10 : (b)**, la production
-   portée à part du menu. Le porteur sera choisi par la mesure, entre une instance à part de `Clairance.app` et un
-   agent launchd (essai passager accordé). L'étape 1a est fusionnée dans `local` (14c39e6) et la fiche design 10 est
-   validée.
+   portée à part du menu. **Porteur mesuré et livré le 24/10** (e71e4bd) : une instance à part de `Clairance.app`
+   (`open -n`) ; l'agent launchd est écarté, faute de réseau local. L'étape 1a est fusionnée (14c39e6) et la fiche
+   design 10 est validée.
 
 ## Les risques suivis
 

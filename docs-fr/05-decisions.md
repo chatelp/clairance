@@ -5297,6 +5297,16 @@ menu se ferme et quand l'application est remplacée sur le disque. Mesures consi
 jour, l'étape 1a est fusionnée dans `local` (14c39e6) et la fiche design 10 du lanceur est validée :
 l'étape 1b se codera dessus.
 
+**Mesuré et livré le 24/10** (8c1182b, fusion e71e4bd ; détail dans le doc 34) : **le porteur retenu est une
+instance à part de `Clairance.app`**, ouverte par `open -n`, qui lance co-atc et se ferme avec lui. Une fois le
+menu fermé, ou l'application remplacée sur le disque, la production garde la station : deux minutes de suivi,
+aucune lecture manquée. **L'agent launchd est écarté** : rattaché à Clairance par `AssociatedBundleIdentifiers`,
+il n'a eu le réseau local à aucun de ses trois démarrages (« no route to host ») ; il a été retiré aussitôt. **À
+savoir pour tout lancement** : la première connexion au réseau local d'une compilation que macOS ne connaît pas
+encore échoue, puis tout passe (vu trois fois). Le porteur interroge donc la station avant de lancer quoi que ce
+soit ; un co-atc tout juste reconstruit et lancé à la main peut échouer de la même façon au démarrage (« ADS-B
+source validation failed »). Pas encore vérifié : le démarrage de la vraie production par le nouveau lanceur.
+
 ### Q57 — La piste et la sortie probables sur le cartouche de l'avion *(16/10 — **décidée par le propriétaire le 16/10, en production à 17 h 06**)*
 
 > **Décision du propriétaire, 16/10** : « oui, construis cette forme directement et on bascule en
