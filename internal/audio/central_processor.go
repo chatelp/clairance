@@ -62,6 +62,7 @@ type CentralAudioProcessor struct {
 	contentType              string
 	statusCallback           StatusChangeCallback // Callback for status changes
 	currentStatus            ConnectionStatus     // Current connection status
+	flow                     flowMeter            // bytes out of ffmpeg, the last minute (flow.go)
 }
 
 // CentralProcessorConfig contains configuration for the central audio processor
@@ -359,6 +360,7 @@ func (p *CentralAudioProcessor) processFFmpegOutput() {
 				bytesProcessed += n
 				// Update last activity time
 				p.lastActivity = time.Now()
+				p.flow.add(n, p.lastActivity)
 
 				// Log progress every 30 seconds
 				if time.Since(lastLogTime) > 30*time.Second {

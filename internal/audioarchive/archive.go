@@ -193,3 +193,36 @@ func parseInstant(s string) (time.Time, bool) {
 	}
 	return time.Time{}, false
 }
+
+// The archive's size, as the hourly purge last measured it (cmd/server,
+// purgeAudioArchive): walking tens of gigabytes of clips is the purge's job,
+// once an hour, not a health probe's every few seconds. Kept by directory, so
+// the purge and the handler need not share an object.
+var sizes = struct {
+	sync.Mutex
+	byRoot map[string]measured
+}{byRoot: map[string]measured{}}
+
+type measured struct {
+	bytes int64
+	at    time.Time
+}
+
+// RecordSize keeps what a walk of the archive at root found.
+func RecordSize(root string, bytes int64, at time.Time) {
+	sizes.Lock()
+	defer sizes.Unlock()
+	sizes.byRoot[filepath.Clean(root)] = measured{bytes, at}
+}
+
+// Size is the archive's size in bytes as last measured, and when; false
+// before the first measure.
+func (a *Archive) Size() (int64, time.Time, bool) {
+	if a == nil {
+		return 0, time.Time{}, false
+	}
+	sizes.Lock()
+	defer sizes.Unlock()
+	m, ok := sizes.byRoot[a.root]
+	return m.bytes, m.at, ok
+}

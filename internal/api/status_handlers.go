@@ -85,32 +85,14 @@ func (h *Handler) PutReceiver(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	out := map[string]any{}
 
-	h.status.mu.Lock()
-	if h.status.receiver != nil {
-		out["receiver"] = receiverState{
-			ReceiverReport: *h.status.receiver,
-			ReportedAt:     h.status.reportedAt.UTC(),
-			Stale:          time.Since(h.status.reportedAt) > receiverStaleAfter,
-		}
-	} else {
-		out["receiver"] = nil
-	}
-	h.status.mu.Unlock()
+	out["receiver"] = h.receiverNow()
 
 	if h.sttSidecar != nil && h.sttSidecar.Off() {
 		// Nothing asks for transcription and nothing was started: not a
 		// sidecar that is down, a server running without one.
 		out["transcription"] = map[string]any{"status": "off", "reason": "no source transcribes"}
 	} else if h.sttSidecar != nil {
-		h.status.mu.Lock()
-		if time.Since(h.status.sidecarAt) > 15*time.Second {
-			ctx, cancel := context.WithTimeout(r.Context(), 1500*time.Millisecond)
-			health, err := h.sttSidecar.Refresh(ctx)
-			cancel()
-			h.status.sidecar, h.status.sidecarReached, h.status.sidecarAt = health, err == nil, time.Now()
-		}
-		health, reached := h.status.sidecar, h.status.sidecarReached
-		h.status.mu.Unlock()
+		health, reached, _ := h.sidecarHealth(r.Context())
 		state := health.Status
 		if state == "" {
 			state = "unknown"
@@ -151,4 +133,33 @@ func (h *Handler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	out["audio_archive"] = map[string]bool{"available": h.audioArchive.Available()}
 
 	WriteJSON(w, http.StatusOK, out)
+}
+
+// receiverNow is the receiver as last reported, or nil before any report.
+func (h *Handler) receiverNow() *receiverState {
+	h.status.mu.Lock()
+	defer h.status.mu.Unlock()
+	if h.status.receiver == nil {
+		return nil
+	}
+	return &receiverState{
+		ReceiverReport: *h.status.receiver,
+		ReportedAt:     h.status.reportedAt.UTC(),
+		Stale:          time.Since(h.status.reportedAt) > receiverStaleAfter,
+	}
+}
+
+// sidecarHealth is the sidecar's health, read again at most every 15 s -- it
+// is busy decoding -- and shared by /status and /health/detail: whether it
+// answered that reading, and when it was taken.
+func (h *Handler) sidecarHealth(ctx context.Context) (transcription.Health, bool, time.Time) {
+	h.status.mu.Lock()
+	defer h.status.mu.Unlock()
+	if time.Since(h.status.sidecarAt) > 15*time.Second {
+		ctx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
+		health, err := h.sttSidecar.Refresh(ctx)
+		cancel()
+		h.status.sidecar, h.status.sidecarReached, h.status.sidecarAt = health, err == nil, time.Now()
+	}
+	return h.status.sidecar, h.status.sidecarReached, h.status.sidecarAt
 }

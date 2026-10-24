@@ -252,6 +252,7 @@ func purgeAudioArchive(root string, capBytes int64, now time.Time, log *logger.L
 		}
 	}
 	if total <= capBytes {
+		audioarchive.RecordSize(root, total, now)
 		return nil
 	}
 
@@ -317,6 +318,7 @@ func purgeAudioArchive(root string, capBytes int64, now time.Time, log *logger.L
 			logger.Int64("kept_bytes", total),
 			logger.Int64("cap_bytes", capBytes))
 	}
+	audioarchive.RecordSize(root, total, now)
 	return nil
 }
 
