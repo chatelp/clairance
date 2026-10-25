@@ -502,7 +502,9 @@ sur la carte.
   en route : un démarrage manqué accusait la station quand la vérification ADS-B échouait pour une autre raison
   (`receiver.json` absent) ; un script de démarrage manqué restait vivant et aurait lancé une seconde liaison avec
   la station. Les notifications de Clairance étaient coupées dans les Réglages de macOS, rétablies par le
-  propriétaire. Non mesuré : une journée normale de production sans fausse alerte.
+  propriétaire. Non mesuré : une journée normale de production sans fausse alerte. Le 25/10, l'icône d'application
+  définitive de la session design (document Icon Composer), les réglages groupés et « – Audio · nothing on air »
+  quand la station n'a rien à l'antenne (3b6ed5f).
 - 24/10 : **le lanceur de la barre des menus devient le poste de surveillance de Clairance** (proposition
   `34-lanceur.md`, 1eb83a3, demandée par le propriétaire ; agent dédié « Plan lanceur de Clairance », branche
   `lanceur`, coordonné avec la session design). Côté serveur, la seule modification demandée : **`GET
