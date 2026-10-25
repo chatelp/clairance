@@ -59,12 +59,44 @@ fault: <première cause> », « … down: <cause> ».
 
 ## L'icône de l'application
 
-`identite/app-icon.svg`, 1024, au gabarit des icônes du Mac : une tuile de 824 à coins de 185,
-sur une toile de 1024, avec son ombre. C'est la tuile sombre du favicon, avec une légère lumière
-venue du haut, et le signe entier (anneau de distance compris) à 512. Elle sert au Finder, au Dock
-quand la fenêtre de l'étape 2 sera ouverte, et à **chaque notification**. Pour l'exporter :
-`rsvg-convert -w N app-icon.svg` pour 16, 32, 64, 128, 256, 512 et 1024 (et les @2x), puis
-`iconutil -c icns`.
+**Au format de macOS 26** (25/10) : `identite/AppIcon.icon`, un fichier d'Icon Composer, que
+`tools/menubar/icon.sh` compile avec `actool` en `Assets.car` (macOS 26 et plus) et en `.icns`
+de secours (macOS 13 à 15). Depuis macOS 26, le système dessine lui-même la forme, le verre et
+l'ombre d'une icône ; une icône dessinée sur l'ancien gabarit (`app-icon.svg`, une tuile de 824
+avec ses coins et son ombre) est réduite et posée dans un cadre. Le propriétaire l'a vue plus
+petite que ses voisines dans le Dock.
+
+- **Le fond** : la tuile sombre du favicon, `#1e1e1e` en dégradé automatique.
+- **Deux groupes de calques**, en SVG sur la grille de 1024. Derrière, l'écran (l'anneau et
+  l'anneau de distance, `#e0e0e0`) ; devant, la lueur (sans verre), le balayage et le plot (vert
+  `#4caf50`, le plot `#66c56a`), avec le reflet du verre. La profondeur vient du système, pas du
+  dessin.
+- **L'échelle** : la grille de 64 du signe à 13,47, centrée. Le bord extérieur de l'anneau est à
+  75 % de la tuile, comme les icônes voisines ; le premier essai (le signe d'un seul tenant à 636
+  sur 1024) le mettait à 45 %.
+- **Clair, sombre, teinté** : le système les tire du même fichier ; l'icône est déjà sombre.
+
+`app-icon.svg` reste la source pour les documents et le README ; l'application ne s'en sert plus.
+
+## La fenêtre de réglages et le Dock
+
+Le propriétaire veut le lanceur dans le Dock, présent par défaut, retirable (25/10).
+
+- **La fenêtre** : la fenêtre de réglages native (`Settings`), titrée « Clairance Settings », ouverte
+  par `Settings…` (⌘,) dans le menu et dans le menu de l'application. Un formulaire groupé
+  (`.formStyle(.grouped)`), une section :
+
+  ```
+  Show Clairance in the Dock                    [on]
+  Clairance stays in the menu bar either way.
+  ```
+  La phrase du dessous est le pied de section, en texte secondaire. Les réglages suivants (le
+  démarrage à l'ouverture de session, s'il est décidé) iront dans la même fenêtre.
+- **Le Dock** : un clic sur l'icône ouvre les réglages, tant qu'il n'y a pas d'autre fenêtre ; à
+  l'étape 2, il ouvrira le tableau de bord, comme toute application qui rouvre sa fenêtre
+  principale. Quitter depuis le Dock passe par la même confirmation que le menu.
+- **Le menu de l'application**, quand elle est au premier plan : celui du système (About
+  Clairance, Settings… ⌘,, Hide, Quit Clairance ⌘Q), sans ajout.
 
 ## Le menu
 
@@ -104,7 +136,9 @@ Quit launcher…                              ⌘Q
 - `▲ Production deaf · 3 min` ;
 - `■ Production down · stopped by itself 3 min ago`, ou `■ Production not answering · 1 min` ;
 - `■ Production did not start` (un démarrage demandé qui n'a pas abouti ; mesuré le 24/10 : sans
-  réponse de la station, co-atc s'arrête à sa vérification de l'ADS-B).
+  réponse de la station, co-atc s'arrête à sa vérification de l'ADS-B) ;
+- `▲ Production running · 2 h 14 min`, puis la cause sur la ligne suivante, pour un défaut autre
+  que la surdité (disque, mémoire, sidecar, silence).
 
 **La cause**, en défaut ou en panne : une seconde ligne, sous la première, en une phrase de 60
 caractères au plus. Si elle est plus longue, elle se coupe en deux lignes, jamais en ellipse : une
@@ -156,6 +190,9 @@ réponse du serveur), – éteint (pas de transcription configurée). Chacune do
 le fait. En défaut, le fait devient la cause courte :
 - `▲ Station · not reached for 3 min (no route to host)` ;
 - `▲ ADS-B · nothing read for 3 min` ;
+- `▲ Station · link stopped 12 min ago` ; `▲ Station · answers this Mac, not co-atc` ;
+- `▲ Transcription · nothing transcribed for 20 min` ;
+- `– Audio · nothing on air` (la station n'a aucune fréquence à l'antenne : rien à recevoir) ;
 - `▲ Audio · 124.350 silent for 2 min` ;
 - `▲ Transcription · sidecar silent for 1 min, 12 waiting` ;
 - `▲ Transcription · French model not loaded` ;
@@ -236,9 +273,9 @@ encore ou ce qu'il faut faire) et un clic. Le son et le niveau suivent la gravit
 
 | Incident | Titre | Corps | Clic, boutons | Son |
 |---|---|---|---|---|
-| co-atc arrêté de lui-même | Production stopped by itself | co-atc exited at 14:05 (status 2). Nothing is transcribed or archived until it starts again. | journal ; Start production, Show log | oui |
+| co-atc arrêté de lui-même | Production stopped by itself | co-atc exited at 14:05. Nothing is transcribed or archived until it starts again. | journal ; Start production, Show log | oui |
 | … rétabli | Production running again | Started at 14:11, after 6 min stopped. | menu | — |
-| démarrage manqué (demandé hors du menu : `--start`, un raccourci ; le menu ouvert le dit déjà) | Production did not start | The station does not answer: co-atc stopped at its ADS-B check, 20 s after the start. (cause inconnue : co-atc stopped while starting: <dernière ligne du journal>.) | journal ; Start production, Show log | oui |
+| démarrage manqué (demandé hors du menu : `--start`, un raccourci ; le menu ouvert le dit déjà) | Production did not start | Selon ce qui est constaté : The station does not answer: co-atc stopped at its ADS-B check. · co-atc stopped at its ADS-B check: <erreur>. · co-atc stopped while starting: <ligne fatale du journal>. | journal ; Start production, Show log | oui |
 | … rétabli | Production running | Started at 14:12, after the start that failed at 14:05. | Clairance | — |
 | le serveur ne répond plus | Production not answering | co-atc is running but its server has not answered for 1 min. The page and the map are frozen. | journal ; Restart production, Show log | oui |
 | … rétabli | Production answering again | After 3 min without an answer. | Clairance | — |
@@ -258,7 +295,7 @@ encore ou ce qu'il faut faire) et un clic. Le son et le niveau suivent la gravit
 | … rétabli | Transmissions again | After 26 min without one. | Clairance | — |
 | disque d'archive absent | Archive disk missing | “Archive” is not mounted: the audio archive is not written. Transcription continues. | Finder ; Show in Finder | — |
 | … rétabli | Archive disk back | After 2 h. | — | — |
-| disque interne, 20 Go | Disk almost full: 18 GB left | The internal disk has less than 20 GB free. The archive uses 57 GB of its 60 GB. | Finder, le dossier des données | — |
+| disque interne, 20 Go | Disk almost full: 18 GB left | The internal disk has less than 20 GB free. | Finder, le dossier des données | — |
 | disque interne, 5 Go | Disk nearly full: 4 GB left | Less than 5 GB free: the databases may stop being written. | Finder, le dossier des données | oui |
 | … rétabli | Disk space back: 41 GB free | — | — | — |
 | pression mémoire | Memory pressure: warning (ou critical) | macOS is short of memory. The sidecar uses 17 GB, co-atc 1.2 GB. | Moniteur d'activité | critique seulement |
