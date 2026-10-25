@@ -63,13 +63,14 @@ func terminate(_ p: Proc) -> Bool {
     return kill(p.pid, SIGTERM) == 0
 }
 
-/// "3 min", "2 h 14 min", "1 d 2 h" (docs-fr/design/10-lanceur.md).
+/// "25 s", "3 min", "2 h 14 min", "1 d 2 h" (docs-fr/design/10-lanceur.md).
 func shortElapsed(_ seconds: TimeInterval) -> String {
     let s = Int(max(0, seconds))
     let d = s / 86_400, h = s % 86_400 / 3600, m = s % 3600 / 60
     if d > 0 { return "\(d) d \(h) h" }
     if h > 0 { return "\(h) h \(m) min" }
-    return "\(m) min"
+    if m > 0 { return "\(m) min" }
+    return "\(s) s"
 }
 
 private func cString<T>(_ tuple: T) -> String {

@@ -244,6 +244,69 @@ l'agent ne lance pas (règle 5) : son premier démarrage par le nouveau lanceur 
 Corrigé au passage : chaque démarrage de la production vidait `runs/launcher.log` au lieu d'y
 ajouter (il ne restait que les lignes du 16/10 à 22 h 47).
 
+### 1b, livrée le 25/10 (460bb8a) : le gardien, ses notifications, l'icône à six états
+
+Codée sur la fiche du design, validée par le propriétaire (`design/10-lanceur.md`) :
+- **les contrôles du plan** : panne (arrêtée d'elle-même, démarrage manqué, serveur muet), surdité,
+  production lancée hors du lanceur, audio par fréquence (`bytes_last_60s`), liaison avec la
+  station, transcription, silence, disques, mémoire, instances oubliées. La table est dans
+  `tools/menubar/README.md`. Chaque incident est noté dans `events.jsonl`, à côté de la prise ;
+- **les notifications de macOS** : une par incident, remplacée à son retour à la normale, avec les
+  boutons de la fiche ;
+- **le menu de la fiche** : l'état et sa cause, la section Health, les actions permises par
+  l'état, les instances ; et l'icône à six états ;
+- **à la demande du propriétaire, le 24/10** : l'icône aussi dans le Dock, présente par défaut,
+  avec une fenêtre de réglages (⌘,) pour l'en retirer.
+
+**Le banc d'essai** (`runs/lanceur/`, hors dépôt) : un second lanceur, avec ses propres réglages et
+son propre dossier (`CLAIRANCE_LAUNCHER_CONFIG`, `CLAIRANCE_SUPPORT_DIR`), traite une instance
+d'essai comme sa production. Il lui fournit trois fausses sources locales, que l'on peut couper :
+une source ADS-B (un instantané de la station servi sur 127.0.0.1), un flux audio (une tonalité
+ffmpeg) et le faux sidecar. La station n'est jamais touchée, et la production est restée arrêtée.
+
+| Coupure provoquée (25/10) | Incident ouvert après | Refermé après le retour |
+|---|---|---|
+| Source ADS-B, 5 fois | 49,3 / 49,4 / 50,2 / 54,2 / 54,3 s | 15 à 20 s |
+| Audio, 3 fois | 63,9 / 64,0 / 64,4 s | 14 à 24 s |
+| Silence, seuil du banc ramené à 2 min | 129 s | 59 s (le temps de couper un segment) |
+| co-atc tué (SIGKILL) | 4,3 s | 11,7 s après le redémarrage |
+| Sidecar arrêté | co-atc le relance aussitôt : un événement « Transcription restarted », sans incident | — |
+| Arrêt demandé | aucun événement | — |
+
+La cible du plan, moins de 2 min, est tenue partout. **Reste à mesurer : l'absence de fausse
+alerte sur une journée normale de production**, qui demande que la production tourne.
+
+Défauts trouvés par le banc, et corrigés :
+- **un démarrage manqué accusait la station à tort** : la vérification ADS-B de co-atc avait
+  échoué sur un `receiver.json` absent, alors que la source répondait. La cause se lit
+  maintenant dans l'erreur ; « la station ne répond pas » seulement sur une erreur de connexion ;
+- **le script d'un démarrage manqué restait vivant** et attendait son co-atc. Un démarrage
+  suivant réussi, il l'aurait pris pour le sien, et `production.command` aurait lancé **une
+  seconde liaison avec la station**. Le lanceur l'arrête désormais, par son PID vérifié ;
+- l'échec se constate dès la ligne « fatal » du journal de co-atc : 2 s au lieu de 60 sur le banc,
+  et d'au plus 3 min avec `production.command`.
+
+**Notifications.** macOS les refusait (« Notifications are not allowed for this application »),
+sans rien demander : elles étaient coupées pour Clairance dans Réglages Système > Notifications.
+Le propriétaire les a activées le 25/10, et elles passent depuis. Le lanceur est désormais signé
+avec l'identité de développeur du propriétaire, nommée hors du dépôt
+(`~/.config/clairance/codesign-identity`), ce qui lui garde la même identité d'une version à
+l'autre. Ce n'était pas la cause du refus, contrairement à ma première hypothèse.
+
+**L'icône de l'application.** Depuis macOS 26, le système dessine lui-même la forme, le verre et
+l'ombre d'une icône à partir d'un document d'Icon Composer. Une icône `.icns` dessinée sur
+l'ancienne grille, et même une icône pleine, est rangée dans un cadre et paraît plus petite
+(capture du propriétaire, macOS 27). D'où `tools/menubar/AppIcon.icon`, provisoire : le fond
+sombre et le signe en un calque, compilés par `actool` de Xcode. Rendue par macOS, l'icône a
+désormais la forme et la taille des Réglages système. Le signe y reste petit (environ la moitié
+de la tuile, contre les trois quarts pour les icônes voisines) : sa forme définitive est demandée
+à la session design, le 25/10.
+
+**Pas encore fait** : les captures de chaque état en clair et en sombre, que le propriétaire n'a
+pas voulu me laisser prendre en pilotant l'écran ; le niveau « sensible au temps » des
+notifications de panne, non vérifié, qui demande peut-être un droit que la signature de
+développeur ne donne pas ; le démarrage de la vraie production par ce lanceur.
+
 ## Les garde-fous
 
 - **Jamais toucher la station** : le lanceur la lit, comme aujourd'hui ; il ne bascule pas
