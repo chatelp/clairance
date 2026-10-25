@@ -287,6 +287,8 @@ encore ou ce qu'il faut faire) et un clic. Le son et le niveau suivent la gravit
 | … rétabli (les deux) | Production hears the station again | After 34 min deaf. | Clairance | — |
 | audio muet sur une fréquence | No audio on 124.350 | Approche De Gaulle has sent nothing for 2 min while on air at the station. The other frequency is receiving. | Clairance | — |
 | … rétabli | Audio back on 124.350 | After 5 min silent. | Clairance | — |
+| aucune fréquence reçue, la station à l'antenne (60 s) | No frequency for co-atc | The station has 124.350 and 126.425 on air; co-atc has received neither from the station link for 1 min. (une seule : « … has 124.350 on air; co-atc has not received it … » ; trois et plus : « none of them ») | Clairance | — |
+| … rétabli | Frequencies received again | After 3 min without one. | Clairance | — |
 | liaison station arrêtée | Station link stopped | radio-ctl-sync exited: Clairance no longer follows what the station puts on air. The current streams keep playing. | journal | — |
 | … rétabli | Station link running again | After 12 min. | menu | — |
 | sidecar muet | Transcription silent | The sidecar has not answered for 1 min. 12 transmissions are waiting in its queue. | journal | — |
