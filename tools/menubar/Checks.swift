@@ -205,7 +205,8 @@ func assess(_ o: Observation) -> (findings: [Finding], lines: [HealthLine], fact
     if d == nil {
         lines.append(HealthLine(light: .unknown, name: "Audio", fact: "unknown"))
     } else if freqs.isEmpty {
-        lines.append(HealthLine(light: .off, name: "Audio", fact: "no frequency"))
+        // The station's frequencies come and go with what it puts on air (radio-ctl-sync).
+        lines.append(HealthLine(light: .off, name: "Audio", fact: o.station.mode == "chaine" ? "no frequency" : "nothing on air"))
     } else if let first = silent.first {
         let names = silent.map(frequencyLabel).joined(separator: " and ")
         lines.append(HealthLine(light: .fault, name: "Audio", fact: "\(names) silent for \(brandDuration(silentFor(first)))"))

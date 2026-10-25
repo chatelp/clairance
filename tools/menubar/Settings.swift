@@ -22,20 +22,23 @@ struct LauncherSettings: View {
     @AppStorage(showInDockKey) private var showInDock = true
 
     var body: some View {
+        // A grouped form, the toggle and its footnote (design 10).
         Form {
-            Toggle("Show Clairance in the Dock", isOn: $showInDock)
-                .onChange(of: showInDock) { show in
-                    applyDockPolicy(show)
-                    // Leaving the Dock takes the window's app out of the foreground; bring it back.
-                    NSApplication.shared.activate(ignoringOtherApps: true)
-                    SettingsWindow.shared.window?.makeKeyAndOrderFront(nil)
-                }
-            Text("Clairance stays in the menu bar either way.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+            Section {
+                Toggle("Show Clairance in the Dock", isOn: $showInDock)
+                    .onChange(of: showInDock) { show in
+                        applyDockPolicy(show)
+                        // Leaving the Dock takes the window's app out of the foreground; bring it back.
+                        NSApplication.shared.activate(ignoringOtherApps: true)
+                        SettingsWindow.shared.window?.makeKeyAndOrderFront(nil)
+                    }
+            } footer: {
+                Text("Clairance stays in the menu bar either way.")
+                    .foregroundStyle(.secondary)
+            }
         }
-        .padding(20)
-        .frame(width: 380)
+        .formStyle(.grouped)
+        .frame(width: 420)
     }
 }
 
