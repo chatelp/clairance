@@ -24,10 +24,18 @@
 //   production_config   the config that command starts co-atc with, relative
 //                       to repo (default: configs/config.toml): the instance
 //                       running it is production
+//   production_log      the log that command writes, relative to repo (default:
+//                       runs/production.log); launcher.log goes beside it
 //   station_status_url  radio-ctl's /radio/etat, for the line "On air"
 //   tailscale_url       copied by "Copy remote address"
 //   planning_file       a markdown table of who uses the GPU; production adds
 //                       its row while it runs and removes it when it stops
+//   silence_minutes     how long nothing transcribed is a fault (default: 10
+//                       from 8 h to 23 h, 45 at night; Checks.swift)
+//
+// A test bench runs a second launcher on its own settings and folder:
+// CLAIRANCE_LAUNCHER_CONFIG names its launcher.json, CLAIRANCE_SUPPORT_DIR the
+// folder of its socket and journals.
 
 import AppKit
 import SwiftUI
@@ -36,9 +44,11 @@ struct LauncherConfig: Decodable {
     var repo: String?
     var production_command: String?
     var production_config: String?
+    var production_log: String?
     var station_status_url: String?
     var tailscale_url: String?
     var planning_file: String?
+    var silence_minutes: Double?
 }
 
 /// Replaced by build.sh with the checkout the app was built from.
@@ -48,8 +58,8 @@ let launcherBundleID = "dev.clairance.launcher"
 let planningMarker = "(menu bar launcher)"
 
 func loadLauncherConfig() -> LauncherConfig {
-    let path = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".config/clairance/launcher.json")
+    let path = ProcessInfo.processInfo.environment["CLAIRANCE_LAUNCHER_CONFIG"].map { URL(fileURLWithPath: $0) }
+        ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/clairance/launcher.json")
     guard let data = try? Data(contentsOf: path),
           let c = try? JSONDecoder().decode(LauncherConfig.self, from: data) else { return LauncherConfig() }
     return c
@@ -93,8 +103,12 @@ struct Instance: Identifiable, Sendable {
     let script: Proc?           // the production script it runs under, if any
     let dependence: Dependence?
     let until: Date?            // when a test instance the launcher started must stop
+    let adsbSource: String?     // what it reads its ADS-B from, when the launcher can read it too
+    let archiveVolume: String?  // the volume of the audio archive, "Crucial X8"
+    let coatcLog: String        // co-atc's own log, before the day's suffix
     // Read from the server and the sidecar after the scan.
     var answers = false         // its /api/v1/health answered
+    var lastFetch: Date?        // its last ADS-B read, from /api/v1/health
     var version = ""
     var summary = ""            // vitalsLine, empty when the server did not answer
     var sidecarHealth = ""
@@ -103,11 +117,13 @@ struct Instance: Identifiable, Sendable {
     var cwd: String { proc.cwd }
     var url: String? { port.map { "http://127.0.0.1:\($0)/" } }
 
+    /// "Production · port 8000", "Test · port 8020 · stops at 18:00",
+    /// "▲ Test · port 8020 · 2 h past its end" (design 10).
     var title: String {
-        var t = name
-        if let p = port { t += " · :\(p)" }
-        t += " · \(elapsed)"
-        return t
+        let base = (production ? "Production" : "Test") + (port.map { " · port \($0)" } ?? " · " + name)
+        guard let u = until else { return base }
+        let left = u.timeIntervalSinceNow
+        return left > 0 ? base + " · stops at \(clockTime(u))" : "▲ " + base + " · \(shortElapsed(-left)) past its end"
     }
 }
 
@@ -243,6 +259,14 @@ func scanInstances(_ s: ScanSettings) -> (instances: [Instance], orphans: [Helpe
             name = "Test · " + name
         }
         let mark = s.started.first { $0.role == "test" && $0.pid == p.pid && $0.start == p.start }
+        let adsb = cfg["adsb"] ?? [:]
+        var source: String?
+        if adsb["source_type"] == "tar1090", let base = adsb["tar1090_base_url"], !base.isEmpty {
+            source = base.hasSuffix("/") ? base + "aircraft.json" : base + "/aircraft.json"
+        }
+        // The archive's volume: its folder in the config, else the sidecar's --save-audio.
+        let archive = [local["audio_archive_dir"] ?? ""] + (sidecar?.args ?? [])
+        let volume = archive.first { $0.hasPrefix("/Volumes/") }.map { $0.split(separator: "/")[1] }.map(String.init)
         instances.append(Instance(
             proc: p, production: production, name: name,
             config: cfgArg, configPath: cfgPath, port: port, extraPorts: extra,
@@ -254,11 +278,54 @@ func scanInstances(_ s: ScanSettings) -> (instances: [Instance], orphans: [Helpe
             stationLinks: mine,
             script: production ? productionScript(of: p, script: s.productionScript) : nil,
             dependence: dependence(of: p.pid),
-            until: mark?.until))
+            until: mark?.until,
+            adsbSource: source, archiveVolume: volume,
+            coatcLog: resolve(cfg["logging"]?["file"] ?? "", from: p.cwd)))
     }
     instances.sort { ($0.production ? 0 : 1, $0.port ?? 0) < ($1.production ? 0 : 1, $1.port ?? 0) }
     let orphans = (sidecars + links).filter { !claimed.contains($0.pid) }
     return (instances, orphans)
+}
+
+/// /api/v1/health/detail, open to this Mac without a session.
+func healthDetail(_ base: String) async -> HealthDetail? {
+    guard let url = URL(string: base + "api/v1/health/detail") else { return nil }
+    var req = URLRequest(url: url)
+    req.timeoutInterval = 3
+    guard let (data, r) = try? await URLSession.shared.data(for: req), (r as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+    return HealthDetail.decode(data)
+}
+
+/// Whether an address answers at all, from the launcher itself.
+func reachable(_ s: String) async -> Bool {
+    guard let url = URL(string: s) else { return false }
+    var req = URLRequest(url: url)
+    req.timeoutInterval = 3
+    return (try? await URLSession.shared.data(for: req)) != nil
+}
+
+/// An RFC 3339 time, with or without fractions of a second.
+func parseTime(_ s: String) -> Date? {
+    let precise = ISO8601DateFormatter()
+    precise.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return precise.date(from: s) ?? ISO8601DateFormatter().date(from: s)
+}
+
+/// A field of the JSON that ends a co-atc log line ({"error": "…"}).
+func jsonField(_ line: String, _ key: String) -> String? {
+    guard let brace = line.firstIndex(of: "{"),
+          let j = try? JSONSerialization.jsonObject(with: Data(line[brace...].utf8)) as? [String: Any] else { return nil }
+    return j[key] as? String
+}
+
+/// A file's last lines, from its last 16 KB.
+func lastLines(_ path: String, _ n: Int) -> [String] {
+    guard let h = FileHandle(forReadingAtPath: path) else { return [] }
+    defer { try? h.close() }
+    let size = (try? h.seekToEnd()) ?? 0
+    try? h.seek(toOffset: size > 16_384 ? size - 16_384 : 0)
+    let text = String(decoding: h.readDataToEndOfFile(), as: UTF8.self)
+    return Array(text.split(separator: "\n").map(String.init).suffix(n))
 }
 
 func getJSON(_ s: String, timeout: Double = 3) async -> [String: Any]? {
@@ -316,6 +383,24 @@ func clockTime(_ d: Date) -> String {
     return f.string(from: d)
 }
 
+/// Where a start was asked for: a failed start is notified only when asked
+/// outside the menu, which says it already (design 10).
+enum Origin: Sendable { case menu, commandLine }
+
+/// A start under way, followed until production answers or is gone.
+struct Starting {
+    let origin: Origin
+    let at: Date
+    let carrierLog: LogTail     // launcher.log, where the carrier says whether the station answered
+    let coatcLog: LogTail?      // co-atc's own log of the day
+    var coatcLines: [String] = []
+    var sawCoAtc = false
+    var stationSilent: Date?    // when the carrier wrote that the station did not answer
+
+    /// co-atc wrote a fatal line since the start: it gave up, whether or not a scan saw it run.
+    var fatal: String? { coatcLines.last { $0.contains("\tfatal\t") } }
+}
+
 @MainActor
 final class Production: ObservableObject {
     @Published var running = false
@@ -323,28 +408,48 @@ final class Production: ObservableObject {
     @Published var onAir = "—"
     // The station's own mode word ("chaine" = the airband chain on the air).
     @Published var stationMode = ""
-    // The third state of the sign (05-identite.md): production runs and the
-    // antenna is on the air.
-    var listening: Bool { running && stationMode == "chaine" }
     @Published var sidecar = "—"
     @Published var instances: [Instance] = []
     @Published var orphans: [Helper] = []
     @Published var busy = false
     @Published var note = ""
+    // The guard's view (design 10): the sign, the menu's first lines, the health lines.
+    @Published var sign = SignState.stopped
+    @Published var header: [String] = ["Production stopped"]
+    @Published var health: [HealthLine] = []
+    @Published var offerRestartFromClairance = false
+    @Published var down: Down?
 
     let cfg: LauncherConfig
     let repo: String
     var command: String { cfg.production_command ?? "runs/production.command" }
     var script: String { resolve(command, from: repo) }
     var productionConfig: String { resolve(cfg.production_config ?? "configs/config.toml", from: repo) }
-    var productionLog: String { (repo as NSString).appendingPathComponent("runs/production.log") }
+    var productionLog: String { resolve(cfg.production_log ?? "runs/production.log", from: repo) }
+    var launcherLog: String { ((productionLog as NSString).deletingLastPathComponent as NSString).appendingPathComponent("launcher.log") }
     var production: Instance? { instances.first(where: \.production) }
 
     /// Only the launcher in the menu bar serves the control socket, starts
-    /// anything and keeps what it started; the command line reads.
+    /// anything, keeps what it started and guards production; the command line reads.
     let serving: Bool
     private var started: [Started]
     private var timer: Timer?
+    let guardian = Guard()
+    let notifier = Notifier()
+    /// The launcher in the menu bar, for its app delegate (Settings.swift).
+    static weak var shared: Production?
+    /// A quit the launcher has confirmed, or that needs no confirmation.
+    var quitConfirmed = false
+
+    // What the guard follows between two refreshes.
+    private var starting: Starting?
+    private var stopRequested: Date?
+    private var expected: Proc?           // the production last seen running
+    private var linkSeen = false          // production had a station link
+    private var linkLostAt: Date?
+    private var sidecarPID: Int32?
+    private var orphanSince: [Int32: Date] = [:]
+    private(set) var observation = Observation()
 
     init(serving: Bool = false) {
         cfg = loadLauncherConfig()
@@ -352,6 +457,14 @@ final class Production: ObservableObject {
         self.serving = serving
         started = loadStarted()
         if serving {
+            Production.shared = self
+            // Asked once the app has finished launching: asked during it, macOS refused.
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                self.notifier.setUp()
+            }
+            notifier.handle = { [weak self] action, click, target in self?.answer(action, click, target) }
+            guardian.post = { [weak self] key, thread, n in self?.notifier.post(key, thread: thread, n) }
             timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
                 Task { @MainActor in await self?.refresh() }
             }
@@ -363,17 +476,28 @@ final class Production: ObservableObject {
         }
     }
 
+    private var refreshing = false
+
     func refresh() async {
+        guard !refreshing else { return }
+        refreshing = true
+        defer { refreshing = false }
         let settings = ScanSettings(productionConfig: productionConfig, productionScript: script, started: started)
         let scan = await Task.detached { scanInstances(settings) }.value
         var found = scan.instances
+        var o = Observation()
         for i in found.indices {
             if let u = found[i].url {
-                found[i].answers = await getJSON(u + "api/v1/health") != nil
+                if let h = await getJSON(u + "api/v1/health") {
+                    found[i].answers = true
+                    found[i].lastFetch = (h["last_fetch"] as? String).flatMap(parseTime)
+                }
                 if let v = await getJSON(u + "api/v1/vitals") {
                     found[i].version = v["version"] as? String ?? ""
                     found[i].summary = vitalsLine(v)
+                    if found[i].production { o.secondsPerTransmission = (v["seconds_per_transmission"] as? NSNumber)?.doubleValue }
                 }
+                if found[i].production, found[i].answers { o.detail = await healthDetail(u) }
             }
             if !found[i].sidecarURL.isEmpty {
                 found[i].sidecarHealth = await getJSON(found[i].sidecarURL + "/health").map(sidecarHealthLine) ?? "not answering"
@@ -385,26 +509,213 @@ final class Production: ObservableObject {
         running = prod != nil
         elapsed = prod?.elapsed ?? ""
         sidecar = prod.map { $0.sidecarURL.isEmpty ? "—" : $0.sidecarHealth } ?? "—"
-        let station = await stationOnAir()
-        onAir = station.title
-        stationMode = station.mode
+        o.station = await stationRead()
+        onAir = o.station.title
+        stationMode = o.station.mode
+
+        // The rest is the launcher's own: what it started, and the guard.
+        o.production = prod
+        o.tests = found.filter { !$0.production }
+        o.pressure = memoryPressure()
+        o.coatcMemory = prod.flatMap { footprint($0.pid) }
+        o.sidecarMemory = (o.detail?.sidecar?.pid ?? prod?.sidecar?.pid).flatMap(footprint)
+        o.archiveVolume = prod?.archiveVolume
+        o.dataDir = prod?.database ?? repo
+        o.silenceLimit = cfg.silence_minutes.map { $0 * 60 } ?? silenceLimit(at: o.now)
+        // The launcher reads production's ADS-B source itself only when co-atc reads nothing,
+        // to say whether the station or co-atc's local network is at fault.
+        if let p = prod, let src = p.adsbSource,
+           Date().timeIntervalSince(o.detail?.adsb?.last_fetch ?? p.lastFetch ?? .distantPast) > deafAfter {
+            o.sourceAnswersLauncher = await reachable(src)
+        }
         if serving {
             stopExpired()
             forgetGone()
+            follow(prod, &o)
         }
-        // A start ends when co-atc runs, or when its script is gone; a stop when co-atc is gone.
-        if busy && note == "Starting…" {
-            if running {
+        observation = o
+        let (findings, lines, facts) = assess(o)
+        health = lines
+        if serving { guardian.update(findings + assessOthers(o), facts: facts) }
+        updateSign(findings)
+    }
+
+    /// Follows production between refreshes: a start under way, a stop asked
+    /// for, a production that stopped by itself, its station link and sidecar.
+    private func follow(_ prod: Instance?, _ o: inout Observation) {
+        let now = o.now
+        if var s = starting {
+            if s.carrierLog.newLines().contains(where: { $0.contains("carrier: the station did not answer") }) { s.stationSilent = now }
+            s.coatcLines += s.coatcLog?.newLines() ?? []
+            if let p = prod {
+                s.sawCoAtc = true
+                if p.answers {
+                    // Switching ends as soon as co-atc answers (design 10).
+                    starting = nil
+                    busy = false
+                    note = ""
+                    down = nil
+                } else {
+                    starting = s
+                }
+            } else {
+                let scriptGone = started.last(where: { $0.role == "production" }).map { Proc.read($0.pid)?.start != $0.start } ?? true
+                if s.sawCoAtc || scriptGone || s.fatal != nil || s.stationSilent.map({ now.timeIntervalSince($0) > 10 }) == true
+                    || now.timeIntervalSince(s.at) > 300 {
+                    // A new failure replaces the last one's notification, with its own cause.
+                    if case .didNotStart = down { guardian.dismiss("production-start") }
+                    down = .didNotStart(at: s.at, cause: failedStartCause(s), notify: s.origin == .commandLine)
+                    // The failed start's script goes too: still waiting for a co-atc, it would
+                    // take the next start's for its own and start a second station link
+                    // (seen on the bench, 24/10).
+                    if let st = started.last(where: { $0.role == "production" }), let sp = Proc.read(st.pid), sp.start == st.start {
+                        terminate(sp)
+                    }
+                    starting = nil
+                    busy = false
+                    note = ""
+                } else {
+                    starting = s
+                }
+            }
+        }
+        if let p = prod {
+            if expected?.pid != p.pid || expected?.start != p.proc.start {
+                expected = p.proc
+                linkSeen = false
+                linkLostAt = nil
+                sidecarPID = nil
+                if starting == nil, case .stoppedByItself = down { down = nil }
+            }
+            if !p.stationLinks.isEmpty {
+                linkSeen = true
+                linkLostAt = nil
+            } else if linkSeen && linkLostAt == nil {
+                linkLostAt = now
+            }
+            if let sp = o.detail?.sidecar?.pid ?? p.sidecar?.pid {
+                if let old = sidecarPID, old != sp {
+                    guardian.event("sidecar-restarted", thread: "transcription",
+                                   Notice(title: "Transcription restarted", body: "The sidecar stopped and co-atc started it again.",
+                                          level: .passive, click: .log))
+                }
+                sidecarPID = sp
+            }
+            if busy && note == "Stopping…" { stopRequested = stopRequested ?? now }
+        } else if expected != nil {
+            // Gone: asked for (the launcher's stop, or the script's own "arret demande"), or by itself.
+            expected = nil
+            let asked = stopRequested.map { now.timeIntervalSince($0) < 300 } ?? false
+            if !asked && !scriptSaysStopAsked() && starting == nil { down = .stoppedByItself(at: now) }
+            stopRequested = nil
+            if busy && note == "Stopping…" {
                 busy = false
                 note = ""
-            } else if let s = started.last(where: { $0.role == "production" }), !(Proc.read(s.pid)?.start == s.start) {
-                busy = false
-                note = "Start failed: " + lastLine(productionLog)
             }
-        } else if busy && note == "Stopping…" && !running {
+        } else if busy && note == "Stopping…" {
             busy = false
             note = ""
         }
+        o.linkLostAt = linkLostAt
+        o.down = down
+        let present = Set(orphans.map(\.pid))
+        orphanSince = orphanSince.filter { present.contains($0.key) }
+        for h in orphans where orphanSince[h.pid] == nil { orphanSince[h.pid] = now }
+        o.orphans = orphans.map { Orphan(helper: $0, since: orphanSince[$0.pid] ?? now, memory: footprint($0.pid)) }
+    }
+
+    /// The production script writes "arret demande" when asked to stop, by
+    /// whoever asked; its last one, after its last "co-atc pret", means production
+    /// was stopped on purpose.
+    private func scriptSaysStopAsked() -> Bool {
+        let tail = lastLines(productionLog, 40)
+        guard let stop = tail.lastIndex(where: { $0.contains("arret demande") }) else { return false }
+        let ready = tail.lastIndex(where: { $0.contains("co-atc pret") }) ?? -1
+        return stop > ready
+    }
+
+    /// A failed start's cause, as far as the launcher can tell it (design 10).
+    // "The station does not answer" only when the station did not answer: the
+    // carrier said so, or co-atc's ADS-B check failed on a connection. On 24/10
+    // the bench's check failed on a missing receiver.json, which the station's
+    // silence would have hidden.
+    private func failedStartCause(_ s: Starting) -> String {
+        let station = "The station does not answer: co-atc stopped at its ADS-B check"
+        if s.stationSilent != nil { return station }
+        if let line = s.coatcLines.last(where: { $0.contains("ADS-B source validation failed") }) {
+            let error = jsonField(line, "error") ?? ""
+            let unreached = ["no route to host", "connection refused", "i/o timeout", "Client.Timeout", "deadline exceeded", "no such host"]
+            if unreached.contains(where: error.contains) { return station }
+            return "co-atc stopped at its ADS-B check" + (error.isEmpty ? "" : ": " + error)
+        }
+        if let f = s.fatal {
+            let what = f.components(separatedBy: "\tfatal\t").last?.components(separatedBy: "\t").first ?? ""
+            let error = jsonField(f, "error").map { ": " + $0 } ?? ""
+            return "co-atc stopped while starting: " + what + error
+        }
+        let last = lastLines(productionLog, 20).last { !$0.trimmingCharacters(in: .whitespaces).isEmpty } ?? ""
+        return "co-atc stopped while starting" + (last.isEmpty ? "" : ": " + last)
+    }
+
+    /// The sign, and the menu's first lines (design 10): the state, since when, its cause.
+    private func updateSign(_ findings: [Finding]) {
+        let open = serving ? guardian.open.values.filter(\.finding.production).map(\.finding) : findings.filter { $0.hold == 0 }
+        func began(_ key: String) -> Date { guardian.began(key) ?? Date() }
+        offerRestartFromClairance = false
+        if busy {
+            sign = .switching
+            header = [note == "Stopping…" ? "Production stopping…" : "Production starting…"]
+        } else if let d = open.first(where: \.down) {
+            sign = .down
+            switch d.key {
+            case "production-start": header = ["■ Production did not start"] + causeLines(d.cause)
+            case "production-stopped": header = ["■ Production down · stopped by itself \(brandDuration(Date().timeIntervalSince(began(d.key)))) ago"]
+            default: header = ["■ Production not answering · \(brandDuration(Date().timeIntervalSince(began(d.key))))"]
+            }
+        } else if let deaf = open.first(where: { $0.key == "deaf" }) {
+            sign = .fault
+            if deaf.cause.hasPrefix("The app that started it quit") {
+                header = ["▲ Production without local network"] + causeLines(deaf.cause)
+            } else {
+                header = ["▲ Production deaf · \(brandDuration(Date().timeIntervalSince(began("deaf"))))"] + causeLines(deaf.cause)
+            }
+            offerRestartFromClairance = deaf.notice.category == "deaf"
+        } else if let first = open.first {
+            sign = .fault
+            if let out = open.first(where: { $0.key == "outside" }) {
+                header = ["Production running · \(elapsed)", "▲ " + out.cause]
+                offerRestartFromClairance = true
+            } else {
+                header = ["▲ Production running · \(elapsed)"] + causeLines(first.cause)
+            }
+        } else if running {
+            sign = stationMode == "chaine" ? .onAir : .running
+            header = ["Production running · \(elapsed)"]
+        } else {
+            sign = .stopped
+            header = ["Production stopped"]
+        }
+    }
+
+    /// For VoiceOver: what the sign says (design 10).
+    var signLabel: String {
+        let cause = header.dropFirst().first ?? ""
+        switch sign {
+        case .stopped: return "Clairance: production stopped"
+        case .switching: return note == "Stopping…" ? "Clairance: production stopping" : "Clairance: production starting"
+        case .running: return "Clairance: production running"
+        case .onAir: return "Clairance: production running, on air"
+        case .fault: return "Clairance: production running with a fault: " + (cause.isEmpty ? header[0] : cause)
+        case .down: return "Clairance: production down: " + (cause.isEmpty ? header[0] : cause)
+        }
+    }
+
+    /// "Leave stopped": the failure was seen, the sign goes back to Stopped.
+    func leaveStopped() {
+        down = nil
+        guardian.dismiss("production-start")
+        guardian.dismiss("production-stopped")
+        Task { await refresh() }
     }
 
     // MARK: Production
@@ -413,7 +724,7 @@ final class Production: ObservableObject {
     // Clairance.app of its own, and depends on it rather than on the menu: the
     // menu can then quit, crash or be updated without production losing the
     // station (Q59, measured on 24/10).
-    func start() async {
+    func start(from origin: Origin = .menu) async {
         guard serving, !running, !busy else { return }
         guard FileManager.default.isExecutableFile(atPath: script) else {
             note = "Not found: \(script)"
@@ -421,14 +732,30 @@ final class Production: ObservableObject {
         }
         busy = true
         note = "Starting…"
-        let log = (repo as NSString).appendingPathComponent("runs/launcher.log")
+        updateSign([])
+        let log = launcherLog
+        // co-atc's own log of the day (pkg/logger: <base>-<day><ext>), where a failed ADS-B check is written.
+        let file = resolve(readConfig(productionConfig)["logging"]?["file"] ?? "", from: repo)
+        let day = DateFormatter()
+        day.dateFormat = "yyyy-MM-dd"
+        let coatcLog = file.isEmpty ? nil : LogTail(((file as NSString).deletingPathExtension) + "-" + day.string(from: Date())
+                                                     + ((file as NSString).pathExtension.isEmpty ? "" : "." + (file as NSString).pathExtension))
+        starting = Starting(origin: origin, at: Date(), carrierLog: LogTail(log), coatcLog: coatcLog)
         guard let pid = await carry(["/bin/sh", script], log: log), let proc = Proc.read(pid) else {
+            starting = nil
             busy = false
             note = "Could not start: " + lastLine(log)
             return
         }
         remember(Started(role: "production", pid: proc.pid, start: proc.start, config: productionConfig))
         setPlanningRow(true)
+        // Every second until production answers or is gone: switching ends there, not at the next round.
+        Task {
+            while starting != nil {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                await refresh()
+            }
+        }
     }
 
     /// Opens a carrier that runs the command, from the checkout, its output
@@ -439,7 +766,10 @@ final class Production: ObservableObject {
         guard bundle.pathExtension == "app" else { return nil }
         let pidfile = (supportDir as NSString).appendingPathComponent("carried-\(UUID().uuidString).pid")
         defer { unlink(pidfile) }
-        var args = ["-n", "-g", bundle.path, "--args", "--carry", "--cwd", repo, "--log", log, "--pidfile", pidfile]
+        var args = ["-n", "-g"]
+        // A test bench's carrier answers to the bench's launcher, not the owner's.
+        if let dir = ProcessInfo.processInfo.environment["CLAIRANCE_SUPPORT_DIR"] { args += ["--env", "CLAIRANCE_SUPPORT_DIR=" + dir] }
+        args += [bundle.path, "--args", "--carry", "--cwd", repo, "--log", log, "--pidfile", pidfile]
         if let probe = cfg.station_status_url { args += ["--probe", probe] }
         guard run("/usr/bin/open", args + ["--"] + command).status == 0 else { return nil }
         for _ in 0..<120 { // 30 s, the carrier's wait for the station included
@@ -466,9 +796,11 @@ final class Production: ObservableObject {
             terminate(prod.proc)
             prod.stationLinks.forEach { terminate($0.proc) }
         }
+        stopRequested = Date()
         busy = true
         note = "Stopping…"
         setPlanningRow(false)
+        updateSign([])
     }
 
     // MARK: Test instances
@@ -561,7 +893,9 @@ final class Production: ObservableObject {
         await refresh()
         switch r.cmd {
         case "status":
-            reply(.end(true, "launcher running, pid \(getpid())"))
+            // What the menu says on top, for the command line.
+            let notices = notifier.allowed.map { $0 ? "notifications allowed" : "notifications not allowed by macOS" + (notifier.refusal.isEmpty ? "" : ": " + notifier.refusal) } ?? "notifications not answered yet"
+            reply(.end(true, (["launcher running, pid \(getpid()), \(notices)"] + header).joined(separator: "\n")))
         case "start":
             await startForCommandLine(reply)
         case "stop":
@@ -609,20 +943,27 @@ final class Production: ObservableObject {
             return reply(.end(true, "production already running for \(p.elapsed), pid \(p.pid)"))
         }
         let tail = LogTail(productionLog)
-        await start()
+        await start(from: .commandLine)
         guard busy, let s = started.last(where: { $0.role == "production" }) else { return reply(.end(false, note)) }
         reply(.step("production script started in a carrier, pid \(s.pid)"))
+        var answeredAt: Date?
         for _ in 0..<120 {
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             tail.newLines().forEach { reply(.step($0)) }
             await refresh()
-            if let p = production, p.answers, !p.stationLinks.isEmpty,
-               p.sidecarURL.isEmpty || p.sidecarHealth.hasPrefix("ok") {
-                return reply(.end(true, "production running, pid \(p.pid)"))
-            }
-            if production == nil && Proc.read(s.pid)?.start != s.start {
+            if case .didNotStart(_, let cause, _) = down {
                 tail.newLines().forEach { reply(.step($0)) }
-                return reply(.end(false, "the production script stopped: " + lastLine(productionLog)))
+                let short = cause.hasPrefix("The station does not answer") ? "the station does not answer"
+                    : cause.components(separatedBy: ": ").first ?? cause
+                return reply(.end(false, "Production did not start: \(short) (see the log)"))
+            }
+            guard let p = production, p.answers else { continue }
+            answeredAt = answeredAt ?? Date()
+            // Then its station link, which the script starts once co-atc answers
+            // (20 s at most: a bench has none), and its sidecar.
+            let linked = !p.stationLinks.isEmpty || Date().timeIntervalSince(answeredAt!) > 20
+            if linked && (p.sidecarURL.isEmpty || p.sidecarHealth.hasPrefix("ok")) {
+                return reply(.end(true, "production running, pid \(p.pid)"))
             }
         }
         reply(.end(false, "still starting after 4 min"))
@@ -654,7 +995,10 @@ final class Production: ObservableObject {
     // Texts and buttons: docs-fr/design/10-lanceur.md.
     func quit() {
         let c = carried
-        guard !c.isEmpty else { return NSApplication.shared.terminate(nil) }
+        guard !c.isEmpty else {
+            quitConfirmed = true
+            return NSApplication.shared.terminate(nil)
+        }
         let names = c.map { i in i.production ? "production" : i.port.map { "the test instance on port \($0)" } ?? "the test instance \(i.name)" }
         var who = names.count == 1 ? names[0] : names.dropLast().joined(separator: ", ") + " and " + names.last!
         who = who.prefix(1).uppercased() + who.dropFirst()
@@ -669,7 +1013,9 @@ final class Production: ObservableObject {
         NSApplication.shared.activate(ignoringOtherApps: true)
         switch alert.runModal() {
         case .alertSecondButtonReturn: stopAndQuit(c)
-        case .alertThirdButtonReturn: NSApplication.shared.terminate(nil)
+        case .alertThirdButtonReturn:
+            quitConfirmed = true
+            NSApplication.shared.terminate(nil)
         default: break
         }
     }
@@ -688,6 +1034,7 @@ final class Production: ObservableObject {
                 note = "Not everything stopped: the launcher stays open"
                 await refresh()
             } else {
+                quitConfirmed = true
                 NSApplication.shared.terminate(nil)
             }
         }
@@ -733,8 +1080,9 @@ final class Production: ObservableObject {
         note = "Copied \(text)"
     }
 
+    /// The production log, at its end: Console opens a log where it ends.
     func openLog() {
-        NSWorkspace.shared.open(URL(fileURLWithPath: productionLog))
+        run("/usr/bin/open", ["-a", "Console", productionLog])
     }
 
     func copyRemoteAddress() {
@@ -742,15 +1090,47 @@ final class Production: ObservableObject {
         copy(url)
     }
 
-    private func stationOnAir() async -> (title: String, mode: String) {
-        guard let s = cfg.station_status_url, let url = URL(string: s) else { return ("—", "") }
+    /// A notification's button or click (design 10): what stops or restarts
+    /// goes through the menu's own confirmation.
+    func answer(_ action: NoticeAction?, _ click: Notice.Click, _ target: [String: String]) {
+        let pid = target["pid"].flatMap { Int32($0) }
+        let start = target["start"].flatMap { Double($0) }
+        switch action {
+        case .start: Task { await self.start() }
+        case .log: openLog()
+        case .restart: restart()
+        case .finder: run("/usr/bin/open", ["/Volumes"])
+        case .stop:
+            if let i = instances.first(where: { $0.pid == pid && $0.proc.start == start }) { stopInstance(i) }
+            else if let h = orphans.first(where: { $0.pid == pid && $0.proc.start == start }) { stopHelper(h) }
+        case nil:
+            switch click {
+            case .none: break
+            case .log: openLog()
+            case .clairance: if let p = production, p.answers, let u = p.url { open(u) }
+            case .finder(let path): NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: path)
+            case .activityMonitor: run("/usr/bin/open", ["-a", "Activity Monitor"])
+            }
+        }
+    }
+
+    private func stationRead() async -> StationRead {
+        var s = StationRead()
+        guard let a = cfg.station_status_url, let url = URL(string: a) else { return s }
         var req = URLRequest(url: url)
         req.timeoutInterval = 4
         guard let (data, _) = try? await URLSession.shared.data(for: req),
               let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let sel = j["selection"] as? [String: Any],
-              let title = sel["titre"] as? String else { return ("station not answering", "") }
-        return (title, (j["mode"] as? String) ?? "")
+              let title = sel["titre"] as? String else {
+            s.title = "station not answering"
+            return s
+        }
+        s.answered = true
+        s.title = title
+        s.mode = (j["mode"] as? String) ?? ""
+        s.onAir = (sel["frequences"] as? [[String: Any]] ?? []).compactMap { $0["designation"] as? String }
+        return s
     }
 
     // The GPU is shared with the lab: production says so while it runs, in the
@@ -1033,13 +1413,18 @@ enum Entry {
         let p = Production()
         block { await p.refresh() }
         if let fd = connectControl() {
-            let pid = ask(fd, ControlRequest(cmd: "status")) { _ in }?.message ?? ""
-            print(pid.isEmpty ? "launcher running" : pid)
+            // The launcher's own view: it follows starts, stops and incidents over time.
+            let view = ask(fd, ControlRequest(cmd: "status")) { _ in }?.message ?? ""
+            print(view.isEmpty ? "launcher running" : view)
         } else {
             print("launcher not running")
+            p.header.forEach { print($0) }
         }
-        print(p.running ? "production running for \(p.elapsed)" : "production stopped")
-        if p.running { print("sidecar: \(p.sidecar)") }
+        if !p.health.isEmpty {
+            print("")
+            print("health:")
+            p.health.forEach { print("  " + $0.text) }
+        }
         print("on air: \(p.onAir)")
         for i in p.instances {
             print("")
@@ -1086,82 +1471,121 @@ func instanceLines(_ i: Instance) -> [String] {
     return lines
 }
 
-// menuBarIcon loads the sign's three states from the bundle's Resources
-// (build.sh copies them there), 18 pt: stopped and running are template
-// images, tinted by macOS for a light or dark bar; listening keeps its own
-// colours, on purpose (05-identite.md). Without the bundle (the command-line
-// form), the system symbols stand in.
-func menuBarIcon(running: Bool, listening: Bool) -> NSImage {
-    let name = listening ? "barre-menus-ecoute" : running ? "barre-menus-marche" : "barre-menus-arret"
+// The sign's six states (docs-fr/design/10-lanceur.md), from the bundle's
+// Resources (build.sh copies them there), 18 pt. Stopped, Switching and
+// Running are template images, tinted by macOS for a light or dark bar; On
+// air, Fault and Down keep their colours on a dark disc, on purpose
+// (05-identite.md). Without the bundle (the command-line form), the system
+// symbols stand in.
+func menuBarIcon(_ s: SignState) -> NSImage {
+    let (name, template): (String, Bool) = {
+        switch s {
+        case .stopped: return ("barre-menus-arret", true)
+        case .switching: return ("barre-menus-bascule", true)
+        case .running: return ("barre-menus-marche", true)
+        case .onAir: return ("barre-menus-ecoute", false)
+        case .fault: return ("barre-menus-defaut", false)
+        case .down: return ("barre-menus-panne", false)
+        }
+    }()
     if let url = Bundle.main.url(forResource: name, withExtension: "svg"),
        let image = NSImage(contentsOf: url) {
-        image.isTemplate = !listening
+        image.isTemplate = template
         image.size = NSSize(width: 18, height: 18)
         return image
     }
-    let fallback = running ? "dot.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash"
+    let fallback = s == .stopped ? "antenna.radiowaves.left.and.right.slash" : "dot.radiowaves.left.and.right"
     return NSImage(systemSymbolName: fallback, accessibilityDescription: "Clairance") ?? NSImage()
 }
 
+/// "▲ Sidecar without an instance · 9 GB" (design 10).
+func orphanTitle(_ o: Orphan) -> String {
+    o.helper.what.hasPrefix("sidecar")
+        ? "▲ Sidecar without an instance" + (o.memory.map { " · " + brandGB($0) } ?? "")
+        : "▲ Station link without an instance"
+}
+
+// The menu of docs-fr/design/10-lanceur.md: the state and its cause, the
+// health lines, the actions the state allows, the instances.
 struct ClairanceLauncher: App {
+    @NSApplicationDelegateAdaptor(LauncherDelegate.self) private var delegate
     @StateObject private var p = Production(serving: true)
 
     var body: some Scene {
         MenuBarExtra {
-            Text(p.running ? "Production running · \(p.elapsed)" : "Production stopped")
-            if let prod = p.production, let d = prod.dependence, !d.launcher {
-                if d.pid == prod.pid {
-                    Text("▲ Production without local network")
-                    Text("The app that started it quit: macOS took its local network")
-                } else {
-                    Text("▲ Started from \(d.app): it stops hearing if \(d.app) quits")
-                }
+            ForEach(Array(p.header.enumerated()), id: \.offset) { Text($0.element).monospacedDigit() }
+            if p.offerRestartFromClairance {
                 Button("Restart from Clairance") { p.restart() }.disabled(p.busy)
             }
-            if p.running { Text("Sidecar: \(p.sidecar)") }
-            Text("On air: \(p.onAir)")
-            if !p.note.isEmpty { Text(p.note) }
+            if !p.note.isEmpty && !p.busy { Text(p.note) }
+            if !p.health.isEmpty {
+                Divider()
+                Section("Health") {
+                    ForEach(p.health, id: \.self) { Text($0.text).monospacedDigit() }
+                }
+            }
             Divider()
-            Button("Start production") { Task { await p.start() } }.disabled(p.running || p.busy)
-            Button("Stop production") { p.stop() }.disabled(!p.running)
-            Divider()
-            Button("Open Clairance") { p.open(p.production?.url ?? "http://127.0.0.1:8000/") }.disabled(!p.running)
+            switch p.sign {
+            case .switching:
+                EmptyView()
+            case .stopped:
+                Button("Start production") { Task { await p.start() } }
+            case .down where p.down != nil:
+                Button("Start production") { Task { await p.start() } }
+                Button("Leave stopped") { p.leaveStopped() }
+            default:
+                Button("Stop production") { p.stop() }
+                Button("Restart production") { p.restart() }
+            }
+            Button("Open Clairance") { if let u = p.production?.url { p.open(u) } }
+                .keyboardShortcut("o")
+                .disabled(!(p.production?.answers ?? false))
             if p.cfg.tailscale_url != nil { Button("Copy remote address") { p.copyRemoteAddress() } }
-            Button("Production log") { p.openLog() }
+            Button("Show production log") { p.openLog() }
+                .keyboardShortcut("l")
             Divider()
-            Text(p.instances.isEmpty ? "No instance running" : "Instances running: \(p.instances.count)")
-            ForEach(p.instances) { i in
-                Menu(i.title) {
-                    ForEach(instanceLines(i), id: \.self) { Text($0) }
-                    Divider()
-                    if let u = i.url {
-                        Button("Open \(u)") { p.open(u) }
-                        Button("Copy address") { p.copy(u) }
-                    }
-                    Button("Open log") { p.openFile(i.log) }.disabled(i.log.isEmpty || !i.log.hasPrefix("/"))
-                    Button("Show config") { p.openFile(i.configPath) }
-                    if !i.production {
+            Section("Instances") {
+                if p.instances.isEmpty && p.orphans.isEmpty { Text("No instance running") }
+                ForEach(p.instances) { i in
+                    Menu(i.title) {
+                        ForEach(instanceLines(i), id: \.self) { Text($0).monospacedDigit() }
                         Divider()
-                        Button("Stop this instance…") { p.stopInstance(i) }
+                        if let u = i.url {
+                            Button("Open \(u)") { p.open(u) }
+                            Button("Copy address") { p.copy(u) }
+                        }
+                        Button("Open log") { p.openFile(i.log) }.disabled(i.log.isEmpty || !i.log.hasPrefix("/"))
+                        Button("Show config") { p.openFile(i.configPath) }
+                        if !i.production {
+                            Divider()
+                            Button("Stop this instance…") { p.stopInstance(i) }
+                        }
                     }
                 }
-            }
-            if !p.orphans.isEmpty {
-                Menu("Left without an instance: \(p.orphans.count)") {
-                    ForEach(p.orphans) { h in
-                        Button("Stop \(h.what) · \(h.pid) · \(h.elapsed)…") { p.stopHelper(h) }
+                ForEach(p.observation.orphans, id: \.helper.pid) { o in
+                    Menu(orphanTitle(o)) {
+                        Text("PID \(o.helper.pid) · \(o.helper.elapsed)").monospacedDigit()
+                        Text(o.helper.command)
+                        Divider()
+                        Button("Stop it…") { p.stopHelper(o.helper) }
                     }
                 }
             }
             Divider()
+            Button("Settings…") { SettingsWindow.shared.show() }
+                .keyboardShortcut(",")
             Button(p.carried.isEmpty ? "Quit launcher" : "Quit launcher…") { p.quit() }
                 .keyboardShortcut("q")
         } label: {
-            // The brand's two states (docs-fr/design/05-identite.md): the scope with
-            // its sweep and plot while production runs, the empty screen when it is
-            // stopped. Template images, so macOS tints them for a light or dark bar.
-            Image(nsImage: menuBarIcon(running: p.running, listening: p.listening))
+            Image(nsImage: menuBarIcon(p.sign))
+                .accessibilityLabel(p.signLabel)
         }
         .menuBarExtraStyle(.menu)
+        .commands {
+            // In the Dock, the app's own menu: its settings at ⌘, as every Mac app.
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") { SettingsWindow.shared.show() }.keyboardShortcut(",")
+            }
+        }
     }
 }

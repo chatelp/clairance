@@ -19,9 +19,19 @@ for f in "$here"/*.swift; do
 done
 swiftc -O -parse-as-library -target "$(uname -m)-apple-macos13.0" \
 	-o "$app/Contents/MacOS/clairance" "$here/build/Clairance.swift" "$@"
-# The sign's three menu bar states (docs-fr/design/identite/): stopped and
-# running are template SVGs, listening keeps its colours.
-cp "$here/barre-menus-marche.svg" "$here/barre-menus-arret.svg" "$here/barre-menus-ecoute.svg" "$app/Contents/Resources/"
+# The sign's six menu bar states (docs-fr/design/10-lanceur.md): stopped,
+# switching and running are template SVGs, on air, fault and down keep their
+# colours.
+cp "$here"/barre-menus-*.svg "$app/Contents/Resources/"
+# The app's icon: AppIcon.icon compiled by Xcode's actool when Xcode is here,
+# which macOS 26 and later draw at the size and in the shape of every icon;
+# else the AppIcon.icns kept beside it (icon.sh), which they shrink into a frame.
+if xcrun --find actool >/dev/null 2>&1; then
+	xcrun actool "$here/AppIcon.icon" --compile "$app/Contents/Resources" --platform macosx \
+		--minimum-deployment-target 13.0 --app-icon AppIcon --output-partial-info-plist "$here/build/icon.plist" >/dev/null
+else
+	cp "$here/AppIcon.icns" "$app/Contents/Resources/"
+fi
 cat > "$app/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -31,6 +41,8 @@ cat > "$app/Contents/Info.plist" <<EOF
 	<key>CFBundleIdentifier</key><string>dev.clairance.launcher</string>
 	<key>CFBundleExecutable</key><string>clairance</string>
 	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleIconFile</key><string>AppIcon</string>
+	<key>CFBundleIconName</key><string>AppIcon</string>
 	<key>CFBundleShortVersionString</key><string>1.0</string>
 	<key>LSMinimumSystemVersion</key><string>13.0</string>
 	<key>LSUIElement</key><true/>
@@ -44,7 +56,18 @@ cat > "$app/Contents/Info.plist" <<EOF
 </dict>
 </plist>
 EOF
-codesign --force --sign - "$app" >/dev/null 2>&1 || true
+# Signed ad hoc, unless ~/.config/clairance/codesign-identity names a signing
+# identity of this Mac's keychain (outside the repository): the app then keeps
+# one identity from one build to the next. Notifications also need Clairance
+# allowed in System Settings > Notifications: switched off there, macOS refuses
+# them without asking ("Notifications are not allowed for this application",
+# 25/10).
+identity=$(cat "$HOME/.config/clairance/codesign-identity" 2>/dev/null || true)
+if [ -n "$identity" ]; then
+	codesign --force --sign "$identity" "$app"
+else
+	codesign --force --sign - "$app" >/dev/null 2>&1 || true
+fi
 echo "built $app"
 
 if [ "$install" = "--install" ]; then

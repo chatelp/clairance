@@ -16,8 +16,8 @@
 
 import Foundation
 
-let supportDir = FileManager.default.homeDirectoryForCurrentUser
-    .appendingPathComponent("Library/Application Support/Clairance").path
+let supportDir = ProcessInfo.processInfo.environment["CLAIRANCE_SUPPORT_DIR"]
+    ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Clairance").path
 let socketPath = (supportDir as NSString).appendingPathComponent("launcher.sock")
 
 struct ControlRequest: Codable {
