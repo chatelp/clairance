@@ -494,6 +494,15 @@ sur la carte.
 
 ## État
 
+- 24 → 25/10 : **le lanceur, étapes 1a, porteur et 1b** (agent « Clairance - macOS launcher », fusions 14c39e6,
+  e71e4bd, 938f8c3 ; détail et mesures dans le doc 34). Lancement délégué au lanceur, processus suivis par PID ;
+  production dans un porteur à part du menu (Q59 b ; l'agent launchd écarté, faute de réseau local) ; gardien et
+  notifications, mesurés sur un banc d'essai sans la station : coupure ADS-B vue en 49 à 54 s (5 essais), coupure
+  audio en 64 s (3 essais, par `bytes_last_60s`), co-atc tué en 4 s, arrêt demandé sans événement. Défauts trouvés
+  en route : un démarrage manqué accusait la station quand la vérification ADS-B échouait pour une autre raison
+  (`receiver.json` absent) ; un script de démarrage manqué restait vivant et aurait lancé une seconde liaison avec
+  la station. Les notifications de Clairance étaient coupées dans les Réglages de macOS, rétablies par le
+  propriétaire. Non mesuré : une journée normale de production sans fausse alerte.
 - 24/10 : **le lanceur de la barre des menus devient le poste de surveillance de Clairance** (proposition
   `34-lanceur.md`, 1eb83a3, demandée par le propriétaire ; agent dédié « Plan lanceur de Clairance », branche
   `lanceur`, coordonné avec la session design). Côté serveur, la seule modification demandée : **`GET
