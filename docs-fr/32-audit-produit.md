@@ -504,7 +504,9 @@ sur la carte.
   la station. Les notifications de Clairance étaient coupées dans les Réglages de macOS, rétablies par le
   propriétaire. Non mesuré : une journée normale de production sans fausse alerte. Le 25/10, l'icône d'application
   définitive de la session design (document Icon Composer), les réglages groupés et « – Audio · nothing on air »
-  quand la station n'a rien à l'antenne (3b6ed5f).
+  quand la station n'a rien à l'antenne (3b6ed5f). Puis (1ef156c) : station à l'antenne mais aucune fréquence chez
+  co-atc, la ligne audio attend la liaison 60 s puis passe en défaut avec notification (vu sur le banc à 65 s) ;
+  `--status` affiche les lignes de santé du lanceur.
 - 24/10 : **le lanceur de la barre des menus devient le poste de surveillance de Clairance** (proposition
   `34-lanceur.md`, 1eb83a3, demandée par le propriétaire ; agent dédié « Plan lanceur de Clairance », branche
   `lanceur`, coordonné avec la session design). Côté serveur, la seule modification demandée : **`GET
