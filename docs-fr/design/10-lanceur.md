@@ -193,6 +193,9 @@ le fait. En défaut, le fait devient la cause courte :
 - `▲ Station · link stopped 12 min ago` ; `▲ Station · answers this Mac, not co-atc` ;
 - `▲ Transcription · nothing transcribed for 20 min` ;
 - `– Audio · nothing on air` (la station n'a aucune fréquence à l'antenne : rien à recevoir) ;
+- `◐ Audio · waiting for the station link`, puis, si cela dure plus que le contrôle audio ne le
+  tolère, `▲ Audio · no frequency while the station is on air` : la station est à l'antenne et
+  co-atc n'a reçu aucune fréquence de `radio-ctl-sync` (« – » dirait un choix, et ce n'en est pas un) ;
 - `▲ Audio · 124.350 silent for 2 min` ;
 - `▲ Transcription · sidecar silent for 1 min, 12 waiting` ;
 - `▲ Transcription · French model not loaded` ;
