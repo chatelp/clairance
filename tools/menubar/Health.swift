@@ -87,9 +87,10 @@ struct StationRead: Sendable {
 
 // MARK: - The brand's words and numbers (design 10)
 
-/// ● good, ▲ fault, ■ down, ○ unknown, – off: a shape and a word, never a colour alone.
+/// ● good, ▲ fault, ■ down, ○ unknown, – off by choice, ◐ switching: a shape
+/// and a word, never a colour alone.
 enum Light: String, Sendable {
-    case good = "●", fault = "▲", down = "■", unknown = "○", off = "–"
+    case good = "●", fault = "▲", down = "■", unknown = "○", off = "–", switching = "◐"
 }
 
 struct HealthLine: Hashable, Sendable {
