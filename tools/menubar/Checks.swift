@@ -216,13 +216,17 @@ func assess(_ o: Observation) -> (findings: [Finding], lines: [HealthLine], fact
         if age <= silentAudioAfter {
             lines.append(HealthLine(light: .switching, name: "Audio", fact: "waiting for the station link"))
         } else {
-            let onAir = o.station.onAir.isEmpty ? "frequencies" : o.station.onAir.joined(separator: ", ")
+            // In a sentence the list takes "and"; the menu's lines keep "124.350, 126.425" (design 10).
+            let air = o.station.onAir
+            let list = air.count < 2 ? air.joined() : air.dropLast().joined(separator: ", ") + " and " + air.last!
+            let received = air.count == 1 ? "has not received it" : air.count == 2 ? "has received neither" : "has received none of them"
+            let body = air.isEmpty
+                ? "The station is on air; co-atc has received no frequency from the station link for \(brandDuration(age))."
+                : "The station has \(list) on air; co-atc \(received) from the station link for \(brandDuration(age))."
             f.append(Finding(key: "audio-none", kind: "audio", began: since,
                 cause: "No frequency while the station is on air",
-                notice: Notice(title: "No frequency while the station is on air",
-                               body: "The station has \(onAir) on air; co-atc has received none of them for \(brandDuration(age)).",
-                               click: .clairance),
-                recovery: { lasted, _ in Notice(title: "Frequencies back", body: "After \(brandDuration(lasted)) without one.",
+                notice: Notice(title: "No frequency for co-atc", body: body, click: .clairance),
+                recovery: { lasted, _ in Notice(title: "Frequencies received again", body: "After \(brandDuration(lasted)) without one.",
                                                 level: .passive, click: .clairance) }))
             lines.append(HealthLine(light: .fault, name: "Audio", fact: "no frequency while the station is on air"))
         }
