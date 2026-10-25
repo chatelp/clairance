@@ -447,6 +447,7 @@ final class Production: ObservableObject {
     private var expected: Proc?           // the production last seen running
     private var linkSeen = false          // production had a station link
     private var linkLostAt: Date?
+    private var noFrequencySince: Date?
     private var sidecarPID: Int32?
     private var orphanSince: [Int32: Date] = [:]
     private(set) var observation = Observation()
@@ -616,6 +617,9 @@ final class Production: ObservableObject {
             busy = false
             note = ""
         }
+        let noFrequency = prod != nil && o.station.mode == "chaine" && o.detail.map { $0.frequencies.allSatisfy { $0.status == "stopped" } } == true
+        noFrequencySince = noFrequency ? (noFrequencySince ?? now) : nil
+        o.noFrequencySince = noFrequencySince
         o.linkLostAt = linkLostAt
         o.down = down
         let present = Set(orphans.map(\.pid))
@@ -895,7 +899,9 @@ final class Production: ObservableObject {
         case "status":
             // What the menu says on top, for the command line.
             let notices = notifier.allowed.map { $0 ? "notifications allowed" : "notifications not allowed by macOS" + (notifier.refusal.isEmpty ? "" : ": " + notifier.refusal) } ?? "notifications not answered yet"
-            reply(.end(true, (["launcher running, pid \(getpid()), \(notices)"] + header).joined(separator: "\n")))
+            // The launcher's own lines: it follows durations a single read cannot know.
+            let lines = health.isEmpty ? [] : ["", "health:"] + health.map { "  " + $0.text }
+            reply(.end(true, (["launcher running, pid \(getpid()), \(notices)"] + header + lines).joined(separator: "\n")))
         case "start":
             await startForCommandLine(reply)
         case "stop":
@@ -1419,11 +1425,11 @@ enum Entry {
         } else {
             print("launcher not running")
             p.header.forEach { print($0) }
-        }
-        if !p.health.isEmpty {
-            print("")
-            print("health:")
-            p.health.forEach { print("  " + $0.text) }
+            if !p.health.isEmpty {
+                print("")
+                print("health:")
+                p.health.forEach { print("  " + $0.text) }
+            }
         }
         print("on air: \(p.onAir)")
         for i in p.instances {

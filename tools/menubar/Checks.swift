@@ -31,6 +31,7 @@ struct Observation: Sendable {
     var coatcMemory: Int64?
     var sidecarMemory: Int64?
     var linkLostAt: Date?              // production had a station link, and it has gone
+    var noFrequencySince: Date?        // the station on air, and co-atc without a frequency
     var down: Down?
     var archiveVolume: String?
     var dataDir = ""
@@ -204,9 +205,27 @@ func assess(_ o: Observation) -> (findings: [Finding], lines: [HealthLine], fact
     }
     if d == nil {
         lines.append(HealthLine(light: .unknown, name: "Audio", fact: "unknown"))
+    } else if freqs.isEmpty && o.station.mode != "chaine" {
+        lines.append(HealthLine(light: .off, name: "Audio", fact: "nothing on air"))
     } else if freqs.isEmpty {
-        // The station's frequencies come and go with what it puts on air (radio-ctl-sync).
-        lines.append(HealthLine(light: .off, name: "Audio", fact: o.station.mode == "chaine" ? "no frequency" : "nothing on air"))
+        // The station's frequencies reach co-atc through radio-ctl-sync: waiting
+        // for it is normal at a start or a change at the station, for as long as
+        // a frequency may stay silent; longer, it is a fault (design 10).
+        let since = o.noFrequencySince ?? now
+        let age = now.timeIntervalSince(since)
+        if age <= silentAudioAfter {
+            lines.append(HealthLine(light: .switching, name: "Audio", fact: "waiting for the station link"))
+        } else {
+            let onAir = o.station.onAir.isEmpty ? "frequencies" : o.station.onAir.joined(separator: ", ")
+            f.append(Finding(key: "audio-none", kind: "audio", began: since,
+                cause: "No frequency while the station is on air",
+                notice: Notice(title: "No frequency while the station is on air",
+                               body: "The station has \(onAir) on air; co-atc has received none of them for \(brandDuration(age)).",
+                               click: .clairance),
+                recovery: { lasted, _ in Notice(title: "Frequencies back", body: "After \(brandDuration(lasted)) without one.",
+                                                level: .passive, click: .clairance) }))
+            lines.append(HealthLine(light: .fault, name: "Audio", fact: "no frequency while the station is on air"))
+        }
     } else if let first = silent.first {
         let names = silent.map(frequencyLabel).joined(separator: " and ")
         lines.append(HealthLine(light: .fault, name: "Audio", fact: "\(names) silent for \(brandDuration(silentFor(first)))"))
