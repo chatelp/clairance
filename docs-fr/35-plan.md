@@ -79,8 +79,18 @@ derrière `frequencies.decoder = "go"` (839674c), ffmpeg restant par défaut jus
 | N1. Le décodeur | sur des enregistrements synthétiques, avec la référence de ffmpeg à côté : chaque format courant, dont celui de la station | 90 dB ou plus en mono | **passé** : 105 dB sur chaque fichier mono ; stéréo 52 dB sur la voie gauche, **limite connue** (ffmpeg, LAME et Apple s'accordent entre eux à 79-85 dB) |
 | N2. La robustesse | flux pris à n'importe quel octet ; octets inversés, mis à zéro, insérés, retirés ; coupure dans une trame ; ce qui n'est pas du MP3 ; changement de format ; tout découpage réseau ; une heure en mémoire constante ; bombardement aléatoire | aucun plantage, reprise sur la trame suivante, son intact hors de la zone abîmée | **passé** : tous ; une heure décodée 2 000 fois plus vite que le temps réel, mémoire stable ; 146 665 entrées aléatoires sans plantage |
 | N3. La chaîne dans Clairance | HTTP, rééchantillonnage au fil de l'eau, coupure de connexion, flux muet, bascule de format, arrêt ; le tout avec un ffmpeg **inexistant** | l'audio arrive, chaque panne est reprise, rien ne fuit | **passé** |
-| N4. L'audio réel, transcrit par paires | une heure des deux fréquences enregistrée le 26/10 ; décodée par ffmpeg et en Go ; découpée en transmissions comme la production ; chaque transmission transcrite par un sidecar d'essai, production arrêtée | 99 % des transmissions appariées avec les mêmes bornes ; 97 % de textes identiques ; chaque différence relue | essai sur 5 min : 34 transmissions sur 34, mêmes bornes ; l'heure est en cours d'enregistrement |
-| N5. La production en Go | 24 h de production avec `decoder = "go"` | aucune panne du décodeur ; reprise après chaque bascule de la station ; débit conforme ; transmissions par heure dans la plage des jours précédents ; le gardien sans alerte audio | à faire, avec l'accord du propriétaire |
+| N4. L'audio réel, transcrit par paires | une demi-heure des deux fréquences enregistrée le 26/10 (11:59 – 12:29, décidé avec le propriétaire) ; décodée par ffmpeg et en Go ; découpée comme la production ; chaque transmission transcrite par un sidecar d'essai (12:30 – 13:06, production arrêtée) | 99 % des transmissions avec les mêmes bornes ; **pas plus de textes différents qu'un bruit inaudible ajouté à l'audio de ffmpeg** (critère révisé, voir ci-dessous) | **passé** : 237 transmissions sur 237 aux mêmes bornes ; textes : goxiph 17 différents sur 237 ; un bruit d'un pas d'arrondi sur l'audio de ffmpeg, 22 ; le même audio deux fois, 0 |
+
+**N4, le détail et le critère révisé.** Le critère écrit d'abord, 97 % de textes identiques, a échoué (92,4 %) ; les
+contrôles ont montré qu'il était mal posé. (A) Le même audio de ffmpeg transcrit deux fois : 237 identiques sur 237,
+Whisper est déterministe. (B) goxiph pour décoder, ffmpeg pour passer à 24 kHz : 20 différents ; ce n'est donc pas
+le rééchantillonneur. (C) L'audio de ffmpeg avec un bruit aléatoire d'un pas d'arrondi en 16 bits (inaudible) : **22
+différents**. Whisper bascule une transmission difficile sur douze à la moindre perturbation ; les 17 différences de
+goxiph, dont l'audio est à un pas d'arrondi de celui de ffmpeg, sont dans ce bruit. Elles tombent presque toutes sur des
+transmissions que Whisper lit mal des deux côtés (du français, des passages incompréhensibles) ; aucune ne montre un
+camp meilleur que l'autre. Rapports : `runs/b1-decodage/{heure,controle-a,controle-b,controle-c}/paired-report.json`
+(hors du dépôt).
+| N5. La production en Go | 24 h de production avec `decoder = "go"` | aucune panne du décodeur ; reprise après chaque bascule de la station ; débit conforme ; transmissions par heure dans la plage des jours précédents ; le gardien sans alerte audio | à faire, avec l'accord du propriétaire (binaire à reconstruire, réglage à poser, relance) |
 
 Après N5 : `go` par défaut, ffmpeg retiré du chemin des flux HTTP. **À décider alors** : les sources que goxiph ne
 lit pas (SRT, carte son, PCM brut par UDP, qui est simple à écrire en Go) — les retirer, ou garder ffmpeg en option

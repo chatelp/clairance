@@ -494,6 +494,13 @@ sur la carte.
 
 ## État
 
+- 26/10 (12:30 – 13:06) : **N4, l'audio réel transcrit par paires, passé** (B1 bis, plan 35). Une demi-heure des deux
+  fréquences (11:59 – 12:29) décodée par ffmpeg et par goxiph, découpée comme la production (237 transmissions sur
+  237 aux mêmes bornes), transcrite par un sidecar d'essai sans archive, production arrêtée 36 minutes (station
+  prévenue, créneau au planning de la machine). 17 textes différents sur 237 ; contrôles : le même audio deux fois, 0 ;
+  goxiph avec la conversion de fréquence de ffmpeg, 20 ; l'audio de ffmpeg avec un bruit inaudible d'un pas
+  d'arrondi, 22. Le critère « 97 % identiques » était mal posé : Whisper bascule une transmission difficile sur
+  douze à la moindre perturbation, et goxiph reste dans ce bruit. Production relancée à 13:06 (ffmpeg), vérifiée.
 - 26/10 (midi) : **goxiph intégré et testé** (B1 bis, plan 35). Copie figée dans `third_party/goxiph` avec un lecteur
   pour les flux en direct (a62e9c2) ; voie de décodage en Go dans Clairance derrière `frequencies.decoder = "go"`
   (839674c). Niveaux 1 à 3 passés : 105 dB de ffmpeg en mono, robustesse (flux pris en cours, octets abîmés, coupure,

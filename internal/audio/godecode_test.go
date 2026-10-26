@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -330,6 +331,9 @@ func TestDecodeARecordingInGo(t *testing.T) {
 		t.Skip("GO_DECODE_IN and GO_DECODE_OUT not set")
 	}
 	rate := 24000
+	if r, err := strconv.Atoi(os.Getenv("GO_DECODE_RATE")); err == nil && r > 0 {
+		rate = r
+	}
 	f, err := os.Open(in)
 	if err != nil {
 		t.Fatal(err)
