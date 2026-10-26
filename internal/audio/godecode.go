@@ -147,11 +147,18 @@ func (s *stallReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// goDecodes says whether a source is decoded in Go: an HTTP stream, with no
-// ffmpeg input options (those describe raw PCM or a capture device), to mono
-// 16-bit PCM.
+// goDecodes says whether a source is decoded in Go, to mono 16-bit PCM: an
+// HTTP stream with no ffmpeg input options (those describe a capture device),
+// or raw 16-bit PCM over UDP (udp.go).
 func goDecodes(url string, inputOptions []string, channels int, format string) bool {
-	return isHTTP(url) && len(inputOptions) == 0 && channels == 1 && strings.EqualFold(format, "s16le")
+	if channels != 1 || !strings.EqualFold(format, "s16le") {
+		return false
+	}
+	if isUDP(url) {
+		_, ok := pcmFromFFmpegOptions(inputOptions)
+		return ok
+	}
+	return isHTTP(url) && len(inputOptions) == 0
 }
 
 // NeedsFFmpeg says whether a source is decoded by ffmpeg, with the decoder
@@ -171,7 +178,12 @@ func (p *CentralAudioProcessor) startGoDecoder() error {
 	p.ffmpegCmd = nil
 	p.ffmpegStdout = pr
 	go func() {
-		err := decodeHTTP(ctx, p.audioURL, p.sampleRate, pw, p.mp3, p.ulaw, p.logger)
+		var err error
+		if pcm, ok := pcmFromFFmpegOptions(p.inputOptions); ok && isUDP(p.audioURL) {
+			err = decodeUDP(ctx, p.audioURL, pcm, p.sampleRate, pw, p.logger)
+		} else {
+			err = decodeHTTP(ctx, p.audioURL, p.sampleRate, pw, p.mp3, p.ulaw, p.logger)
+		}
 		if ctx.Err() != nil {
 			err = ctx.Err()
 		}
