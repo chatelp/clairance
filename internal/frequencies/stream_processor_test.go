@@ -5,28 +5,28 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os/exec"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/yegors/co-atc/internal/audio"
+	"github.com/yegors/co-atc/internal/audio/audiotest"
 	cfg "github.com/yegors/co-atc/internal/config"
 	"github.com/yegors/co-atc/pkg/logger"
 )
 
-// tone is a source ffmpeg generates itself, in real time: audio without a
-// network, given the way a capture device is (input options, non-URL input).
-const tone = "sine=frequency=440:sample_rate=16000"
+// listedOnly is the address of a source a test lists but never connects.
+const listedOnly = "http://station.invalid/aero.mp3"
 
-var toneOptions = []string{"-re", "-f", "lavfi"}
+// toneRate is the rate of the tone the tests listen to: raw PCM over UDP on
+// the loopback, in real time (internal/audio/audiotest), the output's own
+// rate. It replaced the tone ffmpeg generated (-f lavfi) when ffmpeg went.
+const toneRate = 16000
 
 func toneConfig() *cfg.Config {
 	c := &cfg.Config{}
 	c.Server.Port = 8000
-	c.Transcription.FFmpegPath = "ffmpeg"
-	c.Transcription.FFmpegSampleRate = 16000
-	c.Transcription.FFmpegChannels = 1
-	c.Transcription.FFmpegFormat = "s16le"
+	c.Transcription.SampleRate = toneRate
 	c.Frequencies.ReconnectIntervalSecs = 3600
 	return c
 }
@@ -43,11 +43,9 @@ func quietLog(t *testing.T) *logger.Logger {
 // newToneProcessor is a started stream processor on the tone.
 func newToneProcessor(t *testing.T) *StreamProcessor {
 	t.Helper()
-	if _, err := exec.LookPath("ffmpeg"); err != nil {
-		t.Skip("ffmpeg not installed")
-	}
 	log := quietLog(t)
-	sp, err := NewStreamProcessor(context.Background(), "125825", tone, true, toneOptions, NewClient(0, log), toneConfig(), log)
+	sp, err := NewStreamProcessor(context.Background(), "125825", audiotest.UDPTone(t, toneRate),
+		audio.PCMInput{Rate: toneRate, Channels: 1}, NewClient(0, log), toneConfig(), log)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,11 +166,8 @@ func TestStoppingTheProcessorEndsEveryClient(t *testing.T) {
 // started: GetAudioStream connects it on the first request.
 func newToneService(t *testing.T) *Service {
 	t.Helper()
-	if _, err := exec.LookPath("ffmpeg"); err != nil {
-		t.Skip("ffmpeg not installed")
-	}
 	c := toneConfig()
-	c.Frequencies.Sources = []cfg.FrequencyConfig{{ID: "125825", Name: "Tone", URL: tone, FFmpegInputOptions: toneOptions}}
+	c.Frequencies.Sources = []cfg.FrequencyConfig{{ID: "125825", Name: "Tone", URL: audiotest.UDPTone(t, toneRate), PCMRate: toneRate}}
 	s := NewService(c, quietLog(t), nil, nil, nil, nil)
 	t.Cleanup(s.Stop)
 	return s
@@ -222,8 +217,8 @@ func TestTheFrequencyListCarriesOrderStatusAndPorts(t *testing.T) {
 	c := toneConfig()
 	c.Server.AdditionalPorts = []int{8001}
 	c.Frequencies.Sources = []cfg.FrequencyConfig{
-		{ID: "b", Name: "Second", URL: tone, Order: 2},
-		{ID: "a", Name: "First", URL: tone, Order: 1},
+		{ID: "b", Name: "Second", URL: listedOnly, Order: 2},
+		{ID: "a", Name: "First", URL: listedOnly, Order: 1},
 	}
 	s := NewService(c, log, nil, nil, nil, nil)
 	t.Cleanup(s.Stop)

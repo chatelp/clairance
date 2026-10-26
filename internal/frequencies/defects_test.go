@@ -83,7 +83,7 @@ func TestAListenerWhoComesBackHearsLiveAudio(t *testing.T) {
 func TestTheFrequencyListCanBeReadConcurrently(t *testing.T) {
 	c := toneConfig()
 	c.Server.AdditionalPorts = []int{8001, 8002}
-	c.Frequencies.Sources = []cfg.FrequencyConfig{{ID: "a", Name: "A", URL: tone}, {ID: "b", Name: "B", URL: tone}}
+	c.Frequencies.Sources = []cfg.FrequencyConfig{{ID: "a", Name: "A", URL: listedOnly}, {ID: "b", Name: "B", URL: listedOnly}}
 	s := NewService(c, quietLog(t), nil, nil, nil, nil)
 	t.Cleanup(s.Stop)
 

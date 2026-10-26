@@ -13,7 +13,7 @@ import (
 //
 // Positions are counted from the first byte ever written and never wrap; only
 // the storage does. Upstream kept wrapped indices and 64 KB, 1.3 s at 24 kHz:
-// a writer that ran more than that ahead of a reader -- ffmpeg decoding an
+// a writer that ran more than that ahead of a reader -- the decoder reading an
 // Icecast burst of 50 to 65 s in a fraction of a second -- overwrote what the
 // reader had not read, and the reader could not tell. A reader that falls
 // behind now skips to the oldest data still held, and the loss is logged.
@@ -38,7 +38,7 @@ type readerState struct {
 }
 
 // multiReaderBytes holds 87 s of 24 kHz mono s16le, so that a whole Icecast
-// burst reaches a reader that reads a little slower than ffmpeg decodes.
+// burst reaches a reader that reads a little slower than the decoder writes.
 const multiReaderBytes = 4 << 20
 
 // NewMultiReader creates a new multi-reader

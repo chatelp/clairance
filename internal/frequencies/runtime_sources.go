@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
-	"slices"
-	"strings"
 	"time"
 
+	"github.com/yegors/co-atc/internal/audio"
 	cfg "github.com/yegors/co-atc/internal/config"
 	"github.com/yegors/co-atc/internal/transcription/phraseology"
 	"github.com/yegors/co-atc/internal/websocket"
@@ -54,13 +53,8 @@ func validateSource(fc cfg.FrequencyConfig) error {
 	if err != nil || u.Host == "" || !networkSchemes[u.Scheme] {
 		return fmt.Errorf("url %q: a network address is required (http, https, srt, udp, rtp, rtsp, rtmp, tcp)", fc.URL)
 	}
-	if len(fc.FFmpegInputOptions) > 32 {
-		return fmt.Errorf("ffmpeg_input_options: %d items, maximum is 32", len(fc.FFmpegInputOptions))
-	}
-	for _, o := range fc.FFmpegInputOptions {
-		if len(o) > 128 || strings.ContainsAny(o, "\x00\n\r") {
-			return fmt.Errorf("ffmpeg_input_options: %q: one word of 128 characters at most", o)
-		}
+	if err := audio.SourceProblem(fc.URL, PCMInputOf(fc)); err != nil {
+		return err
 	}
 	if len([]rune(fc.Name)) > 120 {
 		return fmt.Errorf("name is %d characters, maximum is 120", len([]rune(fc.Name)))
@@ -100,8 +94,17 @@ func sameDisplay(a, b cfg.FrequencyConfig) bool {
 // in the list must not cause one.
 func sameConnection(a, b cfg.FrequencyConfig) bool {
 	return a.ID == b.ID && a.URL == b.URL && a.TranscribeAudio == b.TranscribeAudio &&
-		a.Language == b.Language && a.ReconnectsInFFmpeg() == b.ReconnectsInFFmpeg() &&
-		slices.Equal(a.FFmpegInputOptions, b.FFmpegInputOptions)
+		a.Language == b.Language && PCMInputOf(a) == PCMInputOf(b)
+}
+
+// PCMInputOf is what a raw PCM source sends, as its configuration says: one
+// channel when pcm_channels is not written.
+func PCMInputOf(fc cfg.FrequencyConfig) audio.PCMInput {
+	in := audio.PCMInput{Rate: fc.PCMRate, Channels: fc.PCMChannels}
+	if in.Channels == 0 {
+		in.Channels = 1
+	}
+	return in
 }
 
 // AddSource starts a frequency that is not in the configuration. Adding the

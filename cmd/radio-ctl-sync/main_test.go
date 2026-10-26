@@ -58,9 +58,6 @@ func TestEachChannelWithAStreamBecomesASource(t *testing.T) {
 	if w["132733"].TranscribeAudio {
 		t.Error("the catalogue said not to transcribe 132733")
 	}
-	if w["132275"].FFmpegReconnect {
-		t.Error("a channel's stream can disappear: ffmpeg must not loop on it")
-	}
 }
 
 // With the receiver off or lent to another program there are no streams, and

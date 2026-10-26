@@ -25,7 +25,7 @@ func TestAServerWithoutTranscriptionSaysSoAndRefusesASource(t *testing.T) {
 		t.Errorf("/server transcription = %+v, want off, no source transcribes", tr)
 	}
 
-	body := `{"name":"Approach","frequency_mhz":125.825,"url":"` + s.gone + `/a.mp3","transcribe_audio":true,"ffmpeg_reconnect":false}`
+	body := `{"name":"Approach","frequency_mhz":125.825,"url":"` + s.gone + `/a.mp3","transcribe_audio":true}`
 	rec := s.do("PUT", "/api/v1/sources/125825", body)
 	if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), "no local STT sidecar answers") {
 		t.Fatalf("a transcribing source with no sidecar: %d %s, want 503 saying why", rec.Code, rec.Body.String())
@@ -41,7 +41,7 @@ func TestAServerWithoutTranscriptionSaysSoAndRefusesASource(t *testing.T) {
 func TestAServerWithoutTranscriptionTurnsItOnForASource(t *testing.T) {
 	s := newStack(t, stackOptions{idle: true, sidecar: healthSaying(t, `{"status":"ok","degraded":[]}`)})
 	s.signIn()
-	body := `{"name":"Approach","frequency_mhz":125.825,"url":"` + s.gone + `/a.mp3","transcribe_audio":true,"ffmpeg_reconnect":false}`
+	body := `{"name":"Approach","frequency_mhz":125.825,"url":"` + s.gone + `/a.mp3","transcribe_audio":true}`
 	if rec := s.do("PUT", "/api/v1/sources/125825", body); rec.Code != http.StatusOK {
 		t.Fatalf("a transcribing source with a sidecar answering: %d %s", rec.Code, rec.Body.String())
 	}

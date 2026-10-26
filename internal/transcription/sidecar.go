@@ -288,7 +288,8 @@ func (s *Sidecar) Stop() {
 }
 
 func (s *Sidecar) spawn() error {
-	// The interpreter wherever it is installed (pkg/tool), as for ffmpeg.
+	// The interpreter wherever it is installed (pkg/tool), whatever started
+	// the server.
 	name, _ := tool.Find(s.command[0])
 	cmd := exec.Command(name, s.command[1:]...)
 	startInOwnGroup(cmd)

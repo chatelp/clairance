@@ -204,9 +204,6 @@ func waitUntil(t *testing.T, c *child, what string, within time.Duration, ok fun
 // it has no password --, is started again when it is killed, and stops with
 // the server. Killed outright, the server leaves no link behind.
 func TestTheStationLinkLivesAndStopsWithTheServer(t *testing.T) {
-	if _, err := exec.LookPath("ffmpeg"); err != nil {
-		t.Skip("ffmpeg not installed: the frequencies service needs it")
-	}
 	program := buildStationLink(t)
 	gone404 := httptest.NewServer(http.NotFoundHandler())
 	t.Cleanup(gone404.Close)

@@ -146,11 +146,11 @@ func (c *mp3Reader) Close() error {
 	return nil
 }
 
-// MP3Reader is a listener to the stream's own MP3, frame-aligned, while the
-// stream is decoded in Go and has given frames; false otherwise (the stream
-// goes through ffmpeg, or is not MP3), and the caller serves the WAV stream.
-// A stream decoded in Go that has not given its first frame yet -- a page
-// opened just after a start -- is waited for up to wait.
+// MP3Reader is a listener to the stream's own MP3, frame-aligned, once the
+// stream has given frames; false otherwise (raw PCM over UDP has no MP3),
+// and the caller serves the WAV stream. An MP3 stream that has not given its
+// first frame yet -- a page opened just after a start -- is waited for up to
+// wait.
 func (p *CentralAudioProcessor) MP3Reader(wait time.Duration) (io.ReadCloser, bool) {
 	if p.mp3 == nil {
 		return nil, false
@@ -160,7 +160,7 @@ func (p *CentralAudioProcessor) MP3Reader(wait time.Duration) (io.ReadCloser, bo
 		if r, ok := p.mp3.reader(); ok {
 			return r, true
 		}
-		if !p.goDecoder || !goDecodes(p.audioURL, p.inputOptions, p.channels, p.format) || time.Now().After(deadline) {
+		if !isHTTP(p.audioURL) || time.Now().After(deadline) {
 			return nil, false
 		}
 		time.Sleep(100 * time.Millisecond)

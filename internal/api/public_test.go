@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -291,9 +290,6 @@ func TestThroughTheProxyTheAudioFollowsAudioReplay(t *testing.T) {
 // through the proxy, is told to fetch the stream where the page is, and audio
 // arrives there.
 func TestThroughTheProxyAViewerHearsTheStreamWhereThePageIs(t *testing.T) {
-	if _, err := exec.LookPath("ffmpeg"); err != nil {
-		t.Skip("ffmpeg not installed")
-	}
 	// The test's connections come from the loopback: the proxy is on it.
 	s := newStack(t, stackOptions{host: "0.0.0.0", proxies: []string{"127.0.0.1"}, viewer: true, tone: true})
 	s.cfg.Server.AudioReplay = config.AudioReplayAll

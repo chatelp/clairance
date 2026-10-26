@@ -19,8 +19,10 @@ import (
 // Decoding an MP3 stream over HTTP in Go, in place of ffmpeg (docs-fr/35-plan.md,
 // B1; Q60): the stream is read, decoded by the copy of goxiph in third_party,
 // mixed to mono and brought to the configured rate, and written as the same
-// signed 16-bit little-endian PCM ffmpeg writes, so that everything after it
-// is unchanged. Nothing outside the binary is needed.
+// signed 16-bit little-endian PCM ffmpeg wrote, so that everything after it
+// is unchanged. Nothing outside the binary is needed. Tested beside ffmpeg
+// from 26/10 behind frequencies.decoder = "go", in production for 24 hours
+// (N5), then the only decoder (B1 ter), ffmpeg removed.
 
 // goStallAfter is how long a stream may send nothing before it is taken as
 // dead. The station's streams send frames through silence too (a frame every
@@ -147,60 +149,9 @@ func (s *stallReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// goDecodes says whether a source is decoded in Go, to mono 16-bit PCM: an
-// HTTP stream with no ffmpeg input options (those describe a capture device),
-// or raw 16-bit PCM over UDP (udp.go).
-func goDecodes(url string, inputOptions []string, channels int, format string) bool {
-	if channels != 1 || !strings.EqualFold(format, "s16le") {
-		return false
-	}
-	if isUDP(url) {
-		_, ok := pcmFromFFmpegOptions(inputOptions)
-		return ok
-	}
-	return isHTTP(url) && len(inputOptions) == 0
-}
-
-// NeedsFFmpeg says whether a source is decoded by ffmpeg, with the decoder
-// configured (goDecoder: frequencies.decoder = "go"): what the startup check
-// asks before it looks for ffmpeg.
-func NeedsFFmpeg(goDecoder bool, url string, inputOptions []string, channels int, format string) bool {
-	return !goDecoder || !goDecodes(url, inputOptions, channels, format)
-}
-
-// startGoDecoder starts decoding in Go in place of ffmpeg: what it writes
-// arrives where ffmpeg's output did, so processFFmpegOutput and the
-// reconnection that follows a read error are unchanged.
-func (p *CentralAudioProcessor) startGoDecoder() error {
-	ctx, cancel := context.WithCancel(p.ctx)
-	pr, pw := io.Pipe()
-	p.goCancel = cancel
-	p.ffmpegCmd = nil
-	p.ffmpegStdout = pr
-	go func() {
-		var err error
-		if pcm, ok := pcmFromFFmpegOptions(p.inputOptions); ok && isUDP(p.audioURL) {
-			err = decodeUDP(ctx, p.audioURL, pcm, p.sampleRate, pw, p.logger)
-		} else {
-			err = decodeHTTP(ctx, p.audioURL, p.sampleRate, pw, p.mp3, p.ulaw, p.logger)
-		}
-		if ctx.Err() != nil {
-			err = ctx.Err()
-		}
-		pw.CloseWithError(err)
-	}()
-	go p.processFFmpegOutput()
-	return nil
-}
-
-// stopGoDecoder stops the Go decoder, if it runs.
-func (p *CentralAudioProcessor) stopGoDecoder() {
-	if p.goCancel == nil {
-		return
-	}
-	p.goCancel()
-	p.goCancel = nil
-	if p.ffmpegStdout != nil {
-		_ = p.ffmpegStdout.Close()
-	}
+// isHTTP reports that a source is a stream over http or https: MP3, decoded
+// here.
+func isHTTP(audioURL string) bool {
+	u := strings.ToLower(audioURL)
+	return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://")
 }

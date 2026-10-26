@@ -111,7 +111,7 @@ func (p *LocalProcessor) Stop() error {
 
 // run reads PCM, cuts it into transmissions, and sends each one to the sidecar.
 func (p *LocalProcessor) run() {
-	rate := p.config.FFmpegSampleRate
+	rate := p.config.SampleRate
 	if rate <= 0 {
 		rate = 24000
 	}

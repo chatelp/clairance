@@ -72,11 +72,6 @@ func names(es []event) string {
 // A start told on the status channel, from the first line to ready, and the
 // stop that follows a SIGTERM.
 func TestTheStartAndTheStopAreToldOnTheStatusChannel(t *testing.T) {
-	if _, err := os.Stat("/usr/bin/ffmpeg"); err != nil {
-		if _, err := os.Stat("/opt/homebrew/bin/ffmpeg"); err != nil {
-			t.Skip("ffmpeg not installed: the frequencies service needs it")
-		}
-	}
 	cfgPath, port := exampleConfig(t, t.TempDir(), false)
 	c := runServer(t, cfgPath, "-status-fd", "2")
 	ready := waitUntil(t, c, "the ready event", 60*time.Second, func() bool {

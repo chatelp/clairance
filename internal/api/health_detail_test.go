@@ -9,7 +9,6 @@ import (
 
 	"github.com/yegors/co-atc/internal/frequencies"
 	"github.com/yegors/co-atc/internal/startcheck"
-	"github.com/yegors/co-atc/pkg/tool"
 )
 
 // fromLoopback makes a request look as the launcher's does: from this
@@ -101,14 +100,9 @@ func TestTheHealthDetailSaysWhatTheLauncherWatches(t *testing.T) {
 	}
 }
 
-// The bytes out of ffmpeg, on a real ffmpeg reading a tone at its own pace:
-// what tells a frequency that hears from one that only says "connected".
+// The bytes decoded, on a tone arriving at its own pace: what tells a
+// frequency that hears from one that only says "connected".
 func TestTheHealthDetailCountsTheAudioThatArrives(t *testing.T) {
-	// Found as the server finds it: with the PATH launchd and `open` give,
-	// which holds none of Homebrew, this test runs as production did on 26/10.
-	if _, ok := tool.Find("ffmpeg"); !ok {
-		t.Skip("ffmpeg not installed")
-	}
 	s := newStack(t, stackOptions{tone: true})
 	deadline := time.Now().Add(10 * time.Second)
 	var f frequencies.FrequencyHealth
@@ -143,8 +137,8 @@ func TestTheHealthDetailListsWhatWasMissingAtStart(t *testing.T) {
 	}
 
 	s = newStack(t, stackOptions{})
-	want := []startcheck.Missing{{Kind: "tool", What: "ffmpeg", Path: "ffmpeg on the PATH", Effect: "no frequency will have audio",
-		Level: startcheck.LevelError, Hint: "install ffmpeg"}}
+	want := []startcheck.Missing{{Kind: "tool", What: "pdftotext", Path: "pdftotext on the PATH",
+		Effect: "the official names (AIP) are made without their charts", Level: startcheck.LevelWarn, Hint: "install poppler"}}
 	s.handler.SetMissing(want)
 	var d HealthDetail
 	decode(t, s.do("GET", "/api/v1/health/detail", "", fromLoopback("127.0.0.1:50123", "127.0.0.1:8000")), &d)

@@ -5,7 +5,8 @@
 // from it, one line in the log and one entry in /api/v1/health/detail for the
 // launcher. The server starts all the same: it says what is missing, it does
 // not refuse to run. On 26/10 production started without ffmpeg on its PATH
-// and had no audio at all, which nothing said.
+// and had no audio at all, which nothing said; ffmpeg has since been removed
+// (B1 ter), the audio is read inside the binary, and is not looked for.
 package startcheck
 
 import (
@@ -15,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/yegors/co-atc/internal/audio"
 	"github.com/yegors/co-atc/internal/audioarchive"
 	"github.com/yegors/co-atc/internal/config"
 	"github.com/yegors/co-atc/pkg/disk"
@@ -84,7 +84,6 @@ func Run(in Inputs) Report {
 		}
 	}
 	c := &check{cfg: in.Config, free: free, r: Report{Missing: []Missing{}}}
-	c.ffmpeg()
 	c.pdftotext()
 	c.sidecar()
 	c.databases(in.DBRetentionGB)
@@ -100,33 +99,6 @@ type check struct {
 }
 
 func (c *check) missing(m Missing) { c.r.Missing = append(c.r.Missing, m) }
-
-// ffmpeg is looked for only when something is decoded by it: every source
-// when the decoder is ffmpeg, those added later from the panel included; with
-// the Go decoder, only a source it cannot read (raw PCM, a sound card).
-func (c *check) ffmpeg() {
-	var needers []string
-	goDecoder := c.cfg.Frequencies.Decoder == "go"
-	for _, src := range c.cfg.Frequencies.Sources {
-		if audio.NeedsFFmpeg(goDecoder, src.URL, src.FFmpegInputOptions, c.cfg.Transcription.FFmpegChannels, c.cfg.Transcription.FFmpegFormat) {
-			needers = append(needers, src.ID)
-		}
-	}
-	if goDecoder && len(needers) == 0 {
-		return
-	}
-	name := c.cfg.Transcription.FFmpegPath
-	if p, ok := tool.Find(name); ok {
-		c.r.Found = append(c.r.Found, Found{"ffmpeg", p})
-		return
-	}
-	effect := "no frequency will have audio"
-	if goDecoder {
-		effect = "no audio on " + strings.Join(needers, ", ") + ", which the Go decoder does not read"
-	}
-	c.missing(Missing{Kind: "tool", What: "ffmpeg", Path: lookedFor(name), Effect: effect, Level: LevelError,
-		Hint: "install ffmpeg, or name it by its full path in [transcription] ffmpeg_path"})
-}
 
 // pdftotext reads the charts of the official names list (internal/aip),
 // which the settings page can make at any time.

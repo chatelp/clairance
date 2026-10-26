@@ -220,41 +220,14 @@ func TestTheAddressesAUDPSourceListensOn(t *testing.T) {
 	}
 }
 
-// The ffmpeg options a raw PCM source was described with are read as such;
-// anything else is not raw PCM.
-func TestFFmpegOptionsOfRawPCMAreRead(t *testing.T) {
-	for _, c := range []struct {
-		opts []string
-		want PCMInput
-		ok   bool
-	}{
-		{[]string{"-f", "s16le", "-ar", "48000", "-ac", "1"}, PCMInput{48000, 1}, true},
-		{[]string{"-ar", "22050", "-f", "s16le"}, PCMInput{22050, 1}, true},
-		{[]string{"-f", "s16le", "-ar", "48000", "-ac", "2"}, PCMInput{48000, 2}, true},
-		{[]string{"-f", "s16le"}, PCMInput{}, false}, // no rate: nothing says it
-		{[]string{"-f", "f32le", "-ar", "48000"}, PCMInput{}, false},
-		{[]string{"-f", "avfoundation"}, PCMInput{}, false},
-		{[]string{"-re", "-f", "lavfi"}, PCMInput{}, false},
-		{nil, PCMInput{}, false},
-	} {
-		got, ok := pcmFromFFmpegOptions(c.opts)
-		if ok != c.ok || (ok && got != c.want) {
-			t.Errorf("%q: %+v %v, want %+v %v", c.opts, got, ok, c.want, c.ok)
-		}
-	}
-}
-
-// Through the processor, with an ffmpeg that does not exist: the tone arrives
-// on both readers, the browser's after its WAV header, and stopping ends them
-// and frees the port.
-func TestTheProcessorReadsRawPCMOverUDPWithoutFFmpeg(t *testing.T) {
+// Through the processor: the tone arrives on both readers, the browser's
+// after its WAV header, and stopping ends them and frees the port.
+func TestTheProcessorReadsRawPCMOverUDP(t *testing.T) {
 	url := audiotest.UDPTone(t, 48000)
 	before := runtime.NumGoroutine()
 	p := processorFor(t, url, CentralProcessorConfig{
-		FFmpegPath:     "/nonexistent/ffmpeg",
 		ReconnectDelay: time.Hour,
-		GoDecoder:      true,
-		InputOptions:   []string{"-f", "s16le", "-ar", "48000", "-ac", "1"},
+		PCM:            PCMInput{Rate: 48000, Channels: 1},
 	})
 	var st statuses
 	p.SetStatusCallback(st.record)
@@ -332,8 +305,7 @@ func TestAPortAlreadyHeldIsReportedAndRetried(t *testing.T) {
 	defer held.Close()
 	p := processorFor(t, "udp://"+held.LocalAddr().String(), CentralProcessorConfig{
 		ReconnectDelay: 50 * time.Millisecond,
-		GoDecoder:      true,
-		InputOptions:   []string{"-f", "s16le", "-ar", "16000"},
+		PCM:            PCMInput{Rate: 16000, Channels: 1},
 	})
 	var st statuses
 	p.SetStatusCallback(st.record)

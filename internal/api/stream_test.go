@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"io"
 	"net/http"
-	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -69,12 +68,9 @@ func expectCORSForThePage(t *testing.T, h http.Header, what string) {
 	}
 }
 
-// The stream as the page plays it, with real ffmpeg on a tone it generates
-// itself, on one stack.
+// The stream as the page plays it, on a tone arriving as raw PCM over UDP,
+// on one stack.
 func TestTheStreamAsThePagePlaysIt(t *testing.T) {
-	if _, err := exec.LookPath("ffmpeg"); err != nil {
-		t.Skip("ffmpeg not installed")
-	}
 	shared := newStack(t, stackOptions{tone: true})
 	shared.signIn()
 

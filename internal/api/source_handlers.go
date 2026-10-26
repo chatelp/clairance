@@ -19,7 +19,7 @@ import (
 //
 //	curl -X PUT -d '{"name":"CDG approach","frequency_mhz":125.825,
 //	  "url":"http://audio.lan/aero-125825.mp3","language":"en",
-//	  "transcribe_audio":true,"ffmpeg_reconnect":false}' .../api/v1/sources/125825
+//	  "transcribe_audio":true}' .../api/v1/sources/125825
 //
 // Behind authentication, like the other writes: this decides what the server
 // connects to and what it transcribes.
@@ -32,12 +32,16 @@ func (h *Handler) PutSource(w http.ResponseWriter, r *http.Request) {
 		Order           int     `json:"order"`
 		TranscribeAudio bool    `json:"transcribe_audio"`
 		Language        string  `json:"language"`
-		FFmpegReconnect *bool   `json:"ffmpeg_reconnect"`
 		SectorAirport   string  `json:"sector_airport"`
 		SectorKind      string  `json:"sector_kind"`
-		// ffmpeg options before -i, for raw PCM over UDP for instance:
-		// ["-f","s16le","-ar","48000","-ac","1"]. See config.FrequencyConfig.
-		FFmpegInputOptions []string `json:"ffmpeg_input_options"`
+		// Raw PCM over UDP only: its rate and channels, which nothing in the
+		// packets says. See config.FrequencyConfig.
+		PCMRate     int `json:"pcm_rate"`
+		PCMChannels int `json:"pcm_channels"`
+		// Accepted and ignored: radio-ctl-sync sent it for ffmpeg, removed in
+		// B1 ter, and a body with a field this one does not know is refused.
+		// The server reconnects a stream itself, after reconnect_interval_secs.
+		FFmpegReconnect *bool `json:"ffmpeg_reconnect"`
 	}
 	dec := json.NewDecoder(io.LimitReader(r.Body, 4096))
 	dec.DisallowUnknownFields()
@@ -56,11 +60,10 @@ func (h *Handler) PutSource(w http.ResponseWriter, r *http.Request) {
 		Order:           body.Order,
 		TranscribeAudio: body.TranscribeAudio,
 		Language:        body.Language,
-		FFmpegReconnect: body.FFmpegReconnect,
 		SectorAirport:   body.SectorAirport,
 		SectorKind:      body.SectorKind,
-
-		FFmpegInputOptions: body.FFmpegInputOptions,
+		PCMRate:         body.PCMRate,
+		PCMChannels:     body.PCMChannels,
 	})
 	switch {
 	case errors.Is(err, frequencies.ErrConfiguredSource):

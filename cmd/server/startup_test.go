@@ -178,7 +178,7 @@ func startServer(t *testing.T, cfgPath string, env, args []string) *child {
 	cmd.Env = append(append(os.Environ(), runMainEnv+"="+cfgPath, argsEnv+"="+strings.Join(args, "\n")), env...)
 	out := &syncBuffer{}
 	cmd.Stdout, cmd.Stderr = out, out
-	// Its own process group, so the ffmpeg it starts goes with it; and a bound
+	// Its own process group, so what it starts goes with it; and a bound
 	// on Wait, which otherwise waits for every holder of the output pipe.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.WaitDelay = 5 * time.Second
@@ -200,9 +200,6 @@ func startServer(t *testing.T, cfgPath string, env, args []string) *child {
 // Nothing transcribes and nothing starts a sidecar: the server starts without
 // one and answers.
 func TestTheExampleStartsWithoutTranscription(t *testing.T) {
-	if _, err := exec.LookPath("ffmpeg"); err != nil {
-		t.Skip("ffmpeg not installed: the frequencies service needs it")
-	}
 	cfgPath, port := exampleConfig(t, t.TempDir(), false)
 	c := runServer(t, cfgPath)
 
@@ -271,7 +268,6 @@ func TestTheServerSaysWhatItLacksAndStartsAllTheSame(t *testing.T) {
 	// What an empty PATH leaves findable here: Homebrew's directories are
 	// looked in all the same (pkg/tool).
 	t.Setenv("PATH", "")
-	_, ffmpegThere := tool.Find("ffmpeg")
 	_, pdftotextThere := tool.Find("pdftotext")
 
 	cfgPath, port := exampleConfig(t, t.TempDir(), false)
@@ -317,10 +313,8 @@ func TestTheServerSaysWhatItLacksAndStartsAllTheSame(t *testing.T) {
 	for _, m := range detail.Missing {
 		levels[m.What] = m.Level
 	}
+	// ffmpeg is never among them: the audio is read inside the binary.
 	want := map[string]string{"airport-layout.geojson": "warn"}
-	if !ffmpegThere {
-		want["ffmpeg"] = "error"
-	}
 	if !pdftotextThere {
 		want["pdftotext"] = "warn"
 	}

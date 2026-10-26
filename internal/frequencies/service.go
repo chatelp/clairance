@@ -51,8 +51,7 @@ func NewStreamProcessor(
 	ctx context.Context,
 	id string,
 	audioURL string,
-	ffmpegReconnect bool,
-	inputOptions []string,
+	pcm audio.PCMInput,
 	client *Client,
 	config *cfg.Config,
 	logger *logger.Logger,
@@ -61,16 +60,9 @@ func NewStreamProcessor(
 
 	// Create audio processor
 	audioConfig := audio.CentralProcessorConfig{
-		FFmpegPath:               config.Transcription.FFmpegPath,
-		SampleRate:               config.Transcription.FFmpegSampleRate,
-		Channels:                 config.Transcription.FFmpegChannels,
-		Format:                   config.Transcription.FFmpegFormat,
-		ReconnectDelay:           time.Duration(config.Frequencies.ReconnectIntervalSecs) * time.Second,
-		FFmpegTimeoutSecs:        config.Frequencies.FFmpegTimeoutSecs,
-		FFmpegReconnectDelaySecs: config.Frequencies.FFmpegReconnectDelaySecs,
-		NoFFmpegReconnect:        !ffmpegReconnect,
-		InputOptions:             inputOptions,
-		GoDecoder:                config.Frequencies.Decoder == "go",
+		SampleRate:     config.Transcription.SampleRate,
+		ReconnectDelay: time.Duration(config.Frequencies.ReconnectIntervalSecs) * time.Second,
+		PCM:            pcm,
 	}
 
 	audioProcessor, err := audio.NewCentralAudioProcessor(
@@ -528,9 +520,9 @@ func NewService(
 			SegmentPrerollMs:  config.Transcription.Local.SegmentPrerollMs,
 			SilenceThreshold:  config.Transcription.Local.SilenceThreshold,
 		},
-		Language:         config.Transcription.Language,
-		FFmpegSampleRate: config.Transcription.FFmpegSampleRate,
-		LogDir:           config.Transcription.LogDir,
+		Language:   config.Transcription.Language,
+		SampleRate: config.Transcription.SampleRate,
+		LogDir:     config.Transcription.LogDir,
 	}
 
 	postProcessingConfig := transcription.PostProcessingConfig{
@@ -622,8 +614,7 @@ func (s *Service) startSource(freqConfig *cfg.FrequencyConfig) bool {
 		s.ctx,
 		id,
 		freqConfig.URL,
-		freqConfig.ReconnectsInFFmpeg(),
-		freqConfig.FFmpegInputOptions,
+		PCMInputOf(*freqConfig),
 		s.client,
 		s.config,
 		s.logger,
@@ -940,8 +931,7 @@ func (s *Service) GetAudioStream(ctx context.Context, id string, clientID string
 				s.ctx,
 				id,
 				freqConfig.URL,
-				freqConfig.ReconnectsInFFmpeg(),
-				freqConfig.FFmpegInputOptions,
+				PCMInputOf(*freqConfig),
 				s.client,
 				s.config,
 				s.logger,

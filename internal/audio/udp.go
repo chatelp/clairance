@@ -153,32 +153,3 @@ func (m *pcmMixer) push(b []byte) []byte {
 	}
 	return m.out
 }
-
-// pcmFromFFmpegOptions reads the input options ffmpeg was given for raw PCM
-// (["-f", "s16le", "-ar", "48000", "-ac", "1"]): false for anything else,
-// which is not raw PCM the Go path reads. Without -ac, one channel, as ffmpeg.
-func pcmFromFFmpegOptions(opts []string) (PCMInput, bool) {
-	in := PCMInput{Channels: 1}
-	format := ""
-	if len(opts)%2 != 0 {
-		return in, false
-	}
-	for i := 0; i < len(opts); i += 2 {
-		v := opts[i+1]
-		var err error
-		switch opts[i] {
-		case "-f":
-			format = v
-		case "-ar":
-			in.Rate, err = strconv.Atoi(v)
-		case "-ac":
-			in.Channels, err = strconv.Atoi(v)
-		default:
-			return in, false
-		}
-		if err != nil {
-			return in, false
-		}
-	}
-	return in, format == "s16le" && in.Valid() == nil
-}

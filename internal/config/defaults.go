@@ -58,17 +58,13 @@ func Defaults() Config {
 			NavaidsCSVPath:     "assets/navaids.csv",
 		},
 		Frequencies: FrequenciesConfig{
-			BufferSizeKB:             8,
-			ReconnectIntervalSecs:    5,
-			FFmpegReconnectDelaySecs: 2,
+			BufferSizeKB:          8,
+			ReconnectIntervalSecs: 5,
 		},
 		Transcription: TranscriptionConfig{
-			Backend:          BackendLocal,
-			Language:         "en",
-			FFmpegPath:       "ffmpeg",
-			FFmpegSampleRate: 24000,
-			FFmpegChannels:   1,
-			FFmpegFormat:     "s16le",
+			Backend:    BackendLocal,
+			Language:   "en",
+			SampleRate: 24000,
 			// 2 GB is one to two days on two frequencies (sidecar/README.md);
 			// 30 days of raw logs is a few MB.
 			AudioArchiveMaxGB: 2,

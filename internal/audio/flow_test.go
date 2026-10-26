@@ -22,7 +22,7 @@ func TestFlowCountsTheLastMinute(t *testing.T) {
 		t.Fatalf("steady flow: %d bytes, last %v", n, last)
 	}
 
-	// ffmpeg stops: 30 s later half the minute is left, 60 s later nothing,
+	// The decoder stops: 30 s later half the minute is left, 60 s later nothing,
 	// and the last byte keeps its time.
 	if n, _ := m.flow(now.Add(30 * time.Second)); n != 30*32000 {
 		t.Fatalf("30 s after the stop: %d bytes", n)
