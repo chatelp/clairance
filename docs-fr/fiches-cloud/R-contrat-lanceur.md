@@ -41,6 +41,43 @@ par l'agent du lanceur (tu ne peux pas compiler du Swift macOS ; ne touche pas �
   `cmd/radio-ctl-sync/main.go`, mot de passe dans `COATC_PASSWORD`). À l'arrêt, son `trap` arrête la
   liaison et co-atc.
 
+### Complément de l'agent du lanceur (26/10, relu dans le Swift de la branche `lanceur`)
+
+Lectures oubliées ci-dessus, à couvrir aussi dans le contrat :
+
+1. **Git dans `static_dir`** : la ligne « Page: local @ <commit> » vient de `git rev-parse` dans le dossier
+   de la page. Le champ `page` de la fiche Q la remplacera : cite-le dans le contrat.
+2. **Le dossier de travail de chaque co-atc** (lu par libproc), pour résoudre ses chemins relatifs
+   (`-config`, `static_dir`, `sqlite_base_path`, `logging.file`). Le contrat donne des chemins absolus.
+3. **Les arguments exacts des compagnons** : pour la liaison, `-coatc <url>` (à quel co-atc elle rapporte)
+   et `-once` (« station link, once (should run continuously) ») ; pour le sidecar, le fichier lancé
+   (`whisper_server.py` ou `fake-sidecar.py` : « real model » ou « fake ») et `--save-audio <chemin>`
+   (d'où le lanceur tire le volume de l'archive quand `audio_archive_dir` est vide). **Pour chaque
+   compagnon : PID, rôle, genre (vrai modèle ou faux), et pour la liaison son mode.**
+4. **La production se reconnaît** aujourd'hui à son chemin de configuration (`<dépôt>/configs/config.toml`) :
+   le contrat donne un **rôle ou un nom d'instance** (production ou essai), dit par le serveur (réglage de
+   configuration).
+5. **Le journal quotidien de co-atc**, dont le lanceur reconstruit le nom (`<base>-AAAA-MM-JJ<ext>`, d'après
+   `pkg/logger`) : le contrat donne son chemin, et surtout la cause d'un échec (étape 3).
+6. **La mémoire** de co-atc et du sidecar (lue par PID) et la pression mémoire du système : le serveur
+   peut les donner (un lanceur distant ne le pourra pas).
+7. **Les compagnons orphelins** (sidecar ou liaison sans co-atc), trouvés dans la table des processus :
+   dis dans le contrat ce que le serveur garantit à l'arrêt pour qu'il n'y en ait plus.
+8. **La page de la station** (`/radio/etat` : mode et fréquences à l'antenne), lue directement par le
+   lanceur : le `receiver` de `/health/detail` en couvre une partie, pas la liste des fréquences à
+   l'antenne ; la liaison la connaît, le serveur peut la relayer.
+
+Hors du serveur, à noter dans le contrat sans rien y faire : le lanceur écrit une ligne dans le planning
+GPU du labo, et lance les instances d'essai avec le binaire posé à côté de leur configuration, sortie
+dans `co-atc.log` au même endroit.
+
+**Les champs que le décodeur Swift exige** dans `/api/v1/health/detail` (tous les autres sont
+optionnels ; un seul manquant et tout le détail est perdu, le lanceur affiche « Audio not watched ») :
+`pid`, `uptime_s`, `frequencies`, `audio_archive`, `databases` ; `adsb.ok`, `adsb.aircraft`,
+`adsb.messages_per_second` ; `frequencies[].id`, `.name`, `.status`, `.transcribes`, `.bytes_last_60s` ;
+`sidecar.reachable`, `sidecar.status` ; `audio_archive.available`, `audio_archive.cap_bytes`. Les objets
+`adsb` et `sidecar` sont optionnels. **Le test figé du schéma (étape 4) garde au moins ceux-là.**
+
 ## Les étapes (un commit chacune, sur `cloud/r-contrat-lanceur`)
 
 1. **Le contrat, écrit** (C1) : `docs-fr/36-contrat-lanceur.md`, en français, court. Ce que le lanceur
