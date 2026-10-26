@@ -132,7 +132,7 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
 
   <div class="strip" role="status">
     <div class="live"><span class="dot" aria-hidden="true"></span>Production en marche
-      <small>depuis 26/10 14:12 · décodage en Go, sans ffmpeg (essai de 24 h) · mémoire du sidecar bornée · ADS-B · 2 fréquences · transcrit</small></div>
+      <small>depuis 26/10 14:24 · décodage en Go, sans ffmpeg (essai de 24 h) · mémoire du sidecar bornée · ADS-B · 2 fréquences · transcrit</small></div>
     <div class="legend" aria-label="Légende">
       <span class="chip s-done">fait</span>
       <span class="chip s-doing">en cours</span>
@@ -191,7 +191,7 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
       <ul class="steps">
         <li><span class="code">D1</span><span class="what"><b>Le passage par Traefik</b><small>route en place, nom direct (sans Cloudflare) ; barrière retirée, la connexion de Clairance protège ; WebSocket corrigé (wss)</small></span><span class="chip s-done">fait</span></li>
         <li><span class="code">D2</span><span class="what"><b>L'audio par la même adresse que la page</b><small>les ports 8001 à 8004 étaient injoignables de l'extérieur</small></span><span class="chip s-done">fait</span></li>
-        <li><span class="code">D2+</span><span class="what"><b>Le son sur tous les navigateurs</b><small>le MP3 de la station au lieu du WAV, que Safari refuse ; 25 fois moins de débit ; en production depuis 14:12 ; reste ton essai sur Safari et le téléphone</small></span><span class="chip s-done">fait</span></li>
+        <li><span class="code">D2+</span><span class="what"><b>Le son sur tous les navigateurs</b><small>le MP3 de la station au lieu du WAV ; 25 fois moins de débit ; « someone is speaking » et le bouton son corrigés pour Safari (14:24) ; reste le téléphone</small></span><span class="chip s-done">fait</span></li>
         <li><span class="code">D3</span><span class="what"><b>Le durcissement de ce qui devient public</b><small>fiche O lancée dans le cloud le 26/10 : chaque route sans connexion, limite des essais (adresse vue à travers Cloudflare), ce que voit un compte « viewer »</small></span><span class="chip s-doing">en cours</span></li>
         <li><span class="code">D4</span><span class="what"><b>Son compte et la trace</b><small>compte à son nom, audio ouvert, journal des connexions, comment couper</small></span><span class="chip s-todo">à faire</span></li>
         <li><span class="code">D5</span><span class="what"><b>La fiabilité vue de chez lui</b><small>chaque relance le déconnecte ; machine Traefik sur l'onduleur qui saute</small></span><span class="chip s-todo">à faire</span></li>
@@ -312,5 +312,5 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
     </div>
   </section>
 
-  <footer>Mis à jour le 26/10/2026 à 14 h 15 · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
+  <footer>Mis à jour le 26/10/2026 à 14 h 25 · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
 </div>

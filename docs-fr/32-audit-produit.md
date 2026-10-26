@@ -494,6 +494,13 @@ sur la carte.
 
 ## État
 
+- 26/10, 14:24 : **« someone is speaking » mesuré par le serveur** (32d05e8). Dans Safari, le son passait mais le bouton
+  son ne coupait rien et l'indicateur restait muet : Safari joue un flux en direct sans le faire passer par la chaîne
+  Web Audio de la page. Le serveur mesure maintenant l'activité sur l'audio qu'il décode (ouverte sur 20 ms au-dessus
+  du seuil de la transcription, close après 600 ms de silence), et envoie le niveau quatre fois par seconde par le
+  WebSocket ; la page en tire l'indicateur et la barre, dans tous les navigateurs, y compris pour une fréquence qu'on
+  n'écoute pas. Le bouton coupe aussi l'élément `<audio>`. Vérifié sur la station par une instance d'essai : 61 niveaux
+  et 2 fins en 45 s. Le son sur le téléphone du propriétaire reste à comprendre.
 - 26/10, 14:12 : **le MP3 de la station pour les navigateurs** (D2 bis). Safari, sur Mac comme sur iPhone, ne lit pas le
   WAV sans fin de la page (le propriétaire : son dans Dia, rien dans Safari, par la même adresse publique). Le décodeur
   Go remet chaque trame entière à un relais (`internal/audio/mp3relay.go`) : deux secondes d'avance au nouvel auditeur,
