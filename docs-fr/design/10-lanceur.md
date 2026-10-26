@@ -235,10 +235,11 @@ demandées au premier lancement, puis signalées tant qu'il en manque une.
 
 **Le nom affiché.** « Clairance Carrier » dit un mot de l'intérieur du code. Celui qui active
 l'autorisation lit une liste d'applications : **« Clairance Server »** dit ce que c'est, le serveur
-de Clairance (production et instances d'essai). À garder « Carrier » si changer le nom affiché
-(`CFBundleName`, `CFBundleDisplayName`) fait redemander l'autorisation : l'identifiant du paquet ne
-doit pas changer. Les textes ci-dessous disent « Clairance Server » ; ils prennent l'autre nom s'il
-reste.
+de Clairance (production et instances d'essai). **Adopté le 26/10** après l'essai de l'agent : le
+nom affiché changé (`CFBundleName`, `CFBundleDisplayName`, « Clairance Server.app »), l'identifiant
+du paquet gardé (`dev.clairance.carrier`), le serveur a joint la station par le réseau local sans
+qu'aucune autorisation soit redemandée. Reste à voir si le panneau Réseau local l'affiche déjà sous
+ce nom.
 
 **Le menu** : une ligne par autorisation manquante, sous l'état, chacune suivie de son bouton. Même
 forme que les lignes de santé, le sujet puis le fait :
