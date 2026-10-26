@@ -185,6 +185,9 @@ go build -o bin/co-atc ./cmd/server
 python3 -m venv .venv && .venv/bin/pip install -r sidecar/requirements.txt
 ```
 
+The page is built into the binary: `bin/co-atc` serves the page of its own commit and needs
+no `www/` beside it. To work on the page without rebuilding, set `[server] static_dir = "www"`.
+
 To have the settings and the sign-in page say which build is running:
 
 ```bash
@@ -208,7 +211,9 @@ machine only (no sign-in) or reachable with an account. A server that listens be
 Optional, once:
 
 - `python3 tools/airport-layout/fetch.py --config configs/config.toml` draws the airports'
-  runways, taxiways and aprons around your station (OpenStreetMap, ODbL).
+  runways, taxiways and aprons around your station (OpenStreetMap, ODbL). The file belongs to
+  your station and is not built in: it is written to `station/` in the data directory
+  (`[storage] sqlite_base_path`), from where the server serves it to the map.
 - In *Settings → Regional data*, **Update from the SIA** fetches the official names and the
   published procedures of the French airports you follow.
 - `tools/menubar/` builds **Clairance.app**, a menu-bar launcher that starts and stops
@@ -222,7 +227,10 @@ Optional, once:
 
 `configs/config.toml.example` is about 170 lines; a key left out takes its default
 (`internal/config/defaults.go`). At startup the server names, one line each, what it found
-in the file and does not read.
+in the file and does not read, and what it depends on and does not find: FFmpeg when a
+source needs it, `pdftotext`, the sidecar's program, script and models, room on the disks,
+a data directory it can write, the airport layout. Each line says what suffers; the server
+starts all the same, and `/api/v1/health/detail` lists them under `missing`.
 
 ## Reaching it from the Internet, behind a reverse proxy
 

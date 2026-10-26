@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/yegors/co-atc/internal/adsb"
@@ -19,7 +18,6 @@ import (
 	"github.com/yegors/co-atc/internal/weather"
 	"github.com/yegors/co-atc/internal/websocket"
 	"github.com/yegors/co-atc/pkg/logger"
-	"github.com/yegors/co-atc/pkg/tool"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -144,9 +142,9 @@ type dailyStorage struct {
 }
 
 // openStorage opens today's database, after the retention pass that may delete
-// older ones. It also returns the values the settings panel can change while
-// the server runs, which that pass reads. The caller closes the database.
-func openStorage(cfg *config.Config, configPath string, log *logger.Logger) (*config.Runtime, *dailyStorage) {
+// older ones, which reads the retention from the values the settings panel can
+// change. The caller closes the database.
+func openStorage(cfg *config.Config, runtimeSettings *config.Runtime, log *logger.Logger) *dailyStorage {
 	// Generate today's database filename
 	today := time.Now().Format("2006-01-02")
 	dbFilename := fmt.Sprintf("co-atc-%s.db", today)
@@ -159,11 +157,8 @@ func openStorage(cfg *config.Config, configPath string, log *logger.Logger) (*co
 		os.Exit(1)
 	}
 
-	// Values that can be changed while the server runs, from the settings panel.
-	// Read before the first retention pass, so a size set from the panel is the
-	// one that pass obeys, not the configured default.
-	runtimeSettings := config.NewRuntime(cfg, configPath, log)
-
+	// The retention pass obeys a size set from the panel, not the configured
+	// default: runtimeSettings was read before.
 	if cfg.Storage.DBRetentionDays > 0 {
 		log.Warn("db_retention_days is no longer used: the daily databases are kept within db_retention_gb",
 			logger.Int("db_retention_days", cfg.Storage.DBRetentionDays),
@@ -195,7 +190,7 @@ func openStorage(cfg *config.Config, configPath string, log *logger.Logger) (*co
 	// Create clearance storage
 	clearanceStorage := sqlite.NewClearanceStorage(sqliteStorage.GetDB(), log)
 
-	return runtimeSettings, &dailyStorage{
+	return &dailyStorage{
 		dir:            dbDir,
 		aircraft:       sqliteStorage,
 		transcriptions: transcriptionStorage,
@@ -328,17 +323,9 @@ func startFrequencies(ctx context.Context, cfg *config.Config, adsbService *adsb
 	// target.
 	fleet := &adsbFleet{service: adsbService, lastSeenMinutes: cfg.PostProcessing.FleetLastSeenMinutes}
 
-	// Said once at start rather than once per stream: without ffmpeg no
-	// frequency has audio, and on 26/10 that was a line per stream asked for,
-	// lost among the rest. Sources can arrive later (PUT /sources), so asked
-	// whether or not any is configured yet.
-	if p, ok := tool.Find(cfg.Transcription.FFmpegPath); ok {
-		log.Info("ffmpeg found", logger.String("path", p))
-	} else {
-		log.Error("ffmpeg not found: no frequency will have audio",
-			logger.String("ffmpeg_path", cfg.Transcription.FFmpegPath), logger.String("PATH", os.Getenv("PATH")),
-			logger.String("looked_in", strings.Join(tool.Dirs, ":")))
-	}
+	// Whether ffmpeg is there was said once by the startup check: without it
+	// no frequency it decodes has audio, and on 26/10 that was a line per
+	// stream asked for, lost among the rest.
 
 	// What the radio has said about each aircraft, carried on the aircraft itself
 	// so the map can show which targets the controller is actually talking to.
@@ -392,5 +379,11 @@ func buildRouter(cfg *config.Config, adsbService *adsb.Service, frequenciesServi
 	router := api.NewRouter(adsbService, frequenciesService, weatherService, refService, cfg, log, wsServer, store.transcriptions, store.clearances)
 	router.Handler().AttachRuntime(runtimeSettings, store.aircraft.GetDB(), sttSidecar)
 	router.Handler().SetBuild(version, commit)
+	// Which page the browser gets: the binary's own, or a directory's.
+	if page := api.PageOf(cfg); page.Source == "embedded" {
+		log.Info(fmt.Sprintf("Page: embedded (commit %s)", commit))
+	} else {
+		log.Info("Page: from "+page.Dir, logger.String("static_dir", cfg.Server.StaticDir))
+	}
 	return router
 }

@@ -21,7 +21,7 @@ var vitalsKeys = map[string]bool{
 	"channels_on_air": true, "transmissions_today": true, "matched_today": true, "matched_share": true,
 	"transcription_model": true, "transcription_backend": true, "seconds_per_transmission": true,
 	"airports_followed": true, "runways_in_use": true,
-	"uptime_seconds": true, "version": true, "commit": true,
+	"uptime_seconds": true, "version": true, "commit": true, "page": true,
 }
 
 const vitalsHealth = `{"status":"ok","pid":4242,"model_en":"sfabriece/whisper-large-v3-atco2-asr-mlx","backend":"fake",` +

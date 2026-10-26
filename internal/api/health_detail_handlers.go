@@ -13,6 +13,8 @@ import (
 
 	"github.com/yegors/co-atc/internal/auth"
 	"github.com/yegors/co-atc/internal/frequencies"
+	"github.com/yegors/co-atc/internal/startcheck"
+	"github.com/yegors/co-atc/pkg/disk"
 	"github.com/yegors/co-atc/pkg/logger"
 )
 
@@ -39,6 +41,9 @@ type HealthDetail struct {
 	UptimeSeconds int64  `json:"uptime_s"`
 	Version       string `json:"version,omitempty"`
 	Commit        string `json:"commit,omitempty"`
+	// Where the page comes from: built in, with the binary's commit, or a
+	// directory (server.static_dir).
+	Page PageSource `json:"page"`
 
 	ADSB         *HealthADSB                   `json:"adsb,omitempty"`
 	Frequencies  []frequencies.FrequencyHealth `json:"frequencies"`
@@ -46,6 +51,11 @@ type HealthDetail struct {
 	Receiver     *receiverState                `json:"receiver"`
 	AudioArchive HealthArchive                 `json:"audio_archive"`
 	Databases    HealthDatabases               `json:"databases"`
+
+	// What the startup check found missing, with what suffers from each
+	// (internal/startcheck); empty when nothing is. Said at start: a program
+	// installed since is found when it is next run, and listed until a restart.
+	Missing []startcheck.Missing `json:"missing"`
 }
 
 type HealthADSB struct {
@@ -179,6 +189,10 @@ func forwardedByAProxy(r *http.Request) bool {
 func (h *Handler) computeHealthDetail(r *http.Request) HealthDetail {
 	d := HealthDetail{PID: os.Getpid(), UptimeSeconds: int64(time.Since(h.startedAt).Seconds())}
 	d.Version, d.Commit = h.build()
+	d.Page = PageOf(h.config)
+	if d.Page.Source == "embedded" {
+		d.Page.Commit = d.Commit
+	}
 
 	if h.adsbService != nil {
 		last, ok := h.adsbService.GetStatus()
@@ -219,6 +233,10 @@ func (h *Handler) computeHealthDetail(r *http.Request) HealthDetail {
 	}
 
 	d.Receiver = h.receiverNow()
+	d.Missing = h.missing
+	if d.Missing == nil {
+		d.Missing = []startcheck.Missing{}
+	}
 
 	d.AudioArchive.Available = h.audioArchive.Available()
 	if h.config != nil {
@@ -228,7 +246,7 @@ func (h *Handler) computeHealthDetail(r *http.Request) HealthDetail {
 		d.AudioArchive.Bytes, d.AudioArchive.MeasuredAt = &bytes, utcOrNil(at)
 	}
 	if d.AudioArchive.Available {
-		if free, _, ok := diskSpace(h.audioArchive.Root()); ok {
+		if free, _, ok := disk.Space(h.audioArchive.Root()); ok {
 			d.AudioArchive.DiskFreeBytes = &free
 		}
 	}
@@ -248,7 +266,7 @@ func (h *Handler) computeHealthDetail(r *http.Request) HealthDetail {
 			}
 			d.Databases.DirBytes = &total
 		}
-		if free, _, ok := diskSpace(dir); ok {
+		if free, _, ok := disk.Space(dir); ok {
 			d.Databases.DiskFreeBytes = &free
 		}
 	}
@@ -262,4 +280,9 @@ func utcOrNil(t time.Time) *time.Time {
 	}
 	u := t.UTC()
 	return &u
+}
+
+// SetMissing records what the startup check found missing, for the launcher.
+func (h *Handler) SetMissing(missing []startcheck.Missing) {
+	h.missing = missing
 }

@@ -143,7 +143,7 @@ type stackOptions struct {
 	goMP3     bool          // a frequency serving MP3 over HTTP, decoded in Go (no ffmpeg)
 	sidecar   string        // health URL of a transcription sidecar; none when empty
 	idle      bool          // started without transcription, as main does when nothing asks for it
-	static    string        // server.static_dir; www next to the package, which has none, when empty
+	static    string        // server.static_dir; the page built into the binary when empty
 	origins   []string      // server.allowed_origins
 	adsbEvery time.Duration // how often the receiver is read after the first time; an hour when zero
 }

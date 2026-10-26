@@ -70,10 +70,10 @@ type ServerConfig struct {
 	IdleTimeoutSecs  int    `toml:"idle_timeout_seconds"`  // Maximum duration to wait for the next request when keep-alives are enabled
 	AdditionalPorts  []int  `toml:"additional_ports"`      // Additional HTTP ports to listen on (useful for multiple interfaces)
 
-	// The directory the page is served from; "www" (relative to the working
-	// directory) when empty. Production points it at a snapshot its launcher takes
-	// at start, so that a file edited in the working tree is not in production at
-	// the next page reload (found on 12/10: it was).
+	// A directory to serve the page from instead of the one built into the
+	// binary (package www), to work on the page without rebuilding: "www" serves
+	// the working tree, an edit live at the next reload. Empty: the built-in
+	// page, that of the binary's own commit.
 	StaticDir string `toml:"static_dir"`
 
 	// TLS served by co-atc itself. Leave both empty behind a reverse proxy that
@@ -164,6 +164,15 @@ type StorageConfig struct {
 	// DBRetentionDays is no longer used; kept so an old configuration still
 	// loads, and says so at startup.
 	DBRetentionDays int `toml:"db_retention_days"`
+}
+
+// StationFilesDir is where the page's files that belong to this station are:
+// what is made for one station and cannot be built into the binary -- today
+// the airport layout, written by tools/airport-layout/fetch.py. A directory of
+// its own beside the databases, served as the page's /data/: nothing else of
+// the data directory, the databases least of all, is ever served.
+func (c *Config) StationFilesDir() string {
+	return filepath.Join(c.Storage.SQLiteBasePath, "station")
 }
 
 // DefaultDBRetentionGB is the retention when none is configured: 8 to 11 full
@@ -633,9 +642,12 @@ func (c *Config) Validate() error {
 		portsSeen[p] = true
 	}
 
-	// Validate hardcoded static files directory exists
-	if _, err := os.Stat("www"); os.IsNotExist(err) {
-		return fmt.Errorf("static files directory does not exist: %s", "www")
+	// The page is built in; a directory named in its place must be there, or
+	// every file of the page would be a 404.
+	if dir := c.Server.StaticDir; dir != "" {
+		if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+			return fmt.Errorf("server.static_dir %q is not a directory: name the page's directory, or leave it empty to serve the page built into the binary", dir)
+		}
 	}
 
 	// Validate ADSB config

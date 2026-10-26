@@ -9,6 +9,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -17,12 +18,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/yegors/co-atc/pkg/tool"
 )
 
 // The server as a newcomer starts it: main() itself, on the example
@@ -141,8 +145,9 @@ type child struct {
 	err    error
 }
 
-// runServer starts main() on cfgPath in a child process.
-func runServer(t *testing.T, cfgPath string) *child {
+// runServer starts main() on cfgPath in a child process, with env added to
+// this process's environment.
+func runServer(t *testing.T, cfgPath string, env ...string) *child {
 	t.Helper()
 	self, err := filepath.Abs(os.Args[0])
 	if err != nil {
@@ -150,9 +155,9 @@ func runServer(t *testing.T, cfgPath string) *child {
 	}
 	cmd := exec.Command(self, "-test.run=^$")
 	// From the root of the repository, where the server is run: the
-	// configuration is checked against www/ there.
+	// reference files are read from assets/ there.
 	cmd.Dir = filepath.Join("..", "..")
-	cmd.Env = append(os.Environ(), runMainEnv+"="+cfgPath)
+	cmd.Env = append(append(os.Environ(), runMainEnv+"="+cfgPath), env...)
 	out := &syncBuffer{}
 	cmd.Stdout, cmd.Stderr = out, out
 	// Its own process group, so the ffmpeg it starts goes with it; and a bound
@@ -238,5 +243,95 @@ func TestTheExampleWithATranscribingSourceNeedsItsSidecar(t *testing.T) {
 		if !strings.Contains(c.out.String(), want) {
 			t.Errorf("the refusal should say %q:\n%s", want, c.out.String())
 		}
+	}
+}
+
+// Started as launchd starts it, with nothing on its PATH, the server says what
+// it lacks, one line each, starts all the same, and lists it for the launcher
+// with the page it serves: its own.
+func TestTheServerSaysWhatItLacksAndStartsAllTheSame(t *testing.T) {
+	// What an empty PATH leaves findable here: Homebrew's directories are
+	// looked in all the same (pkg/tool).
+	t.Setenv("PATH", "")
+	_, ffmpegThere := tool.Find("ffmpeg")
+	_, pdftotextThere := tool.Find("pdftotext")
+
+	cfgPath, port := exampleConfig(t, t.TempDir(), false)
+	c := runServer(t, cfgPath, "PATH=")
+	base := fmt.Sprintf("http://127.0.0.1:%d", port)
+	deadline := time.Now().Add(60 * time.Second)
+	for {
+		select {
+		case <-c.exited:
+			t.Fatalf("the server stopped (%v):\n%s", c.err, c.out.String())
+		default:
+		}
+		resp, err := http.Get(base + "/api/v1/health")
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				break
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("no answer at %s:\n%s", base, c.out.String())
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	resp, err := http.Get(base + "/api/v1/health/detail")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var detail struct {
+		Page    struct{ Source, Commit string }
+		Missing []struct{ Kind, What, Level, Effect string }
+	}
+	err = json.NewDecoder(resp.Body).Decode(&detail)
+	resp.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Page.Source != "embedded" {
+		t.Errorf("page %+v, want embedded", detail.Page)
+	}
+	levels := map[string]string{}
+	for _, m := range detail.Missing {
+		levels[m.What] = m.Level
+	}
+	want := map[string]string{"airport-layout.geojson": "warn"}
+	if !ffmpegThere {
+		want["ffmpeg"] = "error"
+	}
+	if !pdftotextThere {
+		want["pdftotext"] = "warn"
+	}
+	if !reflect.DeepEqual(levels, want) {
+		t.Errorf("missing %v, want %v", levels, want)
+	}
+	out := c.out.String()
+	for what := range want {
+		if !strings.Contains(out, "Missing: "+what+" -- ") {
+			t.Errorf("the log has no line for %s:\n%s", what, out)
+		}
+	}
+	if !strings.Contains(out, "Page: embedded (commit ") {
+		t.Errorf("the log does not say which page is served:\n%s", out)
+	}
+	resp, err = http.Get(base + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK || !strings.Contains(string(page), "<title>Clairance</title>") {
+		t.Errorf("GET /: %d, want the built-in page", resp.StatusCode)
+	}
+
+	_ = c.cmd.Process.Signal(syscall.SIGTERM)
+	select {
+	case <-c.exited:
+	case <-time.After(30 * time.Second):
+		t.Errorf("the server did not stop on SIGTERM:\n%s", out)
 	}
 }
