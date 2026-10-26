@@ -494,6 +494,13 @@ sur la carte.
 
 ## État
 
+- 26/10 (midi) : **goxiph intégré et testé** (B1 bis, plan 35). Copie figée dans `third_party/goxiph` avec un lecteur
+  pour les flux en direct (a62e9c2) ; voie de décodage en Go dans Clairance derrière `frequencies.decoder = "go"`
+  (839674c). Niveaux 1 à 3 passés : 105 dB de ffmpeg en mono, robustesse (flux pris en cours, octets abîmés, coupure,
+  changement de format, une heure, 146 665 entrées aléatoires), chaîne complète sans ffmpeg. Limite connue : le
+  stéréo (voie gauche à 52 dB, quand ffmpeg, LAME et Apple s'accordent à 79-85 dB). Niveau 4 en cours : une heure des
+  deux fréquences enregistrée ; l'outil de comparaison par paires, essayé sur 5 min, retrouve les 34 transmissions
+  aux mêmes bornes.
 - 26/10 : **B1, le décodage audio en Go, mesuré** (Q60, plan 35). Les flux de la station sont du MP3 mono à 8 kHz
   (MPEG-2.5) ; `go-mp3` ne le lit pas ; goxiph (Go pur, BSD-3) le décode à l'identique de ffmpeg à l'arrondi près
   (≈ 100 dB par fenêtre de 5 s), la chaîne jusqu'à 24 kHz à 72 à 80 dB, pour 5,6 s de calcul par heure d'audio.

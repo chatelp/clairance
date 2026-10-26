@@ -5359,7 +5359,11 @@ Le test de transcription par paires n'a pas été fait : l'écart des deux déco
 16 bits, en dessous de ce qui peut changer une transcription. Il peut l'être sur demande (un sidecar de test sur
 le GPU, inscrit au planning de la machine).
 
-**À trancher par le propriétaire** : (1) décoder le MP3 en Go avec goxiph, intégré au dépôt à un commit figé
+**Le propriétaire, le 26/10** : tester goxiph dans Clairance avant de décider ; s'il est validé, **bascule
+complète, ffmpeg abandonné** ; la production peut être arrêtée pour les tests. Plan de validation en cinq niveaux
+dans le doc 35 (B1 bis) ; décodeur intégré (a62e9c2) et branché derrière `frequencies.decoder = "go"` (839674c).
+
+**Restaient à trancher avant cela** : (1) décoder le MP3 en Go avec goxiph, intégré au dépôt à un commit figé
 (sa licence le permet), ffmpeg ne restant qu'en option pour les autres entrées (carte son, autres formats) ; ou
 embarquer un ffmpeg ; (2) retirer `-fflags nobuffer` dès maintenant ; (3) passer la production de 24 à 16 kHz,
 ou à la fréquence du flux.

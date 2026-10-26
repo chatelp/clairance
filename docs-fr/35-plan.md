@@ -68,6 +68,24 @@ moins de deux minutes.
 **Sortie** : sur ce Mac, la production tourne avec le PATH minimal de macOS, sans `whisper-lab`, sans
 `production.command`, et dit d'elle-même ce qui lui manque.
 
+#### B1 bis — Valider goxiph avant la bascule complète *(demandé par le propriétaire le 26/10)*
+
+Le propriétaire : si les tests valident goxiph, on **bascule complètement** et ffmpeg disparaît ; la production
+peut être arrêtée pour les tests. Le décodeur Go est dans le dépôt (`third_party/goxiph`, a62e9c2) et branché
+derrière `frequencies.decoder = "go"` (839674c), ffmpeg restant par défaut jusqu'à la décision.
+
+| Niveau | Ce qu'il vérifie | Critère | État |
+|---|---|---|---|
+| N1. Le décodeur | sur des enregistrements synthétiques, avec la référence de ffmpeg à côté : chaque format courant, dont celui de la station | 90 dB ou plus en mono | **passé** : 105 dB sur chaque fichier mono ; stéréo 52 dB sur la voie gauche, **limite connue** (ffmpeg, LAME et Apple s'accordent entre eux à 79-85 dB) |
+| N2. La robustesse | flux pris à n'importe quel octet ; octets inversés, mis à zéro, insérés, retirés ; coupure dans une trame ; ce qui n'est pas du MP3 ; changement de format ; tout découpage réseau ; une heure en mémoire constante ; bombardement aléatoire | aucun plantage, reprise sur la trame suivante, son intact hors de la zone abîmée | **passé** : tous ; une heure décodée 2 000 fois plus vite que le temps réel, mémoire stable ; 146 665 entrées aléatoires sans plantage |
+| N3. La chaîne dans Clairance | HTTP, rééchantillonnage au fil de l'eau, coupure de connexion, flux muet, bascule de format, arrêt ; le tout avec un ffmpeg **inexistant** | l'audio arrive, chaque panne est reprise, rien ne fuit | **passé** |
+| N4. L'audio réel, transcrit par paires | une heure des deux fréquences enregistrée le 26/10 ; décodée par ffmpeg et en Go ; découpée en transmissions comme la production ; chaque transmission transcrite par un sidecar d'essai, production arrêtée | 99 % des transmissions appariées avec les mêmes bornes ; 97 % de textes identiques ; chaque différence relue | essai sur 5 min : 34 transmissions sur 34, mêmes bornes ; l'heure est en cours d'enregistrement |
+| N5. La production en Go | 24 h de production avec `decoder = "go"` | aucune panne du décodeur ; reprise après chaque bascule de la station ; débit conforme ; transmissions par heure dans la plage des jours précédents ; le gardien sans alerte audio | à faire, avec l'accord du propriétaire |
+
+Après N5 : `go` par défaut, ffmpeg retiré du chemin des flux HTTP. **À décider alors** : les sources que goxiph ne
+lit pas (SRT, carte son, PCM brut par UDP, qui est simple à écrire en Go) — les retirer, ou garder ffmpeg en option
+pour elles seules.
+
 **Décidé le 26/10** : B3, co-atc lance lui-même ses compagnons (le propriétaire, « oui, Clairance fait tout »).
 
 ### C — Le contrat entre le lanceur et le serveur ; le lanceur, produit à part (Q61) *(fondation ; après B3)*

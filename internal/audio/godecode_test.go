@@ -316,3 +316,31 @@ func TestOnlyHTTPStreamsToMonoPCMAreDecodedInGo(t *testing.T) {
 		}
 	}
 }
+
+// Decodes a recording of a station's stream with the Go path, for the paired
+// test of the transcriptions (internal/transcription, paired_decoding_test.go):
+//
+//	GO_DECODE_IN=runs/b1-decodage/heure/124350.mp3 GO_DECODE_OUT=…/124350.go.s16le \
+//	  go test ./internal/audio -run TestDecodeARecordingInGo
+//
+// Skipped without them; the recordings stay out of the repository.
+func TestDecodeARecordingInGo(t *testing.T) {
+	in, out := os.Getenv("GO_DECODE_IN"), os.Getenv("GO_DECODE_OUT")
+	if in == "" || out == "" {
+		t.Skip("GO_DECODE_IN and GO_DECODE_OUT not set")
+	}
+	rate := 24000
+	f, err := os.Open(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	var pcm bytes.Buffer
+	if err := decodeMP3(f, rate, &pcm, quietLog(t)); !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("ended with %v", err)
+	}
+	if err := os.WriteFile(out, pcm.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%s: %.1f s at %d Hz", out, float64(pcm.Len()/2)/float64(rate), rate)
+}
