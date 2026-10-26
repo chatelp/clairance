@@ -18,14 +18,49 @@ made on the model thread (lanes.py), one at a time:
                                 Whisper's language detection on the first 30 s:
                                 the probability that the audio is French
 
-The engine is chosen once, at start (pick).
+Two engines: MLX (mlx-whisper, Apple Silicon: what this station runs, and what
+every figure in docs-fr was measured with) and faster-whisper (CTranslate2: an
+NVIDIA GPU or the processor, on Linux; Q54). The engine is chosen once, at start
+(pick).
 """
 from __future__ import annotations
 
+import importlib.util
 
-def pick(name: str = "mlx"):
-    """The engine called `name`."""
+ENGINES = ("auto", "mlx", "faster-whisper")
+
+
+def available(module: str) -> bool:
+    """Whether a module can be found, without importing it: importing MLX at
+    start would move its cost out of the first request, which is where it has
+    always been paid."""
+    try:
+        return importlib.util.find_spec(module) is not None
+    except (ImportError, ValueError):
+        return False
+
+
+def resolve(name: str = "auto") -> str:
+    """The engine `auto` stands for: MLX where it can be imported, else
+    faster-whisper."""
+    if name != "auto":
+        return name
+    if available("mlx_whisper"):
+        return "mlx"
+    if available("faster_whisper"):
+        return "faster-whisper"
+    raise RuntimeError("no transcription engine is installed: install sidecar/requirements-mlx.txt "
+                       "(Apple Silicon) or sidecar/requirements-ct2.txt (Linux, NVIDIA or processor)")
+
+
+def pick(name: str = "auto", device: str = "auto", compute_type: str = "auto"):
+    """The engine called `name` (one of ENGINES). device and compute_type are
+    faster-whisper's; MLX has neither."""
+    name = resolve(name)
     if name == "mlx":
         from engine_mlx import MLXEngine
         return MLXEngine()
+    if name == "faster-whisper":
+        from engine_ct2 import CT2Engine
+        return CT2Engine(device=device, compute_type=compute_type)
     raise ValueError(f"unknown engine {name!r}")

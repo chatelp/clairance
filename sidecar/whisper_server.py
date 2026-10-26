@@ -19,7 +19,10 @@ on a real station rather than from taste:
      which is the only safe answer.
 
 Run:
-    python sidecar/whisper_server.py --model-en <mlx-model> [--model-fr <mlx-model>]
+    python sidecar/whisper_server.py [--engine mlx|faster-whisper] --model-en <model> [--model-fr <model>]
+
+The models are MLX conversions on Apple Silicon, CTranslate2 ones with
+faster-whisper (engines.py, README.md).
 """
 from __future__ import annotations
 
@@ -658,9 +661,19 @@ def main() -> None:
     cfg = from_args()
     logging.basicConfig(level=cfg.log_level.upper(),
                         format="%(asctime)s %(levelname)s %(name)s %(message)s")
-    engine = engines.pick()
+    try:
+        engine = engines.pick(cfg.engine, cfg.device, cfg.compute_type)
+    except RuntimeError as e:
+        sys.exit(str(e))
+    # The default English model is an MLX conversion, which faster-whisper cannot
+    # read: finding out on the first transmission would be finding out too late.
+    if engine.name != "mlx" and cfg.model_en == Config.model_en:
+        sys.exit(f"{Config.model_en} is an MLX conversion, which {engine.name} cannot read: "
+                 "pass a CTranslate2 conversion of jlvdoorn/whisper-large-v3-atco2-asr with "
+                 "--model-en (sidecar/README.md)")
     # On the model thread: MLX ties what it creates to the thread that created it.
     _backend = _model_thread.submit(engine.backend).result()
+    log.info("Engine: %s", engine.name)
     log.info("Backend: %s", _backend)
     log.info("English model: %s", cfg.model_en)
     log.info("French model: %s", cfg.model_fr or "(none — French will be refused)")
@@ -669,7 +682,14 @@ def main() -> None:
     if cfg.preload:
         _model_thread.submit(functools.partial(engine.load, cfg.model_en)).result()
         if cfg.model_fr:
-            _model_thread.submit(functools.partial(engine.load, cfg.model_fr)).result()
+            # A French model that cannot be loaded costs the second opinion, not
+            # the sidecar (/health says degraded): the English one is what must
+            # load. MLX only registers a model here and never fails at this point.
+            try:
+                _model_thread.submit(functools.partial(engine.load, cfg.model_fr)).result()
+            except Exception as e:
+                log.warning("French model %s could not be loaded, French is off until it can: %s",
+                            cfg.model_fr, e)
         if cfg.fr_detector and cfg.second_opinion and cfg.model_fr:
             _model_thread.submit(functools.partial(engine.detector, cfg.fr_detector)).result()
     if cfg.exit_with_parent:
