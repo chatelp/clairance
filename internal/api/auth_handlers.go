@@ -76,6 +76,14 @@ func (h *Handler) PostLogin(w http.ResponseWriter, r *http.Request) {
 			logger.String("from", ev.From),
 			logger.String("agent", ev.Agent))
 		time.Sleep(250 * time.Millisecond)
+		if errors.Is(err, auth.ErrTooManyAttempts) {
+			// Said as such, and for how long: the page tells the user to
+			// wait rather than to try another password (login.js), which
+			// would only be refused again.
+			w.Header().Set("Retry-After", strconv.Itoa(retryAfterSeconds(h.auth.RetryAfter(r))))
+			WriteJSON(w, http.StatusTooManyRequests, map[string]string{"error": "too many attempts"})
+			return
+		}
 		WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
 		return
 	}
@@ -92,6 +100,12 @@ func (h *Handler) PostLogin(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"authenticated": true, "user": sess.User, "expires_at": sess.ExpiresAt,
 	})
+}
+
+// retryAfterSeconds is a wait in whole seconds, rounded up, one at least: a
+// Retry-After of 0 would say to try again at once.
+func retryAfterSeconds(d time.Duration) int {
+	return max(1, int((d+time.Second-1)/time.Second))
 }
 
 // PostLogout ends the session that made the request.

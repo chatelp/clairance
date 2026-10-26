@@ -162,9 +162,9 @@
                     return;
                 }
                 // The server does not say which of the name or the password was
-                // wrong, and neither does this.
+                // wrong, and neither does this. Blocked, it says for how long.
                 fail(note, res.status === 429
-                    ? 'Too many attempts. Wait 15 minutes.'
+                    ? blocked(res.headers.get('Retry-After'))
                     : 'Sign-in failed. After 8 failed tries, wait 15 minutes.');
             } catch (e) {
                 fail(note, 'Server unreachable.');
@@ -172,6 +172,15 @@
             button.disabled = false;
             el.querySelector('#coatc-pass').select();
         });
+    }
+
+    // Too many attempts from this address: how long to wait, from the
+    // server's Retry-After (seconds), in whole minutes.
+    function blocked(retryAfter) {
+        const seconds = parseInt(retryAfter, 10);
+        if (!Number.isFinite(seconds) || seconds <= 0) return 'Too many attempts. Wait 15 minutes.';
+        const minutes = Math.ceil(seconds / 60);
+        return `Too many attempts. Try again in ${minutes} minute${minutes > 1 ? 's' : ''}.`;
     }
 
     function fail(note, text) {

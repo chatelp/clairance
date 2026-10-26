@@ -88,3 +88,35 @@ func TestTheLimitForgetsAddressesThatStoppedTrying(t *testing.T) {
 		t.Error("forgetting the others forgot the guesser's count")
 	}
 }
+
+// A blocked address is told how long it waits: until the oldest of the
+// attempts that block it leaves the window; an address that may try waits
+// for nothing.
+func TestTheLimitSaysHowLongABlockedAddressWaits(t *testing.T) {
+	clock := time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
+	l := NewLimiter(3, 15*time.Minute)
+	l.now = func() time.Time { return clock }
+
+	for i := 0; i < 3; i++ {
+		if w := l.Wait("203.0.113.5"); w != 0 {
+			t.Errorf("before attempt %d: wait %v, want none", i+1, w)
+		}
+		l.Allow("203.0.113.5")
+		clock = clock.Add(time.Minute)
+	}
+	// Three attempts at 12:00, 12:01, 12:02; now 12:03, blocked until the
+	// first leaves the window at 12:15.
+	if l.Allow("203.0.113.5") {
+		t.Fatal("a fourth attempt was let through")
+	}
+	if w := l.Wait("203.0.113.5"); w != 12*time.Minute {
+		t.Errorf("blocked: wait %v, want 12m0s", w)
+	}
+	if w := l.Wait("198.51.100.1"); w != 0 {
+		t.Errorf("another address: wait %v, want none", w)
+	}
+	clock = clock.Add(12 * time.Minute)
+	if w := l.Wait("203.0.113.5"); w != 0 || !l.Allow("203.0.113.5") {
+		t.Errorf("at 12:15: wait %v, want none and an attempt let through", w)
+	}
+}
