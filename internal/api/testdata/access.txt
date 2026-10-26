@@ -1,6 +1,6 @@
 # Through the proxy: anyone (no session), viewer, viewer with audio_replay = "all", owner.
-CONNECT /*                                           200 200 200 200
-DELETE  /*                                           200 200 200 200
+CONNECT /*                                           405 405 405 405
+DELETE  /*                                           405 405 405 405
 DELETE  /api/v1/sources/{id}                         401 403 403 404
 GET     /*                                           200 200 200 200
 GET     /api/v1/adsb/source                          401 200 200 200
@@ -38,16 +38,16 @@ GET     /api/v1/wx                                   401 200 200 200
 HEAD    /*                                           200 200 200 200
 HEAD    /api/v1/stream/{id}                          401 403 200 200
 OPTIONS /*                                           200 200 200 200
-PATCH   /*                                           200 200 200 200
-POST    /*                                           200 200 200 200
+PATCH   /*                                           405 405 405 405
+POST    /*                                           405 405 405 405
 POST    /api/v1/aip-names/refresh                    401 403 403 503
 POST    /api/v1/auth/login                           401 401 401 401
 POST    /api/v1/auth/logout                          200 200 200 200
 POST    /api/v1/setup                                409 409 409 409
-PUT     /*                                           200 200 200 200
+PUT     /*                                           405 405 405 405
 PUT     /api/v1/access                               401 403 403 400
 PUT     /api/v1/frequencies/{id}/label               401 403 403 200
 PUT     /api/v1/receiver                             401 403 403 204
 PUT     /api/v1/server/settings                      401 403 403 200
 PUT     /api/v1/sources/{id}                         401 403 403 200
-TRACE   /*                                           200 200 200 200
+TRACE   /*                                           405 405 405 405
