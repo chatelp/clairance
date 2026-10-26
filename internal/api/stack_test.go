@@ -142,6 +142,8 @@ type stackOptions struct {
 	tone      bool     // a configured frequency carrying audio; needs ffmpeg
 	sidecar   string   // health URL of a transcription sidecar; none when empty
 	idle      bool     // started without transcription, as main does when nothing asks for it
+	static    string   // server.static_dir; www next to the package, which has none, when empty
+	origins   []string // server.allowed_origins
 }
 
 type stack struct {
@@ -185,6 +187,8 @@ func newStack(t *testing.T, o stackOptions) *stack {
 	cfg.Server.AdditionalPorts = []int{8001}
 	cfg.Server.ReadTimeoutSecs = 5
 	cfg.Server.TrustedProxies = o.proxies
+	cfg.Server.StaticDir = o.static
+	cfg.Server.AllowedOrigins = o.origins
 	cfg.ADSB = config.ADSBConfig{SourceType: adsb.SourceTypeTar1090, Tar1090BaseURL: tar.srv.URL,
 		FetchIntervalSecs: 3600, SignalLostTimeoutSecs: 60}
 	cfg.Station = config.StationConfig{Latitude: stationLat, Longitude: stationLon, ElevationFeet: 400,
