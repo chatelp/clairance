@@ -425,3 +425,86 @@ func TestEmptiedCopiesWhatItChanges(t *testing.T) {
 		t.Error("a message with nothing to empty was copied")
 	}
 }
+
+// openedStream is a stream opened on the real port, held open until closed.
+type openedStream struct {
+	code  int
+	body  string // the refusal's, when it is one
+	close func()
+}
+
+func openStream(t *testing.T, s *stack, cookie *http.Cookie, method, path string) openedStream {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	req, _ := http.NewRequestWithContext(ctx, method, s.srv.URL+path, nil)
+	req.AddCookie(cookie)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		cancel()
+		t.Fatal(err)
+	}
+	o := openedStream{code: resp.StatusCode, close: func() { resp.Body.Close(); cancel() }}
+	t.Cleanup(o.close)
+	if resp.StatusCode != http.StatusOK {
+		b := make([]byte, 512)
+		n, _ := resp.Body.Read(b)
+		o.body = string(b[:n])
+	} else if method == http.MethodGet {
+		if n, _ := resp.Body.Read(make([]byte, 64)); n == 0 {
+			t.Errorf("%s: no sound", path)
+		}
+	}
+	return o
+}
+
+// A guest holds two streams of a frequency, in whatever format, counted by
+// account: the third is refused with 429 and says why, a stream closed gives
+// its place back, a HEAD takes none. The owner is not counted.
+func TestAGuestHoldsTwoStreamsOfAFrequency(t *testing.T) {
+	s := newStack(t, stackOptions{goMP3: true, viewer: true})
+	s.cfg.Server.AudioReplay = config.AudioReplayAll
+	r, _, ok := s.freqs.ULawStream("station") // waits for the first frames
+	if !ok {
+		t.Fatal("no sound decoded")
+	}
+	r.Close()
+	first := s.signInAs(viewerUser)
+	second := s.signInAs(viewerUser) // the same guest in another browser
+
+	a := openStream(t, s, first, "GET", "/api/v1/stream/station?id=a&format=ulaw")
+	b := openStream(t, s, second, "GET", "/api/v1/stream/station?id=b&format=mp3")
+	if a.code != http.StatusOK || b.code != http.StatusOK {
+		t.Fatalf("a guest's first two streams: %d, %d", a.code, b.code)
+	}
+	for i, c := range []*http.Cookie{first, second} {
+		third := openStream(t, s, c, "GET", fmt.Sprintf("/api/v1/stream/station?id=c%d", i)) // WAV
+		if third.code != http.StatusTooManyRequests || !strings.Contains(third.body, "close another page or tab") {
+			t.Errorf("a guest's third stream (session %d): %d %q, want 429 and why", i+1, third.code, third.body)
+		}
+	}
+	if h := openStream(t, s, first, "HEAD", "/api/v1/stream/station?format=ulaw"); h.code != http.StatusOK {
+		t.Errorf("a HEAD with two streams open: %d, want 200", h.code)
+	}
+
+	// Its place comes back once the server sees the page gone.
+	a.close()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		again := openStream(t, s, first, "GET", "/api/v1/stream/station?id=d&format=ulaw")
+		if again.code == http.StatusOK {
+			break
+		}
+		again.close()
+		if time.Now().After(deadline) {
+			t.Fatalf("a closed stream's place is not given back: %d %q", again.code, again.body)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	owner := s.signInAs(testUser)
+	for i := 0; i < 4; i++ {
+		if o := openStream(t, s, owner, "GET", fmt.Sprintf("/api/v1/stream/station?id=owner-%d&format=ulaw", i)); o.code != http.StatusOK {
+			t.Errorf("the owner's stream %d: %d %q", i+1, o.code, o.body)
+		}
+	}
+}

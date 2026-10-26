@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/go-chi/chi/v5"
 
@@ -43,6 +44,57 @@ var guestHidden = map[string][]string{
 
 var guestHiddenMessages = map[string][]string{
 	websocket.MessageTypeFrequencyStatus: {"error"},
+}
+
+// guestStreamsPerFrequency is how many streams of one frequency a guest
+// account holds at once, in whatever format: the page that plays it, and a
+// second while that page reloads -- the old stream ends only when the server
+// sees the old page gone. The owner's Mac decodes and sends every stream,
+// and a guest who opened dozens would take the owner's sound: until then
+// the WAV stream was bounded at ten per frequency for everyone, and the
+// MP3 and mu-law ones, what the page plays, not at all.
+const guestStreamsPerFrequency = 2
+
+// streamSlots counts the streams each guest account holds, by frequency.
+type streamSlots struct {
+	mu   sync.Mutex
+	held map[[2]string]int // account, frequency -> streams open
+}
+
+// take holds one of the account's places on the frequency, or says none is
+// left; release gives it back, once however often it is called.
+func (s *streamSlots) take(account, frequency string) (release func(), ok bool) {
+	k := [2]string{account, frequency}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.held[k] >= guestStreamsPerFrequency {
+		return nil, false
+	}
+	if s.held == nil {
+		s.held = map[[2]string]int{}
+	}
+	s.held[k]++
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			if s.held[k]--; s.held[k] <= 0 {
+				delete(s.held, k)
+			}
+		})
+	}, true
+}
+
+// guestStream holds a place for a guest's stream of a frequency, counted by
+// account: two browsers signed in as the same guest share them. Anyone else
+// is not counted.
+func (h *Handler) guestStream(r *http.Request, frequency string) (release func(), ok bool) {
+	if !h.guest(r) {
+		return func() {}, true
+	}
+	sess, _ := h.auth.SessionFrom(r) // a guest is signed in
+	return h.guestStreams.take(sess.User, frequency)
 }
 
 // guest says whether the request comes from a guest's session.
