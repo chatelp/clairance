@@ -151,7 +151,7 @@ L'interface en anglais et en français ; le rapprochement d'une instruction et d
 lecture, jamais un jugement d'erreur) ; une source ADS-B externe en renfort (Q51) ; le corpus simulé avec
 consentement (voie A) ; le premier pas public. L'ordre se décidera après E.
 
-### G — Le crédit cloud *(94 $ le 24/10, jusqu'au 5/11)*
+### G — Le crédit cloud *(94 $ le 24/10, 61 $ le 26/10 au soir, jusqu'au 5/11)*
 
 Ce qui se vérifie sans la station et sans audio réel, en fiches autonomes (`fiches-cloud/`), relues sur le Mac
 avant d'être intégrées :
@@ -162,6 +162,10 @@ avant d'être intégrées :
 3. **D3, la relecture du rôle viewer**, route par route, avec ses tests — **fiche O écrite le 26/10**, élargie à
    tout ce qui devient public derrière le mandataire et à la trace des connexions (D4) — **faite le 26/10**,
    fusionnée (6fa8dd5).
+
+4. **Vague 5, écrite le 26/10 au soir** (61 $ restants) : **P**, le compte invité (adresses de la maison masquées,
+   flux bornés ; pour l'ami du 28/10) ; **Q**, la page dans le binaire et le bilan au démarrage (B2, B5) ; **R**, le
+   contrat du lanceur côté serveur (B3, C1, C2 ; remplace l'ancienne G2). En parallèle ; P d'abord.
 
 B1 se mesure sur le Mac : il demande l'audio réel de la station, qui ne va jamais dans le cloud.
 
