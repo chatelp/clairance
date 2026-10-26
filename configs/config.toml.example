@@ -94,8 +94,8 @@ transcribe_audio = false
 [transcription]
 # Local, on this machine: whole transmissions are posted to the sidecar in sidecar/, which
 # honours upstream's docs/LOCAL-STT.md; no key, no audio leaves the host. Each stream is
-# brought to mono 16-bit PCM at sample_rate, 24 kHz by default. language = "en" serves a
-# source that names none.
+# brought to mono 16-bit PCM at sample_rate, 16 kHz by default, Whisper's own rate.
+# language = "en" serves a source that names none.
 log_dir = "data/transcriptions"             # raw/{date}_{frequency}.log, append-only; empty to disable
 # Swept at start and every hour, never today's files; 0 keeps everything. The archive of clips
 # (--save-audio below, or audio_archive_dir) loses its oldest clips past the size; its manifests stay.

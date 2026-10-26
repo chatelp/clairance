@@ -113,7 +113,7 @@ func (p *LocalProcessor) Stop() error {
 func (p *LocalProcessor) run() {
 	rate := p.config.SampleRate
 	if rate <= 0 {
-		rate = 24000
+		rate = 16000
 	}
 	frame := rate / 50 // 20 ms of s16le mono
 	buf := make([]byte, frame*2)

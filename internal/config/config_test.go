@@ -279,6 +279,15 @@ func TestTheReducedExampleLoadsTheSameConfiguration(t *testing.T) {
 	}
 	full.Frequencies.Sources = kept
 
+	// The frozen example wrote ffmpeg_sample_rate = 24000, the default of its
+	// day; the default is 16 kHz, Whisper's rate, since B1 ter, and the shipped
+	// example, which writes no rate, takes it.
+	if full.Transcription.SampleRate != 24000 || reduced.Transcription.SampleRate != 16000 {
+		t.Errorf("sample rates: frozen %d, shipped %d; want 24000 and 16000",
+			full.Transcription.SampleRate, reduced.Transcription.SampleRate)
+	}
+	full.Transcription.SampleRate = reduced.Transcription.SampleRate
+
 	if diffs := diffValues("", reflect.ValueOf(*full), reflect.ValueOf(*reduced)); len(diffs) > 0 {
 		t.Errorf("the reduced example loads differently from the full one:\n  %s",
 			strings.Join(diffs, "\n  "))

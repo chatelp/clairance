@@ -296,7 +296,7 @@ func (sp *StreamProcessor) AddClient(clientID string) *ClientStreamReader {
 
 	// A page keeps one client id for its life. Asking again after its stream
 	// ended, it was handed its old shared reader back, still at the position it
-	// stopped at: up to the whole buffer behind live (87 s at 24 kHz; 2 s
+	// stopped at: up to the whole buffer behind live (131 s at 16 kHz; 2 s
 	// measured after a 1.5 s gap). A new client starts at live.
 	sp.audioProcessor.RemoveReader(clientID)
 

@@ -62,9 +62,12 @@ func Defaults() Config {
 			ReconnectIntervalSecs: 5,
 		},
 		Transcription: TranscriptionConfig{
-			Backend:    BackendLocal,
-			Language:   "en",
-			SampleRate: 24000,
+			Backend:  BackendLocal,
+			Language: "en",
+			// Whisper's own rate: the sidecar resampled 24 kHz (the OpenAI API's,
+			// upstream's) down to it, and the station sends 8 kHz (decided by
+			// the owner on 26/10, applied after N5; docs-fr/05 Q60).
+			SampleRate: 16000,
 			// 2 GB is one to two days on two frequencies (sidecar/README.md);
 			// 30 days of raw logs is a few MB.
 			AudioArchiveMaxGB: 2,

@@ -37,8 +37,9 @@ type readerState struct {
 	skipped  int64 // bytes lost to falling behind, for the log
 }
 
-// multiReaderBytes holds 87 s of 24 kHz mono s16le, so that a whole Icecast
-// burst reaches a reader that reads a little slower than the decoder writes.
+// multiReaderBytes holds 131 s of 16 kHz mono s16le (87 s at the 24 kHz of
+// before B1 ter), so that a whole Icecast burst reaches a reader that reads
+// a little slower than the decoder writes.
 const multiReaderBytes = 4 << 20
 
 // NewMultiReader creates a new multi-reader
