@@ -5335,6 +5335,21 @@ l'adresse de Cloudflare, pas celle du client, ce qui pèse sur la limite des ess
 (fiche O). Point non vérifié : ce que les conditions de Cloudflare disent d'un flux audio passé par son proxy
 (environ 384 kb/s par fréquence écoutée, en audio non compressé).
 
+**D3 fait le 26/10 par la fiche O** (cloud, relue et fusionnée : 6fa8dd5 ; en production à la relance du 27/10).
+Dix défauts corrigés, chacun avec un test rouge avant : la page ne répond plus qu'à GET et HEAD et ne sert aucun
+fichier caché ; dix secondes au plus pour envoyer les en-têtes ; l'adresse du client lue de droite à gauche dans
+`X-Forwarded-For` ; la limite des essais comptée par /64 en IPv6, et qui oublie ; plus de premier compte créé à
+travers un mandataire ; `/setup/status` ne donne plus de chemin ; le viewer ne voit plus les noms des comptes ; un
+message WebSocket borné à 64 Kio. Qui peut quoi derrière le mandataire est figé route par route
+(`internal/api/testdata/access.txt`). **D4, la trace, faite aussi** : chaque connexion, réussie ou refusée, dans
+`configs/signins.jsonl` (0600, ignoré par git), lue par le propriétaire seul (`GET /api/v1/signins`). Cloudflare
+retiré (DNS seul), le serveur voit l'adresse du client que Traefik transmet. **À trancher par le propriétaire**
+(rapport O) : le cookie expire 30 jours après la connexion, la session glisse 720 h (raccourcir
+`session_ttl_hours` ?) ; un flux ouvert survit à la déconnexion (couper = retirer le compte et relancer) ; le viewer
+lit des adresses internes (flux de la station, chemins de `/server` et `/config`) ; un viewer peut ouvrir 10 flux
+par fréquence ; bloquée par la limite, la connexion répond 401 et la page attend 429 (message moins clair) ;
+`/vitals` dit à tous la version et la durée de marche (désactivable dans les réglages).
+
 ### Q61 — Le lanceur, projet à part, et son contrat avec le serveur *(26/10 — **dans ce dépôt, rangé à part** ; contrat à écrire)*
 
 **Le constat, relevé le 26/10** : le lanceur (2 825 lignes de Swift) lit `config.toml` lui-même (ports,
@@ -5737,6 +5752,15 @@ du 27/09 tirées au hasard, 43 textes vides et une seule transmission avec un mo
 contre 0 vide et 28 pour le Whisper anglais de production ; il lit la voix propre d'ATCOSIM mais
 pas la radio en bande étroite. Il ne pèse pas dans le choix du portage ; Whisper affiné puis
 converti en CTranslate2 reste la voie.
+
+**Fiche N, le 26/10** (cloud, relue et fusionnée : e375fa0) : le sidecar choisit son moteur au démarrage (`--engine
+auto|mlx|faster-whisper`) ; MLX passe derrière une interface sans changement de comportement (mêmes appels, mêmes
+arguments, vérifié par la fiche avec un faux MLX, puis sur le Mac avec le vrai : la commande de production démarre,
+cache MLX borné, et les sept tests de contrat passent sur le modèle turbo, client Go compris) ; faster-whisper
+tourne sur processeur (Whisper small int8 : 3,4 × le temps réel sur 4 cœurs, 1,4 Go). **Pas vérifié** : tout GPU,
+les vrais modèles large-v3 convertis en CTranslate2, la précision d'appariement après portage (D73 : 95 %). Prochaine
+étape, au labo sur GPU ou sur une machine Linux : convertir les trois modèles et rejouer les journées du 03 et
+04/10.
 
 ### Q53 — Un positionnement « espace aérien français » dans le nom, la marque et la présentation ? *(12/10 — close : nom choisi le 13/10, D74)*
 

@@ -494,6 +494,14 @@ sur la carte.
 
 ## État
 
+- 26/10, 16:00 : **fiches O et N relues et fusionnées** (en production à la relance du 27/10). **O** (6fa8dd5) :
+  l'ouverture derrière le mandataire, dix défauts corrigés avec un test rouge avant chacun, qui peut quoi figé route
+  par route, la trace des connexions (`configs/signins.jsonl`, `GET /api/v1/signins`) ; tous les tests Go verts après
+  fusion. **N** (e375fa0) : le sidecar à deux moteurs, MLX et faster-whisper. Un conflit avec la borne du cache MLX du
+  matin, résolu (borne appliquée sous MLX seulement). Vérifié sur le Mac : la commande de production démarre sur le
+  port 8179 (moteur mlx, Apple M4 Pro, cache borné à 1 024 Mo) ; les sept tests de contrat passent sur le vrai MLX
+  avec le modèle turbo, client Go compris (la voix synthétique passe par `say` de macOS, l'ffmpeg de Homebrew n'a
+  pas flite).
 - 26/10, 15:45 : **les pistes en service survivent à une relance** (342b637, en production à la prochaine relance
   prévue, le 27/10 après N5). Le propriétaire : « l'overlay procédure n'est plus complet ». Cause : les pistes en
   service s'apprennent des mouvements, sur une heure, et repartent de zéro à chaque démarrage (26L seule à LFPG

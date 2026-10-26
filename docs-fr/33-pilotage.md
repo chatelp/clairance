@@ -1,6 +1,6 @@
 # Pilotage — stratégie, chantiers, jalons, décisions attendues
 
-*Dernière mise à jour : 26/10/2026, 15 h 50 (pistes en service gardées, couche des procédures, Safari).*
+*Dernière mise à jour : 26/10/2026, 16 h 05 (fiches O et N fusionnées, pistes en service gardées, couche des procédures, Safari).*
 
 *Le document du chef d'orchestre. Tenu par la session Clairance, mis à jour à chaque livraison
 d'une session, à chaque décision du propriétaire et à chaque jalon franchi. Ouvert le 12/10/2026
@@ -122,7 +122,9 @@ la mémoire des décisions dans `05-decisions.md` ; ici, la vue d'ensemble, cour
 elle-même (Q63) sauf dans Safari, revenu à l'élément `<audio>` faute de son (cause non trouvée) ; la couche des
 procédures avec le choix « pistes en service / toutes » ; les pistes en service gardées d'une relance à l'autre (A7,
 en production à la relance du 27/10 après N5). Le 27/10 vers 13 h 10 : jugement de N5, puis 16 kHz, retrait de
-ffmpeg, de SRT et de la carte son ; la fiche O à intégrer.
+ffmpeg, de SRT et de la carte son. Fiches cloud O (ouverture publique, trace des connexions) et N (sidecar sur
+Linux) relues, vérifiées sur le Mac et fusionnées : en production à la même relance. Au propriétaire : six constats
+de la fiche O à trancher (05, Q62), puis le compte de l'ami (D4).
 **Ordre des chantiers, accepté par le propriétaire le 26/10** :
 1. le faux « Production did not start » du lanceur (agent du lanceur), puis une journée de production sans
    fausse alerte ;

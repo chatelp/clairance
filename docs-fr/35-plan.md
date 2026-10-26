@@ -128,8 +128,8 @@ multi-utilisateurs. **Rien n'est ouvert avant D3.**
 | D2. Les flux audio par la même adresse | aujourd'hui la page demande les flux sur les ports 8001 à 8004 ; derrière un mandataire unique, ils doivent passer par l'adresse de la page | principale |
 | D2 bis. Le son sur tous les navigateurs | la page jouait du WAV sans fin, que Safari (Mac et iPhone) refuse (vérifié par le propriétaire le 26/10 : son dans Dia, rien dans Safari) ; désormais le **MP3 d'origine de la station**, relayé trame par trame par le décodeur Go (`?format=mp3`, `audio/mpeg`), environ 15 kb/s au lieu de 384 ; repli sur le WAV pour une source sans MP3 ; une page ouverte juste après un démarrage attend jusqu'à 8 s la première trame (5,5 s mesurées) | **fait le 26/10** (c45ddd3, b081228), vérifié sur une instance d'essai branchée sur la station, en production depuis 14:12. **Le propriétaire : son dans Safari sur Mac, mais pas sur le téléphone ; dans Safari, le bouton son ne coupait rien et « someone is speaking » n'apparaissait pas** (Safari joue un flux en direct sans passer par Web Audio). Corrigé (32d05e8, en production à 14:24) : l'activité est mesurée par le serveur et envoyée par le WebSocket (`frequency_activity`), le bouton coupe aussi l'élément `<audio>`. Reste : le téléphone |
 | D2 ter. La page joue le son elle-même (Q63) | le serveur envoie le son décodé en μ-law à 8 kHz (64 kb/s), la page le décode et le joue par Web Audio : démarrage immédiat, « someone is speaking » mesuré sur ce qui sort, le bouton son partout, l'iPhone | **fait le 26/10** (4d15c1e), en production à 15:15:43. **Safari sur Mac : pas de son avec ce lecteur** (le propriétaire), alors que WebKit 18.2 le joue ; cause non trouvée, Safari garde l'élément `<audio>` et le MP3 (d80e2c4) ; `?player=live` pour l'essayer (ea2b2f6). Reste : la cause, le téléphone |
-| D3. Le durcissement de ce qui devient public | relecture de chaque route ouverte sans session (`/health`, `/vitals`, `/auth/*`, `/setup/*`) ; la limite des essais de mot de passe, vérifiée derrière le mandataire ; ce que voit et fait un viewer, route par route, WebSocket, flux, archive, réglages, outil AIP, un test par interdit ; `/api/v1/health/detail` refusée depuis l'extérieur (déjà) ; une limite de débit côté Traefik | principale |
-| D4. Le compte et la trace | un compte `viewer` à son nom ; l'audio ouvert aux viewers (`audio_replay = "all"`, global, suffit tant qu'il est seul) ; un journal des connexions (qui, quand, d'où), et la marche à suivre pour couper l'accès | principale, propriétaire pour le mot de passe |
+| D3. Le durcissement de ce qui devient public | relecture de chaque route ouverte sans session (`/health`, `/vitals`, `/auth/*`, `/setup/*`) ; la limite des essais de mot de passe, vérifiée derrière le mandataire ; ce que voit et fait un viewer, route par route, WebSocket, flux, archive, réglages, outil AIP, un test par interdit ; `/api/v1/health/detail` refusée depuis l'extérieur (déjà) ; une limite de débit côté Traefik | principale ; **fait le 26/10 par la fiche O** (6fa8dd5), en production à la relance du 27/10 ; six constats à trancher par le propriétaire (05, Q62) |
+| D4. Le compte et la trace | un compte `viewer` à son nom ; l'audio ouvert aux viewers (`audio_replay = "all"`, global, suffit tant qu'il est seul) ; un journal des connexions (qui, quand, d'où), et la marche à suivre pour couper l'accès | principale, propriétaire pour le mot de passe ; **la trace faite** (fiche O : `configs/signins.jsonl`, `GET /api/v1/signins`) ; reste le compte et l'audio ouvert |
 | D5. La fiabilité vue de chez lui | les sessions vivent en mémoire, par choix : **chaque relance de la production le déconnecte** ; ce que voit sa page quand la production s'arrête ou redémarre ; la reprise des flux ; le débit montant des deux flux ; la machine du mandataire est sur l'onduleur qui saute (deux redémarrages le 19/10) : une sonde Uptime Kuma sur l'adresse publique | principale, propriétaire |
 | D6. Plus tard : le lanceur chez lui, en client distant | jetons par appareil, routes adaptées au viewer, signature Developer ID et notarisation (compte développeur Apple) | lanceur, après C |
 
@@ -140,7 +140,7 @@ relance de la production ne le laisse pas sans explication.
 
 | Étape | Dépend de |
 |---|---|
-| E1. Le portage du sidecar sur Linux avec NVIDIA (faster-whisper, repli processeur ; Q54) | B4 |
+| E1. Le portage du sidecar sur Linux avec NVIDIA (faster-whisper, repli processeur ; Q54) — **le code fait le 26/10 par la fiche N** (e375fa0), vérifié sur processeur (cloud) et sans régression sous MLX (Mac) ; reste un GPU et les vrais modèles convertis | B4 |
 | E2. L'avertissement légal (dans l'application et le README) : ne pas rediffuser, ne pas publier d'audio ni d'immatriculations privées | — |
 | E3. Le guide d'installation, en anglais et en français | B, E1 |
 | E4. La mesure de sortie : une installation sur une machine vierge, à partir du seul guide, **en moins d'une heure, par quelqu'un qui n'a pas écrit le code** ; la précision d'appariement inchangée après portage (95 %, D73) | E1 à E3 |
@@ -157,10 +157,11 @@ Ce qui se vérifie sans la station et sans audio réel, en fiches autonomes (`fi
 avant d'être intégrées :
 
 1. **E1, le portage Linux du sidecar**, testé sur processeur avec un petit modèle (le plus long, le plus utile à
-   lancer tôt) — **fiche N écrite le 26/10**, à lancer ;
+   lancer tôt) — **fiche N faite le 26/10**, fusionnée (e375fa0) ;
 2. **C2, les tests de contrat** et la description du processus, une fois C1 écrit ;
 3. **D3, la relecture du rôle viewer**, route par route, avec ses tests — **fiche O écrite le 26/10**, élargie à
-   tout ce qui devient public derrière le mandataire et à la trace des connexions (D4), à lancer.
+   tout ce qui devient public derrière le mandataire et à la trace des connexions (D4) — **faite le 26/10**,
+   fusionnée (6fa8dd5).
 
 B1 se mesure sur le Mac : il demande l'audio réel de la station, qui ne va jamais dans le cloud.
 
