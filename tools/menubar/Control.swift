@@ -222,6 +222,14 @@ final class LogTail {
     }
 }
 
+/// A log opened to append: each write goes to its end, whoever else writes to
+/// it. The carrier's program and the launcher share launcher.log, and with a
+/// position of its own each wrote over the other (26/10).
+func appendingHandle(_ path: String) -> FileHandle? {
+    let fd = Darwin.open(path, O_WRONLY | O_APPEND | O_CREAT, 0o644)
+    return fd >= 0 ? FileHandle(fileDescriptor: fd, closeOnDealloc: true) : nil
+}
+
 /// The last line of a file that says something, for a failure's message.
 func lastLine(_ path: String) -> String {
     guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return "" }

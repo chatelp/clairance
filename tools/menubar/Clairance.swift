@@ -110,6 +110,7 @@ struct Instance: Identifiable, Sendable {
     var answers = false         // its /api/v1/health answered
     var lastFetch: Date?        // its last ADS-B read, from /api/v1/health
     var version = ""
+    var build = ""              // "c707f65 · 3 commits behind local", the binary's own commit
     var summary = ""            // vitalsLine, empty when the server did not answer
     var sidecarHealth = ""
 
@@ -288,12 +289,14 @@ func scanInstances(_ s: ScanSettings) -> (instances: [Instance], orphans: [Helpe
 }
 
 /// /api/v1/health/detail, open to this Mac without a session.
-func healthDetail(_ base: String) async -> HealthDetail? {
-    guard let url = URL(string: base + "api/v1/health/detail") else { return nil }
+/// The answer's HTTP status comes too: a 404 is a co-atc built before the route.
+func healthDetail(_ base: String) async -> (detail: HealthDetail?, status: Int?) {
+    guard let url = URL(string: base + "api/v1/health/detail") else { return (nil, nil) }
     var req = URLRequest(url: url)
     req.timeoutInterval = 3
-    guard let (data, r) = try? await URLSession.shared.data(for: req), (r as? HTTPURLResponse)?.statusCode == 200 else { return nil }
-    return HealthDetail.decode(data)
+    guard let (data, r) = try? await URLSession.shared.data(for: req) else { return (nil, nil) }
+    let status = (r as? HTTPURLResponse)?.statusCode
+    return (status == 200 ? HealthDetail.decode(data) : nil, status)
 }
 
 /// Whether an address answers at all, from the launcher itself.
@@ -396,6 +399,7 @@ struct Starting {
     var coatcLines: [String] = []
     var sawCoAtc = false
     var stationSilent: Date?    // when the carrier wrote that the station did not answer
+    var script: Started?        // the script, once its carrier has started it
 
     /// co-atc wrote a fatal line since the start: it gave up, whether or not a scan saw it run.
     var fatal: String? { coatcLines.last { $0.contains("\tfatal\t") } }
@@ -495,10 +499,15 @@ final class Production: ObservableObject {
                 }
                 if let v = await getJSON(u + "api/v1/vitals") {
                     found[i].version = v["version"] as? String ?? ""
+                    if found[i].production { found[i].build = buildLine(v["commit"] as? String ?? "") }
                     found[i].summary = vitalsLine(v)
                     if found[i].production { o.secondsPerTransmission = (v["seconds_per_transmission"] as? NSNumber)?.doubleValue }
                 }
-                if found[i].production, found[i].answers { o.detail = await healthDetail(u) }
+                if found[i].production, found[i].answers {
+                    let (detail, status) = await healthDetail(u)
+                    o.detail = detail
+                    o.detailMissing = status == 404
+                }
             }
             if !found[i].sidecarURL.isEmpty {
                 found[i].sidecarHealth = await getJSON(found[i].sidecarURL + "/health").map(sidecarHealthLine) ?? "not answering"
@@ -541,6 +550,24 @@ final class Production: ObservableObject {
         updateSign(findings)
     }
 
+    private var buildCache: (key: String, line: String)?
+
+    /// The commit production's binary was built from (its /api/v1/vitals), against
+    /// the checkout's branch: the script writes the checkout's, not the binary's
+    /// (26/10: "commit c707f65" for a binary of 16/10).
+    private func buildLine(_ commit: String) -> String {
+        guard !commit.isEmpty else { return "commit unknown" }
+        let head = run("/usr/bin/git", ["-C", repo, "rev-parse", "HEAD"]).out.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let c = buildCache, c.key == commit + head { return c.line }
+        let branch = run("/usr/bin/git", ["-C", repo, "rev-parse", "--abbrev-ref", "HEAD"]).out.trimmingCharacters(in: .whitespacesAndNewlines)
+        let count = run("/usr/bin/git", ["-C", repo, "rev-list", "--count", commit + "..HEAD"])
+        let n = Int(count.out.trimmingCharacters(in: .whitespacesAndNewlines))
+        let line = count.status != 0 || n == nil ? "\(commit), not in \(branch)"
+            : n == 0 ? "\(commit), as \(branch)" : "\(commit), \(n!) commit\(n == 1 ? "" : "s") behind \(branch)"
+        buildCache = (commit + head, line)
+        return line
+    }
+
     /// Follows production between refreshes: a start under way, a stop asked
     /// for, a production that stopped by itself, its station link and sidecar.
     private func follow(_ prod: Instance?, _ o: inout Observation) {
@@ -551,7 +578,9 @@ final class Production: ObservableObject {
             if let p = prod {
                 s.sawCoAtc = true
                 if p.answers {
-                    // Switching ends as soon as co-atc answers (design 10).
+                    // Switching ends as soon as co-atc answers (design 10). The log says
+                    // which binary answered.
+                    appendLauncherLog("co-atc answers, pid \(p.pid), built from " + (p.build.isEmpty ? "commit unknown" : p.build))
                     starting = nil
                     busy = false
                     note = ""
@@ -560,7 +589,9 @@ final class Production: ObservableObject {
                     starting = s
                 }
             } else {
-                let scriptGone = started.last(where: { $0.role == "production" }).map { Proc.read($0.pid)?.start != $0.start } ?? true
+                // Gone only once started: while its carrier opens, a round found no script yet
+                // and called the start failed, 0.2 s in (bench, 26/10).
+                let scriptGone = s.script.map { Proc.read($0.pid)?.start != $0.start } ?? false
                 if s.sawCoAtc || scriptGone || s.fatal != nil || s.stationSilent.map({ now.timeIntervalSince($0) > 10 }) == true
                     || now.timeIntervalSince(s.at) > 300 {
                     // A new failure replaces the last one's notification, with its own cause.
@@ -587,6 +618,10 @@ final class Production: ObservableObject {
                 linkLostAt = nil
                 sidecarPID = nil
                 if starting == nil, case .stoppedByItself = down { down = nil }
+            }
+            // A production that answers has started, whatever an earlier round concluded.
+            if starting == nil, p.answers, case .didNotStart = down {
+                down = nil
             }
             if !p.stationLinks.isEmpty {
                 linkSeen = true
@@ -626,6 +661,14 @@ final class Production: ObservableObject {
         orphanSince = orphanSince.filter { present.contains($0.key) }
         for h in orphans where orphanSince[h.pid] == nil { orphanSince[h.pid] = now }
         o.orphans = orphans.map { Orphan(helper: $0, since: orphanSince[$0.pid] ?? now, memory: footprint($0.pid)) }
+    }
+
+    private func appendLauncherLog(_ line: String) {
+        let f = DateFormatter()
+        f.dateFormat = "dd/MM HH:mm:ss"
+        guard let h = appendingHandle(launcherLog) else { return }
+        h.write(Data("\(f.string(from: Date())) launcher: \(line)\n".utf8))
+        try? h.close()
     }
 
     /// The production script writes "arret demande" when asked to stop, by
@@ -751,7 +794,9 @@ final class Production: ObservableObject {
             note = "Could not start: " + lastLine(log)
             return
         }
-        remember(Started(role: "production", pid: proc.pid, start: proc.start, config: productionConfig))
+        let entry = Started(role: "production", pid: proc.pid, start: proc.start, config: productionConfig)
+        remember(entry)
+        starting?.script = entry
         setPlanningRow(true)
         // Every second until production answers or is gone: switching ends there, not at the next round.
         Task {
@@ -1218,9 +1263,7 @@ enum Entry {
         }
         let command = Array(args.dropFirst(i + 1))
         guard i < args.count, args[i] == "--", let exe = command.first else { exit(2) }
-        if !FileManager.default.fileExists(atPath: log) { FileManager.default.createFile(atPath: log, contents: nil) }
-        guard let out = FileHandle(forWritingAtPath: log) else { exit(1) }
-        out.seekToEndOfFile()
+        guard let out = appendingHandle(log) else { exit(1) }
         func say(_ s: String) {
             let f = DateFormatter()
             f.dateFormat = "dd/MM HH:mm:ss"
@@ -1449,7 +1492,7 @@ enum Entry {
 func instanceLines(_ i: Instance) -> [String] {
     var lines: [String] = []
     lines.append("Page: \(i.www)")
-    if !i.version.isEmpty { lines.append("Server: \(i.version)") }
+    if !i.version.isEmpty { lines.append("Server: \(i.version)" + (i.build.isEmpty ? "" : " · " + i.build)) }
     lines.append(i.summary.isEmpty ? (i.answers ? "Server answering" : "Server not answering") : i.summary)
     if !i.sidecarURL.isEmpty {
         let kind = i.sidecarKind.isEmpty ? "" : "\(i.sidecarKind), "

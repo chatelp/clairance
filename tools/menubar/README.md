@@ -87,10 +87,15 @@ for the station to answer, runs the production script, and leaves with it. Test
 instances run the same way. Measured on 24/10:
 
 - what a carrier runs depends on the carrier, not on the menu;
-- the menu can quit, and the app can be replaced on disk by an update, while
-  what it carries keeps hearing the station;
+- the menu can quit while what it carries keeps hearing the station;
 - a SIGTERM to the carrier stops what it carries, and the carrier leaves when
   what it carries stops.
+
+But the app must not be replaced on disk while a carrier runs from it: on
+26/10 an install of a new build took production's local network away at once,
+though the carrier ran on (an earlier test had replaced the app with an
+identical build, which the deterministic compiler had made). `build.sh
+--install` refuses while one runs: stop production, install, start it again.
 
 While a carrier runs, macOS takes Clairance for open: opening it again (a
 double-click, Spotlight, `open`) reaches the carrier, which then opens the
