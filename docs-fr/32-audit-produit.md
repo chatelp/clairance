@@ -494,6 +494,14 @@ sur la carte.
 
 ## État
 
+- 26/10, 10 h 49 : **la production relancée par le porteur redevient sourde** (« no route to host » à partir de
+  10:49:39, 349 fois à 10:55 ; dernière transmission transcrite à 10:50:09). Cause trouvée par l'agent du lanceur :
+  il a réinstallé `~/Applications/Clairance.app` à 10:49 puis 10:53, avec un nouveau binaire, donc une nouvelle
+  identité, pendant que le porteur tournait depuis ce bundle ; macOS a retiré le réseau local au porteur et à
+  co-atc. Sa mesure du 24/10 (« remplacer l'application ne coupe pas le porteur ») était fausse : la compilation
+  était identique, et l'identité n'avait donc pas changé. Corrections : le doc 34 et une garde dans `build.sh`
+  (jamais réinstaller pendant qu'un porteur tourne). Hypothèse à mesurer : avec une signature Developer ID au
+  lieu d'une signature ad hoc, l'identité resterait stable d'une mise à jour à l'autre (Q61, Q62).
 - 26/10 : **première production par le porteur du lanceur, sans audio** : « off air » sur les deux fréquences (vu par
   le propriétaire). Cause mesurée : `"ffmpeg": executable file not found in $PATH`, six fois dans le journal ; le
   porteur, ouvert par `open -n`, donne à co-atc le PATH minimal de launchd (`/usr/bin:/bin:/usr/sbin:/sbin`), sans
