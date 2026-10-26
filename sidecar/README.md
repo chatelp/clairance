@@ -7,13 +7,16 @@ leaves the machine.
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r sidecar/requirements.txt
 .venv/bin/python sidecar/whisper_server.py \
-    [--model-en <mlx-model-or-hf-repo>] \
-    [--model-fr <mlx-model-or-hf-repo>] [--preload] \
-    [--second-opinion [--fr-detector <multilingual-mlx-model> [--fr-threshold 0.1]] [--fr-no-fallback [--fr-cut-loops]]] \
+    [--engine auto|mlx|faster-whisper [--device auto|cuda|cpu] [--compute-type auto|<type>]] \
+    [--model-en <model-or-hf-repo>] \
+    [--model-fr <model-or-hf-repo>] [--preload] \
+    [--second-opinion [--fr-detector <multilingual-model> [--fr-threshold 0.1]] [--fr-no-fallback [--fr-cut-loops]]] \
     [--save-audio <dir> [--save-audio-min-free-gb 8]]
 ```
 
-`--model-en` defaults to `sfabriece/whisper-large-v3-atco2-asr-mlx`; without
+The models are MLX conversions with the MLX engine, CTranslate2 ones with
+faster-whisper (see [Two engines](#two-engines)). `--model-en` defaults to
+`sfabriece/whisper-large-v3-atco2-asr-mlx`, which only MLX reads; without
 `--model-fr` French audio is refused. It listens on `127.0.0.1:8178` (`--host`,
 `--port`); `--preload` loads the models at start instead of on first use;
 `--no-vad` and `--min-speech-seconds` set the voice gate; `--log-level`. You seldom
@@ -22,11 +25,70 @@ if it dies, and it exits on its own when the process that started it goes away
 (`--no-exit-with-parent` to keep it).
 
 `GET /health` reports which languages are served, and in `backend` what the
-models run on: the GPU's name when MLX gives it, else `mlx`. `POST /transcribe` takes raw
+models run on: the GPU's name when MLX or CUDA gives it, else `mlx` or `CPU`. `POST /transcribe` takes raw
 `s16le` PCM (or a WAV container) with `X-Sample-Rate`, `X-Channels`, `X-Language`
 and `X-Frequency-Id` (and optionally `X-Created-At` / `X-Segment-At`, see the
 archive below), and returns the transcript plus `duration`,
 `speech_seconds`, `realtime_factor`, and `rejected` when nothing was transcribed.
+
+## Two engines
+
+**MLX** (`--engine mlx`): mlx-whisper on Apple Silicon. What this station runs
+(D10), and what every figure in `docs-fr/` was measured with.
+
+**faster-whisper** (`--engine faster-whisper`): CTranslate2, on Linux x86-64
+(Q54). `--device auto` is the NVIDIA GPU when CTranslate2 sees one, else the
+processor; `--compute-type auto` is `float16` on the GPU and `int8` on the
+processor, and any CTranslate2 type can be named (`int8_float16` for a GPU short
+of memory). Loading a model runs its encoder once, so a GPU without the CUDA
+libraries fails at start with `--preload`, not on the first transmission.
+
+`--engine auto`, the default, is MLX where `mlx_whisper` can be found, else
+faster-whisper. Everything else is the same: the HTTP contract, the voice gate,
+the two lanes, the French gate and the archive. The decoding is mlx_whisper's,
+written out in `engine_ct2.py`: greedy, one sample per temperature, the same
+six temperatures and thresholds, at most 221 new tokens a window (MLX: 224).
+What has no equivalent: when every temperature fails, MLX keeps the last decode
+and faster-whisper the most probable one, reported at the last temperature; and
+MLX skips the fallback on a window whose `no_speech_prob` is over 0.6,
+faster-whisper only when its log-probability is also under -1.
+
+### Models for faster-whisper
+
+faster-whisper reads CTranslate2 conversions, not MLX ones:
+
+| Role | MLX, on this station | Converted from | For faster-whisper |
+|---|---|---|---|
+| English, `--model-en` | `sfabriece/whisper-large-v3-atco2-asr-mlx` | `jlvdoorn/whisper-large-v3-atco2-asr` (docs-fr/27) | convert it, below |
+| French, `--model-fr` | an MLX conversion of `bofenghuang/whisper-large-v3-french` | the same | its model card describes a `ctranslate2/` folder in the repository; else convert it |
+| Detector, `--fr-detector` | `mlx-community/whisper-large-v3-turbo` | `openai/whisper-large-v3-turbo` | `large-v3-turbo`: faster-whisper fetches `mobiuslabsgmbh/faster-whisper-large-v3-turbo` |
+
+Converting needs no GPU, and is done once:
+
+```bash
+python3 -m venv .venv-convert
+.venv-convert/bin/pip install ctranslate2==4.8.4 transformers==5.20.2 torch
+.venv-convert/bin/ct2-transformers-converter --model jlvdoorn/whisper-large-v3-atco2-asr \
+    --output_dir models/whisper-large-v3-atco2-asr-ct2 \
+    --copy_files tokenizer.json preprocessor_config.json --quantization float16
+```
+
+`--copy_files` is not optional. Without `preprocessor_config.json` faster-whisper
+computes 80 mel bands where large-v3 takes 128, and refuses every transmission;
+without `tokenizer.json` it fetches whisper-tiny's tokenizer, whose special tokens
+sit one place off large-v3's (large-v3 added a language). If the repository lacks
+either file, take it from `openai/whisper-large-v3`. `--quantization float16`
+stores the weights in half precision; `--compute-type` decides at load what they
+run in. The French model's own CTranslate2 folder, if the card is right:
+
+```bash
+.venv/bin/python -c "from huggingface_hub import snapshot_download; \
+    snapshot_download('bofenghuang/whisper-large-v3-french', local_dir='models/whisper-large-v3-french', \
+    allow_patterns='ctranslate2/*')"
+# --model-fr models/whisper-large-v3-french/ctranslate2
+```
+
+No weights belong in this repository.
 
 ## Two departures from the upstream design, both measured
 
