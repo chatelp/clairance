@@ -5293,7 +5293,8 @@ l'un ou l'autre (ea2b2f6) pour essayer. Le téléphone reste à mesurer.
 la page n'essayait qu'au premier geste ; puis Safari rééchantillonnait chaque morceau à 8 kHz séparément (un
 cliquetis à chaque jointure, mesuré dans WebKit). La page reprend le son à chaque geste (click, touchend, keydown)
 et rééchantillonne elle-même, en continu. **Safari est revenu au lecteur de la page**, son confirmé par le
-propriétaire. Reste : l'iPhone.
+propriétaire. **L'iPhone aussi, le même jour** (cbf7ecf) : la page déclare son son comme lecture
+(`navigator.audioSession.type = 'playback'`), son confirmé par le propriétaire. Reste : l'écran verrouillé.
 
 ### Q62 — L'accès à distance pour un proche, et ce qu'il demande à la production *(26/10 — audio ouvert à l'ami ; **ouvert sur Internet derrière le Traefik du propriétaire** ; page d'abord)*
 

@@ -494,6 +494,11 @@ sur la carte.
 
 ## État
 
+- 26/10, 17:20 : **le son sur l'iPhone** (cbf7ecf, page seule). Le propriétaire : pas de son dans Safari sur iPhone,
+  mode silencieux désactivé, pas de bandeau. La page déclare désormais son son comme lecture
+  (`navigator.audioSession.type = 'playback'`) : sur iPhone, Web Audio est sinon un son d'ambiance que le mode
+  silencieux coupe. Après réouverture de l'onglet, le son passe. Comme sur Mac une heure plus tôt, le premier essai
+  après le dépôt était muet, le suivant non : cause non mesurée. À voir : l'écran verrouillé.
 - 26/10, 16:45 : **Safari joue par le lecteur de la page, sans cliquetis** (623d132, c50787c ; page seule, en
   production sans relance). Vu dans le Safari du propriétaire : le bandeau « Click anywhere to resume listening »
   restait après un clic. Safari ne laisse pas reprendre le son sur `pointerdown`, seulement sur click, touchend ou

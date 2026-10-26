@@ -119,7 +119,8 @@ la mémoire des décisions dans `05-decisions.md` ; ici, la vue d'ensemble, cour
 
 **Le plan détaillé, par blocs, avec étapes, dépendances et mesures de sortie : `35-plan.md`** (26/10).
 **Fin du 26/10** : plus de relance aujourd'hui sauf panne (propriétaire). Faits l'après-midi : la page joue le son
-elle-même (Q63), Safari compris depuis 16:45 (reprise au clic, rééchantillonnage dans la page) ; la couche des
+elle-même (Q63), Safari compris depuis 16:45 (reprise au clic, rééchantillonnage dans la page) et l'iPhone
+depuis 17:20 ; la couche des
 procédures avec le choix « pistes en service / toutes » ; les pistes en service gardées d'une relance à l'autre (A7,
 en production à la relance du 27/10 après N5). Le 27/10 vers 13 h 10 : jugement de N5, puis 16 kHz, retrait de
 ffmpeg, de SRT et de la carte son. Fiches cloud O (ouverture publique, trace des connexions) et N (sidecar sur
