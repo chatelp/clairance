@@ -231,16 +231,32 @@ class AudioClient {
                 return;
             }
             this.store.resumeListeningPending = true;
-            const onGesture = () => {
-                document.removeEventListener('pointerdown', onGesture, true);
-                document.removeEventListener('keydown', onGesture, true);
-                context.resume().catch(() => {});
-            };
-            document.addEventListener('pointerdown', onGesture, true);
-            document.addEventListener('keydown', onGesture, true);
+            this._resumeOnGesture(context);
         };
         context.onstatechange = update;
         update();
+    }
+
+    /**
+     * Resume the context at each gesture until it runs. Safari lets a context
+     * resume from click, touchend or keydown, not from pointerdown (26/10: the
+     * banner stayed after a click, and the page's own player never sounded
+     * there); and a gesture whose resume is refused must not be the last one
+     * tried.
+     */
+    _resumeOnGesture(context) {
+        if (this._gestureResume) return;
+        const events = ['pointerdown', 'click', 'touchend', 'keydown'];
+        const onGesture = () => {
+            if (context.state === 'running') {
+                events.forEach((e) => document.removeEventListener(e, onGesture, true));
+                this._gestureResume = null;
+                return;
+            }
+            context.resume().catch(() => {});
+        };
+        this._gestureResume = onGesture;
+        events.forEach((e) => document.addEventListener(e, onGesture, true));
     }
 
     /**
