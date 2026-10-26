@@ -5,7 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/yegors/co-atc/internal/aip"
+	"github.com/yegors/co-atc/internal/api"
 	"github.com/yegors/co-atc/internal/config"
+	"github.com/yegors/co-atc/internal/lifecycle"
 	"github.com/yegors/co-atc/internal/startcheck"
 	"github.com/yegors/co-atc/internal/transcription"
 	"github.com/yegors/co-atc/internal/transcription/phraseology"
@@ -14,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"syscall"
+	"time"
 
 	"github.com/yegors/co-atc/internal/adsb"
 	"github.com/yegors/co-atc/internal/websocket"
@@ -68,7 +71,9 @@ func main() {
 	// Parse command line flags
 	configPath := flag.String("config", "", "Path to configuration file (optional - will search in configs/ and root directory)")
 	addUser := flag.String("add-user", "", "Print a configuration block for a new account, reading the password without echoing it")
+	statusFD := flag.Int("status-fd", 0, "Write how the start goes, one JSON line per event, to this file descriptor (2: stderr); see docs-fr/36-contrat-lanceur.md")
 	flag.Parse()
+	started := time.Now()
 
 	if commit == "unknown" {
 		if info, ok := debug.ReadBuildInfo(); ok {
@@ -85,6 +90,15 @@ func main() {
 		}
 		return
 	}
+
+	// Whoever starts the server reads its start here, not in its log.
+	if *statusFD != 0 {
+		if err := lifecycle.Open(*statusFD); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+	}
+	lifecycle.Say(lifecycle.Starting, map[string]any{"pid": os.Getpid(), "version": version, "commit": commit, "config": *configPath})
 
 	cfg, resolvedConfigPath := loadConfig(*configPath)
 
@@ -116,6 +130,12 @@ func main() {
 	signalCtx, stopSignals := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer stopSignals()
+
+	// The companions that are not the sidecar (companions.go): the Mac kept
+	// awake from the start, and the station link's program found before
+	// anything is started, so that a missing one is said at once.
+	keepAwake := startKeepAwake(signalCtx, cfg, log)
+	linkProgram := stationLinkProgram(cfg, log)
 
 	// Create ADS-B components
 	adsbClient := buildADSBClient(cfg, log)
@@ -161,7 +181,9 @@ func main() {
 	go runDatabaseRetentionCleanup(ctx, store.dir, store.aircraft.GetDB(), runtimeSettings, log)
 	go runFilePurge(ctx, cfg, log)
 
+	lifecycle.Say(lifecycle.Step, map[string]any{"step": "services"})
 	if err := adsbService.Start(ctx); err != nil {
+		lifecycle.Failed("adsb_service", err)
 		log.Error("Failed to start ADS-B service", logger.Error(err))
 		os.Exit(1)
 	}
@@ -172,6 +194,12 @@ func main() {
 
 	router := buildRouter(cfg, adsbService, frequenciesService, weatherService, refService, wsServer, store, runtimeSettings, sttSidecar, log)
 	router.Handler().SetMissing(check.Missing)
+	// The station link's key, opened before the server answers anyone.
+	linkToken := ""
+	if linkProgram != "" {
+		linkToken = newLinkToken()
+		router.Handler().SetLinkToken(linkToken)
+	}
 
 	// The list of official names around the station (internal/aip, Q55), made
 	// from the settings page, kept beside the databases with the pages it was
@@ -187,13 +215,43 @@ func main() {
 	})
 	router.Handler().KeepAIPNamesUpToDate(ctx)
 
-	servers := serve(cfg, router, log)
+	// What the launcher read in this process's files and in the process
+	// table, said by the server (docs-fr/36-contrat-lanceur.md).
+	executable, _ := os.Executable()
+	workingDir, _ := os.Getwd()
+	router.Handler().SetProcess(api.ProcessInfo{Instance: cfg.Server.Instance, StartedAt: started,
+		Executable: executable, WorkingDir: workingDir, Config: resolvedConfigPath})
+
+	lifecycle.Say(lifecycle.Step, map[string]any{"step": "listen"})
+	servers, listeners, err := serve(cfg, router, log)
+	router.Handler().SetListeners(listeners)
+	if err != nil {
+		// Another server on the primary port: stop what was started, and say
+		// why. Nothing must answer in this one's name.
+		lifecycle.Failed("listen", err)
+		log.Error("Cannot listen on the primary port: is another co-atc running?", logger.Error(err))
+		shutdown(log, nil, weatherService, frequenciesService, sttSidecar, adsbService, cancel, servers, keepAwake)
+		os.Exit(1)
+	}
+
+	if linkProgram != "" {
+		lifecycle.Say(lifecycle.Step, map[string]any{"step": "station_link"})
+	}
+	stationLink := startStationLink(signalCtx, cfg, linkProgram, linkToken, log)
+	router.Handler().AttachCompanions(stationLink, keepAwake)
+
+	readyAt := time.Now()
+	router.Handler().SetReady(readyAt)
+	lifecycle.Say(lifecycle.Ready, map[string]any{"pid": os.Getpid(), "url": listeners[0].URL, "listeners": listeners})
+	log.Info("Ready", logger.String("url", listeners[0].URL), logger.Duration("startup", readyAt.Sub(started)))
 
 	// Wait for one of the signals armed at startup. A signal that arrived while
 	// the services were still coming up is already recorded here.
 	<-signalCtx.Done()
 
-	shutdown(log, weatherService, frequenciesService, sttSidecar, adsbService, cancel, servers)
+	lifecycle.Say(lifecycle.Stopping, nil)
+	shutdown(log, stationLink, weatherService, frequenciesService, sttSidecar, adsbService, cancel, servers, keepAwake)
+	lifecycle.Say(lifecycle.Stopped, nil)
 }
 
 // startPlaceNamer builds the namer of the procedures heard, from the list

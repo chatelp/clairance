@@ -35,9 +35,15 @@ import (
 // asked through the environment.
 const runMainEnv = "CLAIRANCE_TEST_RUN_MAIN"
 
+// argsEnv carries more arguments for main(), one per line.
+const argsEnv = "CLAIRANCE_TEST_MAIN_ARGS"
+
 func TestMain(m *testing.M) {
 	if cfgPath := os.Getenv(runMainEnv); cfgPath != "" {
 		os.Args = []string{"co-atc", "-config", cfgPath}
+		if more := os.Getenv(argsEnv); more != "" {
+			os.Args = append(os.Args, strings.Split(more, "\n")...)
+		}
 		main()
 		os.Exit(0)
 	}
@@ -145,9 +151,21 @@ type child struct {
 	err    error
 }
 
-// runServer starts main() on cfgPath in a child process, with env added to
-// this process's environment.
-func runServer(t *testing.T, cfgPath string, env ...string) *child {
+// runServer starts main() on cfgPath in a child process, with args after
+// -config.
+func runServer(t *testing.T, cfgPath string, args ...string) *child {
+	t.Helper()
+	return startServer(t, cfgPath, nil, args)
+}
+
+// runServerWithEnv starts main() on cfgPath in a child process, with env
+// added to this process's environment.
+func runServerWithEnv(t *testing.T, cfgPath string, env ...string) *child {
+	t.Helper()
+	return startServer(t, cfgPath, env, nil)
+}
+
+func startServer(t *testing.T, cfgPath string, env, args []string) *child {
 	t.Helper()
 	self, err := filepath.Abs(os.Args[0])
 	if err != nil {
@@ -157,7 +175,7 @@ func runServer(t *testing.T, cfgPath string, env ...string) *child {
 	// From the root of the repository, where the server is run: the
 	// reference files are read from assets/ there.
 	cmd.Dir = filepath.Join("..", "..")
-	cmd.Env = append(append(os.Environ(), runMainEnv+"="+cfgPath), env...)
+	cmd.Env = append(append(os.Environ(), runMainEnv+"="+cfgPath, argsEnv+"="+strings.Join(args, "\n")), env...)
 	out := &syncBuffer{}
 	cmd.Stdout, cmd.Stderr = out, out
 	// Its own process group, so the ffmpeg it starts goes with it; and a bound
@@ -257,7 +275,7 @@ func TestTheServerSaysWhatItLacksAndStartsAllTheSame(t *testing.T) {
 	_, pdftotextThere := tool.Find("pdftotext")
 
 	cfgPath, port := exampleConfig(t, t.TempDir(), false)
-	c := runServer(t, cfgPath, "PATH=")
+	c := runServerWithEnv(t, cfgPath, "PATH=")
 	base := fmt.Sprintf("http://127.0.0.1:%d", port)
 	deadline := time.Now().Add(60 * time.Second)
 	for {

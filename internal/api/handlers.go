@@ -13,6 +13,7 @@ import (
 	"github.com/yegors/co-atc/internal/auth"
 	"github.com/yegors/co-atc/internal/config"
 	"github.com/yegors/co-atc/internal/frequencies"
+	"github.com/yegors/co-atc/internal/lifecycle"
 	"github.com/yegors/co-atc/internal/reference"
 	"github.com/yegors/co-atc/internal/startcheck"
 	"github.com/yegors/co-atc/internal/storage/sqlite"
@@ -40,9 +41,12 @@ type Handler struct {
 	healthDetail         healthDetailCache          // the launcher's health, see health_detail_handlers.go
 	guestStreams         streamSlots                // the streams each guest holds, see guest.go
 	missing              []startcheck.Missing       // what the startup check found missing; see SetMissing
+	process              processState               // what main says of the process, see process.go
 
 	// Who is asking. See internal/auth and auth_handlers.go.
 	auth *auth.Service
+	// The key of the station link co-atc started; see link_token.go.
+	linkToken string
 
 	// Operational state for the settings panel. See server_handlers.go.
 	runtime       *config.Runtime
@@ -76,6 +80,7 @@ func NewHandler(adsbService *adsb.Service, frequenciesService *frequencies.Servi
 	// how a server ends up open.
 	userFile, err := auth.LoadUserFile(config.ConfigPath)
 	if err != nil {
+		lifecycle.Failed("auth", err)
 		logger.Error(fmt.Sprintf("Failed to read accounts: %v", err))
 		os.Exit(1)
 	}
@@ -91,6 +96,7 @@ func NewHandler(adsbService *adsb.Service, frequenciesService *frequencies.Servi
 		AttemptWindow:  time.Duration(orDefault(config.Auth.AttemptWindowMins, 15)) * time.Minute,
 	})
 	if err != nil {
+		lifecycle.Failed("auth", err)
 		logger.Error(fmt.Sprintf("Failed to build authentication: %v", err))
 		os.Exit(1)
 	}

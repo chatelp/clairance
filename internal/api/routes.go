@@ -13,6 +13,7 @@ import (
 	"github.com/yegors/co-atc/internal/auth"
 	"github.com/yegors/co-atc/internal/config"
 	"github.com/yegors/co-atc/internal/frequencies"
+	"github.com/yegors/co-atc/internal/lifecycle"
 	"github.com/yegors/co-atc/internal/reference"
 	"github.com/yegors/co-atc/internal/storage/sqlite"
 	"github.com/yegors/co-atc/internal/weather"
@@ -56,6 +57,7 @@ func newOrigins(cfg *config.Config, log *logger.Logger) *auth.Origins {
 	ports := append([]int{cfg.Server.Port}, cfg.Server.AdditionalPorts...)
 	o, err := auth.NewOrigins(cfg.Server.Host, ports, cfg.Server.AllowedOrigins)
 	if err != nil {
+		lifecycle.Failed("origins", err)
 		log.Error(fmt.Sprintf("Failed to build the allowed origins: %v", err))
 		os.Exit(1)
 	}
@@ -114,7 +116,9 @@ func (r *Router) Routes() http.Handler {
 		// its own, which is what lets its middleware be declared after the public
 		// routes above -- chi refuses a Use() that follows a route on the same mux.
 		router.Group(func(router chi.Router) {
-			router.Use(r.handler.Auth().Require)
+			// A session, or the key of the station link co-atc started, on the
+			// link's routes alone; see link_token.go.
+			router.Use(r.handler.RequireSignIn)
 			// A viewer account reads, and is not given the audio; see
 			// auth_handlers.go.
 			router.Use(r.handler.ViewerGuard)

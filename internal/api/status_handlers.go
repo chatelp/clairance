@@ -39,7 +39,23 @@ type ReceiverReport struct {
 	Since  string `json:"since,omitempty"`  // RFC 3339, when that began
 	Mode   string `json:"mode,omitempty"`   // the station's own mode name
 	Detail string `json:"detail,omitempty"` // anything else worth a line
+
+	// What is on the air, as the station lists it: what the launcher read
+	// from the station itself until 26/10 (docs-fr/36).
+	Channels []ReceiverChannel `json:"channels,omitempty"`
 }
+
+// ReceiverChannel is one channel on the air. Stream says its stream is
+// published.
+type ReceiverChannel struct {
+	ID          string  `json:"id"`
+	Designation string  `json:"designation,omitempty"`
+	MHz         float64 `json:"mhz,omitempty"`
+	Stream      bool    `json:"stream"`
+}
+
+// maxReceiverChannels bounds a report: a station listens to a handful.
+const maxReceiverChannels = 64
 
 type receiverState struct {
 	ReceiverReport
@@ -60,10 +76,14 @@ type statusCache struct {
 // PutReceiver takes the receiver's state from whatever runs it.
 func (h *Handler) PutReceiver(w http.ResponseWriter, r *http.Request) {
 	var rep ReceiverReport
-	dec := json.NewDecoder(io.LimitReader(r.Body, 4096))
+	dec := json.NewDecoder(io.LimitReader(r.Body, 16384))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&rep); err != nil {
 		http.Error(w, "invalid report: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(rep.Channels) > maxReceiverChannels {
+		http.Error(w, "invalid report: too many channels", http.StatusBadRequest)
 		return
 	}
 	rep.State = strings.TrimSpace(rep.State)

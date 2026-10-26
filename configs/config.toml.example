@@ -16,6 +16,8 @@ trusted_proxies = []
 audio_replay = "owner"                      # who listens to the streams and the archived clips: "owner", or "all" (viewers too)
 # static_dir = "www"                        # serve the page from this directory instead of the one built into the binary
 # tls_cert and tls_key serve HTTPS with no proxy at all; leave them out behind one.
+# keep_awake = true                         # macOS: the Mac does not sleep while the server runs (caffeinate)
+# instance = "production"                   # this server's name for the launcher (docs-fr/36-contrat-lanceur.md)
 
 [auth]
 enabled = false                             # off on purpose: nobody cloning this may be locked out of their own receiver
@@ -151,6 +153,18 @@ db_retention_gb = 20                        # 8 to 11 full days (1.8 GB a day me
 [logging]
 level = "info"                              # debug, info, warn, error; changeable from the settings panel
 file = "runs/co-atc.log"                    # empty: stdout. One file a day, 100 MB at most, 7 kept (17 MB a day measured)
+
+[station_link]
+# For a radio-ctl station only (docs-fr/36-contrat-lanceur.md): co-atc runs cmd/radio-ctl-sync, which
+# follows the channels the station has on the air and reports its state; started again when it dies,
+# stopped with co-atc, it signs in with a key co-atc makes at each start, never with a password.
+# enabled = true
+# station_url = "http://station.lan"        # radio-ctl
+# station_host = ""                         # the Host header radio-ctl expects, if any
+# streams_url = "http://audio.lan"          # base URL of the station's Icecast mounts
+# interval_seconds = 10                     # how often the station is read
+# mix_id = ""                               # a mixed stream whose label follows the station
+# program = ""                              # empty: radio-ctl-sync next to co-atc (go build -o bin/radio-ctl-sync ./cmd/radio-ctl-sync)
 
 [reference]
 # OurAirports and tar1090-db files under assets/ (scripts/download_assets.sh): aircraft.csv,
