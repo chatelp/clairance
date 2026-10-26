@@ -38,8 +38,10 @@ func TestTheOfficialNamesAreMadeFromThePanel(t *testing.T) {
 	s.cfg.Station.Latitude, s.cfg.Station.Longitude = 49.0, 2.5
 	maker := &aip.Maker{OutPath: filepath.Join(s.dir, "aip-names.json"), CacheDir: filepath.Join(s.dir, "aip-cache"),
 		Client: &http.Client{Transport: toServer{sia.URL}}}
-	var made *aip.Names
-	s.handler.AttachAIP(maker, func(n *aip.Names) { made = n })
+	// Told from the maker's goroutine once the list is made, which is after
+	// the state stops saying "refreshing".
+	made := make(chan *aip.Names, 1)
+	s.handler.AttachAIP(maker, func(n *aip.Names) { made <- n })
 
 	// Without a session, nothing reaches the SIA.
 	if rec := s.do("POST", "/api/v1/aip-names/refresh", ""); rec.Code != http.StatusUnauthorized {
@@ -63,8 +65,13 @@ func TestTheOfficialNamesAreMadeFromThePanel(t *testing.T) {
 		!strings.Contains(st.Source, "SIA (DGAC)") {
 		t.Fatalf("after: %+v", st)
 	}
-	if made == nil || made.Points[0].Name != "ELCOB" {
-		t.Errorf("the matcher was not told of the list: %+v", made)
+	select {
+	case n := <-made:
+		if n == nil || n.Points[0].Name != "ELCOB" {
+			t.Errorf("the matcher was told of another list: %+v", n)
+		}
+	case <-time.After(5 * time.Second):
+		t.Error("the matcher was not told of the list")
 	}
 
 	if rec := s.do("PUT", "/api/v1/server/settings", `{"aip_names":{"auto_update":true}}`); rec.Code != http.StatusOK {
