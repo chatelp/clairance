@@ -46,12 +46,13 @@ func validateSource(fc cfg.FrequencyConfig) error {
 	if !sourceID.MatchString(fc.ID) {
 		return fmt.Errorf("id %q: letters, digits, '.', '_' and '-' only, 64 characters at most", fc.ID)
 	}
-	// A network address only: a station says what it publishes, and the
-	// operator's own hardware -- a capture device, a file -- stays in the
-	// configuration file, under their hand.
+	// A network address of a kind this version reads: an MP3 stream over
+	// http(s), or raw PCM over udp. SRT, RTSP and the rest went with ffmpeg
+	// (B1 ter), and nothing else was ever taken from outside: a file stays in
+	// the configuration, under the operator's hand.
 	u, err := url.Parse(fc.URL)
 	if err != nil || u.Host == "" || !networkSchemes[u.Scheme] {
-		return fmt.Errorf("url %q: a network address is required (http, https, srt, udp, rtp, rtsp, rtmp, tcp)", fc.URL)
+		return fmt.Errorf("url %q: a network address is required (http, https or udp)", fc.URL)
 	}
 	if err := audio.SourceProblem(fc.URL, PCMInputOf(fc)); err != nil {
 		return err
@@ -76,10 +77,7 @@ func validateSource(fc cfg.FrequencyConfig) error {
 
 var sectorAirport = regexp.MustCompile(`^[A-Z]{4}$`)
 
-var networkSchemes = map[string]bool{
-	"http": true, "https": true, "srt": true, "udp": true,
-	"rtp": true, "rtsp": true, "rtmp": true, "tcp": true,
-}
+var networkSchemes = map[string]bool{"http": true, "https": true, "udp": true}
 
 // sameDisplay also covers the sector: it is read at each match, so a change
 // needs no reconnection.

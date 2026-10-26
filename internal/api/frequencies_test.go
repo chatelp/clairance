@@ -221,6 +221,8 @@ func TestSourcesFromOutside(t *testing.T) {
 			{"id too long", strings.Repeat("a", 65), good, "id"},
 			{"a file", "x", strings.Replace(good, s.gone+"/aero-ok.mp3", "file:///etc/passwd", 1), "network address"},
 			{"a device", "x", strings.Replace(good, s.gone+"/aero-ok.mp3", ":0", 1), "network address"},
+			{"SRT, gone with ffmpeg", "x", strings.Replace(good, s.gone+"/aero-ok.mp3", "srt://192.0.2.1:42069", 1), "http, https or udp"},
+			{"RTSP", "x", strings.Replace(good, s.gone+"/aero-ok.mp3", "rtsp://192.0.2.1/live", 1), "http, https or udp"},
 			{"no url", "x", strings.Replace(good, s.gone+"/aero-ok.mp3", "", 1), "network address"},
 			{"language", "x", strings.Replace(good, `"language":"en"`, `"language":"de"`, 1), "language"},
 			{"sector kind", "x", strings.Replace(good, `"sector_kind":"approach"`, `"sector_kind":"centre"`, 1), "sector_kind"},

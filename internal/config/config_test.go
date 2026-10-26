@@ -266,6 +266,19 @@ func TestTheReducedExampleLoadsTheSameConfiguration(t *testing.T) {
 	full.ConfigPath, reduced.ConfigPath = "", ""
 	full.Warnings, reduced.Warnings = nil, nil
 
+	// The SRT source went from the shipped example with ffmpeg, which alone
+	// read it (B1 ter); the frozen one keeps it as it was.
+	var kept []FrequencyConfig
+	for _, s := range full.Frequencies.Sources {
+		if !strings.HasPrefix(s.URL, "srt://") {
+			kept = append(kept, s)
+		}
+	}
+	if len(kept) != len(full.Frequencies.Sources)-1 {
+		t.Fatalf("the frozen example should carry one SRT source: %+v", full.Frequencies.Sources)
+	}
+	full.Frequencies.Sources = kept
+
 	if diffs := diffValues("", reflect.ValueOf(*full), reflect.ValueOf(*reduced)); len(diffs) > 0 {
 		t.Errorf("the reduced example loads differently from the full one:\n  %s",
 			strings.Join(diffs, "\n  "))

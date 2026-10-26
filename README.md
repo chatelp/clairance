@@ -168,12 +168,12 @@ The page itself loads nothing from a CDN.
 ## What you need
 
 - **An ADS-B receiver** with `tar1090` or `readsb` (or an external source, see above).
-- **Audio of the airband**: anything FFmpeg reads — an Icecast stream per frequency (what
-  this was built against), an HTTP stream, raw PCM over UDP from an SDR program, a receiver
-  on the sound card, SRT if your FFmpeg has libsrt.
+- **Audio of the airband**: an MP3 stream over HTTP per frequency (Icecast, what this was
+  built against, or LiveATC), or raw 16-bit PCM over UDP from an SDR program (GQRX, SDR++,
+  rtl_fm). Both are read inside the server: nothing to install for the audio.
 - **A Mac with Apple Silicon** for transcription (the station's runs on a Mac mini with
   24 GB; the three models take 8 GB or more), **Python 3.11+** for the sidecar, **Go 1.23+**,
-  **FFmpeg**, and `pdftotext` (poppler) for the procedure tables.
+  and `pdftotext` (poppler) for the procedure tables.
 
 ## Getting started
 
@@ -227,8 +227,8 @@ Optional, once:
 
 `configs/config.toml.example` is about 170 lines; a key left out takes its default
 (`internal/config/defaults.go`). At startup the server names, one line each, what it found
-in the file and does not read, and what it depends on and does not find: FFmpeg when a
-source needs it, `pdftotext`, the sidecar's program, script and models, room on the disks,
+in the file and does not read, and what it depends on and does not find: `pdftotext`,
+the sidecar's program, script and models, room on the disks,
 a data directory it can write, the airport layout. Each line says what suffers; the server
 starts all the same, and `/api/v1/health/detail` lists them under `missing`.
 
@@ -327,7 +327,7 @@ restart ends every one of them.
 ```mermaid
 flowchart TD
   station["Receiving station<br/>one audio stream per frequency · ADS-B"]
-  seg["Segmenter<br/>a transmission ends after 0.6 s of silence<br/><i>Go · FFmpeg</i>"]
+  seg["Segmenter<br/>a transmission ends after 0.6 s of silence<br/><i>Go</i>"]
   subgraph sidecar["Transcription sidecar · Python, MLX"]
     direction LR
     vad["Speech or noise?<br/><i>Silero VAD</i>"] --> en["English reading<br/><i>whisper-large-v3-atco2</i>"]

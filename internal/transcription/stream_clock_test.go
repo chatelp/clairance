@@ -93,7 +93,7 @@ func TestAConnectionBurstIsDatedInThePast(t *testing.T) {
 	l.check(l.c.mark(l.now), l.k, 100*time.Millisecond, "cut after the burst")
 }
 
-// Without a burst (an SRT source, a server that sends none) nothing changes:
+// Without a burst (raw PCM over UDP, a server that sends none) nothing changes:
 // arrival is the date.
 func TestSteadyDeliveryIsDatedOnArrival(t *testing.T) {
 	l := newListener(t, 16000, 0, 0)
