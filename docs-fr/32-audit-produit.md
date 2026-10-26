@@ -494,6 +494,14 @@ sur la carte.
 
 ## État
 
+- 26/10, après-midi : **la page derrière HTTPS**. Le WebSocket était ouvert en `ws://` en dur : sur une page HTTPS le
+  navigateur le refuse sans bruit, plus d'avions ni de fil (corrigé, 5976a05 ; la copie de la page de production
+  rafraîchie sans relance). La barrière Traefik, incompatible avec le service worker de la page, retirée sur décision
+  du propriétaire ; le nom passé en « DNS only » par le propriétaire. **Mémoire du sidecar bornée** (cache de MLX à
+  1 Go, d5860d5) : de 16 à 9,0 Go, vitesse de transcription inchangée ; le premier correctif plantait au démarrage du
+  sidecar (caa8a69), production coupée de 13:47:51 à 13:50:58. Leçon : démarrer à part un composant modifié avant de
+  relancer la production. Le son reste muet sur le téléphone : la page lui envoie du WAV sans fin, que les navigateurs
+  mobiles refusent souvent ; piste : relayer le MP3 d'origine.
 - 26/10, 13:19 : **D1, l'accès distant, en place et fermé** (Q62, plan 35). Route ajoutée au Traefik du propriétaire
   (copie du fichier gardée sur sa machine), certificat obtenu, limite des essais sur `/api/v1/auth/login`, en-têtes de
   sécurité, et une barrière temporaire du mandataire jusqu'à l'ouverture. Côté Clairance, `trusted_proxies` et
