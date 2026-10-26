@@ -5319,7 +5319,7 @@ L'accès distant (Q62) ajoute au contrat l'authentification par jeton et le rôl
 26/10** : le lanceur reste **dans ce dépôt, dans son propre dossier**, sans aucune dépendance aux fichiers du
 serveur ; un dépôt séparé plus tard si le besoin vient.
 
-### Q60 — Un serveur auto-contenu, qui ne dépend pas de ce qui manque sur la machine *(26/10 — ffmpeg mesuré d'abord ; **le script de production absorbé par co-atc**)*
+### Q60 — Un serveur auto-contenu, qui ne dépend pas de ce qui manque sur la machine *(26/10 — le script de production absorbé par co-atc ; **B1 mesuré : le décodage en Go est équivalent**, choix à faire)*
 
 **Le déclencheur** : le 26/10, la production lancée par le porteur n'avait pas d'audio, faute de trouver
 ffmpeg hors du PATH du shell (134e4fb corrige la recherche). **Le propriétaire** : le serveur doit être
@@ -5340,6 +5340,29 @@ facultatif ; le script de production absorbé (co-atc lance ses compagnons confi
 entre ne plus dépendre de ffmpeg et en embarquer un. **Décidé par le propriétaire le 26/10** : co-atc lance
 lui-même ce que lance aujourd'hui le script (la liaison avec la station, l'empêchement de veille), réglages dans
 la configuration ; `production.command` disparaît. Mené en parallèle de l'accès distant (Q62).
+
+**B1 mesuré le 26/10** (outil `runs/b1-decodage/bench/`, hors du dépôt ; 5 min enregistrées de chaque flux de la
+station, station prévenue). **Les flux sont du MP3 mono à 8 kHz (MPEG-2.5), environ 15 kb/s** ; la production les
+fait monter à 24 kHz (`ffmpeg_sample_rate`, héritage de l'API d'OpenAI), alors que Whisper travaille à 16 kHz.
+
+| Mesure | Résultat |
+|---|---|
+| `go-mp3` (le décodeur Go le plus répandu) | **ne lit pas le MPEG-2.5** : écarté |
+| goxiph (`github.com/faide/goxiph/mp3`, Go pur, BSD-3, publié en août 2026, sans version numérotée) | lit le MPEG-2.5 ; compile avec notre Go 1.25 bien que son module demande 1.26.6 ; environ 3 700 lignes avec ses dépendances ; aucun accès réseau ni lancement de programme hors de ses outils de test |
+| Décodeur seul, goxiph contre ffmpeg, par fenêtres de 5 s | **identiques à l'arrondi près** : rapport signal sur bruit de 98,5 à 104,7 dB dans chaque fenêtre avec du son (62 fenêtres sur les deux flux), aucun décalage |
+| Chaîne complète jusqu'à 24 kHz (décodeur Go + rééchantillonneur Go à noyau précalculé) | 72,2 à 80,5 dB par fenêtre : l'écart ne vient que du rééchantillonneur, inaudible |
+| Coût de calcul par heure d'audio et par fréquence | Go 5,6 s à 24 kHz, 4,3 s à 16 kHz ; ffmpeg 1,9 s (le décodage seul coûte autant dans les deux : 0,1 s pour 5 min) |
+| **Défaut trouvé dans la production** | l'option `-fflags nobuffer` de ffmpeg **jette l'audio lu pendant l'analyse du début du flux : 3,6 s à chaque démarrage de ffmpeg** (28 800 échantillons sur 2 397 312) ; ffmpeg démarre quelques fois par jour (relances, bascules de la station : 16 fois le 16/10) |
+| Un flux pris en cours commence au milieu d'une trame | ffmpeg se recale seul ; un décodeur Go doit chercher la première trame entière (la suivante doit tomber à sa place) |
+
+Le test de transcription par paires n'a pas été fait : l'écart des deux décodages est au niveau de l'arrondi en
+16 bits, en dessous de ce qui peut changer une transcription. Il peut l'être sur demande (un sidecar de test sur
+le GPU, inscrit au planning de la machine).
+
+**À trancher par le propriétaire** : (1) décoder le MP3 en Go avec goxiph, intégré au dépôt à un commit figé
+(sa licence le permet), ffmpeg ne restant qu'en option pour les autres entrées (carte son, autres formats) ; ou
+embarquer un ffmpeg ; (2) retirer `-fflags nobuffer` dès maintenant ; (3) passer la production de 24 à 16 kHz,
+ou à la fréquence du flux.
 
 ### Q59 — Qui porte la production quand le lanceur se ferme ? *(24/10 — **tranchée par le propriétaire le 24/10 : (b), séparer la production du menu**)*
 

@@ -166,11 +166,11 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
       <div class="bhead">
         <span class="letter">B</span>
         <h2>Un serveur auto-contenu</h2>
-        <div class="meta"><span>Q60 · fondation</span><span class="bar"><i style="width:0%"></i></span><span>0 / 5</span></div>
+        <div class="meta"><span>Q60 · fondation</span><span class="bar"><i style="width:20%"></i></span><span>1 / 5</span></div>
       </div>
       <p class="goal">Clairance ne dépend plus de ce qui est installé à côté, ni d'un script hors du dépôt.</p>
       <ul class="steps">
-        <li><span class="code">B1</span><span class="what"><b>Mesurer le décodage audio en Go</b><small>face à ffmpeg, sur les mêmes flux réels ; 5 min de chaque fréquence enregistrées</small></span><span class="chip s-doing">en cours</span></li>
+        <li><span class="code">B1</span><span class="what"><b>Mesurer le décodage audio en Go</b><small>identique à ffmpeg à l'arrondi près (≈ 100 dB) ; 5,6 s de calcul par heure ; ffmpeg perd 3,6 s à chaque démarrage. Choix à faire.</small></span><span class="chip s-done">mesuré</span></li>
         <li><span class="code">B2</span><span class="what"><b>La page dans le binaire</b><small>plus de page figée ni de copie</small></span><span class="chip s-todo">à faire</span></li>
         <li><span class="code">B3</span><span class="what"><b>Clairance lance lui-même ses compagnons</b><small>liaison avec la station, empêchement de veille ; le script disparaît (décidé)</small></span><span class="chip s-todo">à faire</span></li>
         <li><span class="code">B4</span><span class="what"><b>Le sidecar dans son propre environnement</b><small>plus d'emprunt au dépôt du labo ; modèles téléchargés au premier lancement</small></span><span class="chip s-todo">à faire</span></li>
@@ -286,6 +286,7 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
         <li><b>Le lanceur reste dans ce dépôt</b>, rangé à part, relié au serveur par un contrat.</li>
         <li><b>L'ami</b> : audio compris, par Internet derrière Traefik, le temps des tests.</li>
         <li><b>B1 et D en parallèle.</b></li>
+        <li><b>B1 mesuré</b> : le décodage en Go vaut ffmpeg ; à toi de choisir la suite.</li>
         <li><b>La production portée à part du menu</b> (Q59, 24/10).</li>
       </ul>
     </div>
@@ -294,6 +295,7 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
       <h3>Ce qui revient au propriétaire</h3>
       <ul class="plain">
         <li>Autoriser chaque relance de la production.</li>
+        <li>B1 : décodeur Go intégré ou ffmpeg embarqué ; retirer l'option qui perd 3,6 s ; 24 ou 16 kHz.</li>
         <li>La route Traefik vers le Mac, et l'adresse fixe du Mac (D1).</li>
         <li>Le mot de passe du compte de l'ami (D4).</li>
         <li>Le compte développeur Apple, le jour de D6.</li>
@@ -302,5 +304,5 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
     </div>
   </section>
 
-  <footer>Mis à jour le 26/10/2026 à 11 h 15 · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
+  <footer>Mis à jour le 26/10/2026 à 11 h 35 · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
 </div>

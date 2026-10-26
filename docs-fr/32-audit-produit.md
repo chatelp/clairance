@@ -494,6 +494,11 @@ sur la carte.
 
 ## État
 
+- 26/10 : **B1, le décodage audio en Go, mesuré** (Q60, plan 35). Les flux de la station sont du MP3 mono à 8 kHz
+  (MPEG-2.5) ; `go-mp3` ne le lit pas ; goxiph (Go pur, BSD-3) le décode à l'identique de ffmpeg à l'arrondi près
+  (≈ 100 dB par fenêtre de 5 s), la chaîne jusqu'à 24 kHz à 72 à 80 dB, pour 5,6 s de calcul par heure d'audio.
+  Trouvé en route : `-fflags nobuffer`, dans les arguments de ffmpeg de la production, perd 3,6 s d'audio à chaque
+  démarrage de ffmpeg. Choix laissés au propriétaire (goxiph ou ffmpeg embarqué, `nobuffer`, 24 ou 16 kHz).
 - 26/10, 10 h 49 : **la production relancée par le porteur redevient sourde** (« no route to host » à partir de
   10:49:39, 349 fois à 10:55 ; dernière transmission transcrite à 10:50:09). Cause trouvée par l'agent du lanceur :
   il a réinstallé `~/Applications/Clairance.app` à 10:49 puis 10:53, avec un nouveau binaire, donc une nouvelle

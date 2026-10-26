@@ -59,7 +59,7 @@ moins de deux minutes.
 
 | Étape | Ce qu'elle retire | Mesure |
 |---|---|---|
-| B1. **Mesurer le décodage audio en Go** (MP3 d'Icecast, PCM brut) face à ffmpeg | décision du propriétaire du 26/10 : la mesure d'abord | sur les mêmes flux réels, par paires : écart des échantillons, transcriptions identiques ou non (gagnées et perdues), coût processeur ; puis choix : plus de ffmpeg pour le cas courant, ou un ffmpeg embarqué |
+| B1. **Mesurer le décodage audio en Go** (MP3 d'Icecast, PCM brut) face à ffmpeg | décision du propriétaire du 26/10 : la mesure d'abord | **fait le 26/10** (détail dans Q60) : décodeur goxiph identique à ffmpeg à l'arrondi près (≈ 100 dB), chaîne complète 72 à 80 dB, 5,6 s de calcul par heure ; `-fflags nobuffer` perd 3,6 s à chaque démarrage de ffmpeg. **Choix à faire** : goxiph intégré au dépôt, ou ffmpeg embarqué ; retirer `nobuffer` ; 24 ou 16 kHz |
 | B2. La page dans le binaire (`go:embed`) | la page figée et sa copie (`runs/production/www`) | le binaire sert la page de son propre commit |
 | B3. Les compagnons lancés par co-atc lui-même (la liaison avec la station, l'empêchement de veille), leurs réglages dans la configuration | `runs/production.command`, hors du dépôt, et l'adresse de la station écrite dans un script | le lanceur ne démarre plus qu'un seul programme |
 | B4. Le sidecar dans son propre environnement verrouillé, créé par une commande d'installation ; les modèles téléchargés au premier lancement dans le dossier de données | la dépendance au venv de `whisper-lab` | un compte utilisateur neuf fait tourner la transcription |
