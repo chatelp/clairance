@@ -124,6 +124,11 @@ func (h *Handler) GetServerState(w http.ResponseWriter, r *http.Request) {
 		Writable:      false, // flips once authentication is in place
 		Access:        h.auth.Access(),
 	}
+	// Who else has an account is the owner's to know: a viewer is told the
+	// mode, not the names, which are half of what signing in asks for.
+	if h.auth.Role(r) == auth.RoleViewer {
+		st.Access.Accounts = []string{}
+	}
 
 	if h.sttSidecar != nil && h.sttSidecar.Off() {
 		st.Transcription = &TranscriptionState{Status: "off", Detail: "no source transcribes"}

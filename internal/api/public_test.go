@@ -556,3 +556,25 @@ func TestThroughTheProxyTheFirstRunQuestionSaysNoPath(t *testing.T) {
 		t.Errorf("needed: %v", st)
 	}
 }
+
+// The settings panel's state tells a viewer how access works, not who else
+// has an account; the owner sees the names.
+func TestAViewerIsNotToldWhoElseHasAnAccount(t *testing.T) {
+	s := publicStack(t, stackOptions{})
+	accounts := func() []string {
+		var st ServerState
+		decode(t, s.do("GET", "/api/v1/server", "", throughTheProxy("203.0.113.9")), &st)
+		if st.Access.Mode != "account" || st.Access.Accounts == nil {
+			t.Fatalf("access: %+v", st.Access)
+		}
+		return st.Access.Accounts
+	}
+	s.signInAs(viewerUser)
+	if got := accounts(); len(got) != 0 {
+		t.Errorf("a viewer is told the accounts: %v", got)
+	}
+	s.signInAs(testUser)
+	if got := accounts(); strings.Join(got, ",") != viewerUser+","+testUser {
+		t.Errorf("the owner is told %v, want both accounts", got)
+	}
+}
