@@ -744,7 +744,7 @@ def main() -> None:
     # On the model thread: MLX ties what it creates to the thread that created it.
     _backend = _mlx_thread.submit(backend_name).result()
     log.info("Backend: %s", _backend)
-    bound = _mlx_thread.submit(limit_cache, cfg.mlx_cache_limit_gb).result()
+    bound = _mlx_thread.submit(lambda: limit_cache(cfg.mlx_cache_limit_gb)).result()
     log.info("MLX cache: %s", f"bounded to {bound >> 20} MB" if bound else "unbounded")
     log.info("English model: %s", cfg.model_en)
     log.info("French model: %s", cfg.model_fr or "(none — French will be refused)")
