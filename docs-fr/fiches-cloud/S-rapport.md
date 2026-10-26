@@ -28,8 +28,8 @@ serveurs HTTP). Un plantage perd au plus une minute de glissement sur trente jou
 Vrai binaire, faux tar1090 (`tools/startup-bench/fake.py`), quatre sources sur un MP3 en boucle (`station-8k-vbr.mp3`),
 comptes `pierre` et `guest` (viewer) dans `users.json`, `audio_replay = "all"`, `trusted_proxies = ["127.0.0.1/32"]` et
 `X-Forwarded-For` envoyé par Chromium (Playwright) : le serveur sert alors les flux sur l'origine de la page, **comme à
-travers le Traefik de l'ami**. Connexion par le vrai formulaire, les quatre flux jouent, arrêt (SIGINT) puis relance ;
-temps comptés depuis la première réponse de `/api/v1/health`. Arrêt 1,1–2,1 s, démarrage 1,1–1,3 s.
+travers le Traefik de l'ami**. Vrai formulaire, quatre flux joués, SIGINT puis relance (arrêt 1,1–2,1 s, démarrage
+1,1–1,3 s) ; temps comptés depuis la première réponse de `/api/v1/health`.
 
 | Coupure | `main` (sessions en mémoire) | branche, WebSocket à 30 s | branche, 5 s (commit 2) |
 |---|---|---|---|
@@ -57,9 +57,8 @@ carte restait figée et le bandeau affiché jusqu'à 29 s après le retour du se
 - Au `curl`, vrai binaire : invité 200, relance 200, jeton absent du fichier ; déconnexion, relance, 401. 17 relances.
 
 ## Pas vérifié
-Un vrai Traefik en HTTPS (cookie `Secure`), Safari et l'iPhone, le son **entendu** (seulement le premier échantillon
-reçu), la durée d'une relance de la production (ici 1 s de démarrage ; le sidecar et les bases réelles l'allongent),
-un disque lent (l'écriture se fait sous le verrou de la table, une fois par minute au plus : ~2 Ko pour 9 sessions).
+Un vrai Traefik en HTTPS (cookie `Secure`), Safari, l'iPhone, le son **entendu** (premier échantillon reçu, seulement),
+la durée d'une relance de la production (ici 1 s), un disque lent (écriture sous le verrou, ~2 Ko, 1/min au plus).
 
 ## Doutes et constats hors périmètre
 - **Le commentaire d'origine disait « en mémoire, exprès »** : une relance était le moyen sûr de déconnecter tout le
