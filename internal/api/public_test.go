@@ -513,3 +513,27 @@ func TestThroughTheProxyAWrongNameAndAWrongPasswordLookAlike(t *testing.T) {
 		t.Errorf("a wrong password and an unknown name differ:\n %s\n %s", known, unknown)
 	}
 }
+
+// Behind two declared proxies, a CDN in front of Traefik, one visitor's
+// eight wrong passwords lock that visitor out and nobody else: the address
+// held responsible is the browser's, not the CDN's that every visitor shares.
+func TestBehindTwoProxiesOneVisitorDoesNotLockOutTheOthers(t *testing.T) {
+	s := newStack(t, stackOptions{host: "0.0.0.0", proxies: []string{proxyAddr, "198.51.100.0/24"}})
+	wrong := `{"name":"` + testUser + `","password":"wrong"}`
+	right := `{"name":"` + testUser + `","password":"` + testPassword + `"}`
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.do("POST", "/api/v1/auth/login", wrong, throughTheProxy("203.0.113.66, 198.51.100.20"))
+		}()
+	}
+	wg.Wait()
+	if rec := s.do("POST", "/api/v1/auth/login", right, throughTheProxy("203.0.113.66, 198.51.100.20")); rec.Code != http.StatusUnauthorized {
+		t.Errorf("the visitor who guessed: %d, want 401", rec.Code)
+	}
+	if rec := s.do("POST", "/api/v1/auth/login", right, throughTheProxy("203.0.113.67, 198.51.100.20")); rec.Code != http.StatusOK {
+		t.Errorf("another visitor through the same CDN: %d, want 200", rec.Code)
+	}
+}

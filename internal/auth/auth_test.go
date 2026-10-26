@@ -369,3 +369,36 @@ func TestConfiguredUsersStillObeyEnabled(t *testing.T) {
 		t.Error("auth.enabled = false with users in the config must stay off")
 	}
 }
+
+// Behind two trusted proxies -- a CDN, then Traefik -- the browser is the
+// first address from the right that is not a trusted proxy's: not the CDN's,
+// which every visitor would then share, and not whatever the browser wrote
+// itself further left. A proxy that adds a header line of its own instead of
+// appending is read the same way.
+func TestTheBrowserIsTheFirstUntrustedAddressFromTheRight(t *testing.T) {
+	p, err := NewTrustedProxies([]string{"192.0.2.1", "198.51.100.0/24"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		lines []string
+		want  string
+	}{
+		{[]string{"203.0.113.5"}, "203.0.113.5"},                         // one proxy
+		{[]string{"203.0.113.5, 198.51.100.20"}, "203.0.113.5"},          // the CDN, then Traefik
+		{[]string{"6.6.6.6, 203.0.113.5, 198.51.100.20"}, "203.0.113.5"}, // the browser's own invention
+		{[]string{"6.6.6.6", "203.0.113.5"}, "203.0.113.5"},              // a second line, not appended
+		{[]string{"198.51.100.7, 198.51.100.20"}, "198.51.100.7"},        // nothing but proxies: the farthest
+		{[]string{"2001:db8::1, 198.51.100.20"}, "2001:db8::1"},          // IPv6
+		{[]string{" 203.0.113.5 ,, 198.51.100.20 "}, "203.0.113.5"},      // spaces, an empty element
+	} {
+		r := httptest.NewRequest("GET", "/", nil)
+		r.RemoteAddr = "192.0.2.1:5000"
+		for _, l := range c.lines {
+			r.Header.Add("X-Forwarded-For", l)
+		}
+		if got := p.ClientIP(r); got != c.want {
+			t.Errorf("X-Forwarded-For %q: %q, want %q", c.lines, got, c.want)
+		}
+	}
+}

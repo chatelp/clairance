@@ -105,11 +105,24 @@ func (t *TrustedProxies) Forwarded(r *http.Request) bool {
 
 // ClientIP is the address to hold responsible for a request -- for rate limiting,
 // and for saying in a log who failed to sign in.
+//
+// X-Forwarded-For is read from the right, where each proxy appends the address
+// it was spoken to from: past the addresses of trusted proxies, the first one
+// that is not is the browser as the outermost trusted proxy saw it. Taking the
+// last address alone was right behind a single proxy and wrong behind two --
+// a CDN in front of Traefik made every visitor the CDN's address, so eight
+// wrong passwords from anyone locked everyone out. Every X-Forwarded-For line
+// is read, in order: a proxy that adds its own line rather than appending to
+// the client's would otherwise leave the client's invented one first.
 func (t *TrustedProxies) ClientIP(r *http.Request) string {
 	if t.trusts(r.RemoteAddr) {
-		if f := r.Header.Get("X-Forwarded-For"); f != "" {
+		if f := strings.Join(r.Header.Values("X-Forwarded-For"), ","); strings.TrimSpace(f) != "" {
 			parts := strings.Split(f, ",")
-			return strings.TrimSpace(parts[len(parts)-1])
+			for i := len(parts) - 1; i >= 0; i-- {
+				if p := strings.TrimSpace(parts[i]); p != "" && (i == 0 || !t.trusts(p)) {
+					return p
+				}
+			}
 		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
