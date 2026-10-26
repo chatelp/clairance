@@ -101,6 +101,11 @@ type ServerConfig struct {
 	// "all", viewer accounts included. See internal/auth/role.go.
 	AudioReplay string `toml:"audio_replay"`
 
+	// Instance names this server for whoever starts it -- "production", "test"
+	// -- in the launcher's health (docs-fr/36). The launcher recognised
+	// production by the path of its configuration until 26/10.
+	Instance string `toml:"instance"`
+
 	// KeepAwake keeps the Mac from sleeping while the server runs, as the
 	// production script's caffeinate did: co-atc runs `caffeinate -i -w <its
 	// pid>` beside itself. macOS only; elsewhere it is said once and ignored.

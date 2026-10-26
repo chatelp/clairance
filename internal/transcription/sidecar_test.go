@@ -340,3 +340,55 @@ func TestASidecarStartedWithTheServerIsNotProbedForASource(t *testing.T) {
 		t.Error("a started sidecar is not off")
 	}
 }
+
+// The sidecar this server started, as the launcher's health shows it
+// (docs-fr/36): running with its pid, restarting, given up on with how it
+// ended, stopped; a sidecar run by someone else is not described as ours.
+func TestTheChildIsDescribedForTheLauncher(t *testing.T) {
+	restartDelay = 20 * time.Millisecond
+	t.Cleanup(func() { restartDelay = 5 * time.Second })
+	srv := healthServer(t)
+
+	foreign := NewSidecar(SidecarConfig{ServerURL: srv.URL}, testLogger(t))
+	if err := foreign.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if c, ok := foreign.Child(); ok {
+		t.Errorf("someone else's sidecar described as ours: %+v", c)
+	}
+
+	starts := filepath.Join(t.TempDir(), "starts")
+	dying := NewSidecar(SidecarConfig{ServerURL: srv.URL, StartupTimeoutSeconds: 5,
+		Command: []string{"sh", "-c", "echo up >> " + starts + "; sleep 0.2; exit 1"}}, testLogger(t))
+	if err := dying.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	c, ok := dying.Child()
+	if !ok || c.State != "running" || c.PID == 0 || c.StartedAt.IsZero() || c.Restarts != 0 || c.LastExit != "" ||
+		len(c.Command) != 3 || c.Command[0] != "sh" {
+		t.Errorf("started: %+v", c)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dying.Supervise(ctx)
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		if c, _ = dying.Child(); c.State == "failed" {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if c.State != "failed" || c.PID != 0 || c.Restarts != maxRestarts || c.LastExit != "exit status 1" {
+		t.Errorf("given up on: %+v", c)
+	}
+
+	running := NewSidecar(SidecarConfig{ServerURL: srv.URL, StartupTimeoutSeconds: 5,
+		Command: []string{"sh", "-c", "sleep 60"}}, testLogger(t))
+	if err := running.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	running.Stop()
+	if c, ok := running.Child(); !ok || c.State != "stopped" || c.PID != 0 {
+		t.Errorf("stopped: %+v", c)
+	}
+}

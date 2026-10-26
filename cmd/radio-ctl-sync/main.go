@@ -65,12 +65,22 @@ type stationState struct {
 // receiverReport is what co-atc's PUT /api/v1/receiver takes: the station's
 // mode mapped onto co-atc's receiver states, its own words for the rest.
 type receiverReport struct {
-	State  string `json:"state"`
-	Label  string `json:"label,omitempty"`
-	Title  string `json:"title,omitempty"`
-	Since  string `json:"since,omitempty"`
-	Mode   string `json:"mode,omitempty"`
-	Detail string `json:"detail,omitempty"`
+	State    string            `json:"state"`
+	Label    string            `json:"label,omitempty"`
+	Title    string            `json:"title,omitempty"`
+	Since    string            `json:"since,omitempty"`
+	Mode     string            `json:"mode,omitempty"`
+	Detail   string            `json:"detail,omitempty"`
+	Channels []receiverChannel `json:"channels,omitempty"`
+}
+
+// receiverChannel is one channel on the air, for whoever watches co-atc: the
+// launcher read them from the station itself until 26/10 (docs-fr/36).
+type receiverChannel struct {
+	ID          string  `json:"id"`
+	Designation string  `json:"designation,omitempty"`
+	MHz         float64 `json:"mhz,omitempty"`
+	Stream      bool    `json:"stream"`
 }
 
 // report maps radio-ctl's modes: "chaine" is the airband chain on the air,
@@ -83,10 +93,18 @@ func report(st stationState) receiverReport {
 	if state == "" {
 		state = "unknown"
 	}
-	return receiverReport{
+	rep := receiverReport{
 		State: state, Label: st.Label, Title: st.Selection.Title,
 		Since: st.Since, Mode: st.Mode, Detail: st.Detail,
 	}
+	for _, c := range st.Selection.Channels {
+		if c.ID == "" {
+			continue
+		}
+		rep.Channels = append(rep.Channels, receiverChannel{ID: c.ID, Designation: c.Designation, MHz: c.MHz,
+			Stream: c.Stream != "" && (c.Present == nil || *c.Present)})
+	}
+	return rep
 }
 
 type channel struct {
@@ -266,12 +284,23 @@ type syncer struct {
 	lastVersion                                       int
 	lastErr                                           string
 	lastReportErr                                     string
+	// A co-atc from before 26/10 refuses a report that lists the channels
+	// (it takes no field it does not know): they are left out from then on.
+	noChannels bool
 }
 
 // sendReport tells co-atc the receiver's state. Never in the way of the sources:
 // a co-atc without the endpoint, or a failure, is said once in the log.
 func (s *syncer) sendReport(rep receiverReport) {
+	if s.noChannels {
+		rep.Channels = nil
+	}
 	err := s.coatcCall("PUT", "/api/v1/receiver", rep, nil)
+	if err != nil && rep.Channels != nil && strings.Contains(err.Error(), `unknown field "channels"`) {
+		s.noChannels = true
+		rep.Channels = nil
+		err = s.coatcCall("PUT", "/api/v1/receiver", rep, nil)
+	}
 	msg := ""
 	if err != nil {
 		msg = err.Error()

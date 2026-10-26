@@ -46,6 +46,12 @@ type HealthDetail struct {
 	Receiver     *receiverState                `json:"receiver"`
 	AudioArchive HealthArchive                 `json:"audio_archive"`
 	Databases    HealthDatabases               `json:"databases"`
+
+	// Added by the launcher's contract (docs-fr/36-contrat-lanceur.md,
+	// process.go): its version, the process, the companions.
+	Contract   int               `json:"contract"`
+	Process    HealthProcess     `json:"process"`
+	Companions []HealthCompanion `json:"companions"`
 }
 
 type HealthADSB struct {
@@ -253,6 +259,8 @@ func (h *Handler) computeHealthDetail(r *http.Request) HealthDetail {
 		}
 	}
 
+	d.Contract = contractVersion
+	h.describeProcess(&d)
 	return d
 }
 

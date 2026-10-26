@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -119,6 +120,40 @@ func get(url string) (int, string) {
 	return resp.StatusCode, string(b)
 }
 
+// healthCompanion and healthDetail are what this test reads of the health.
+type healthCompanion struct {
+	Role     string   `json:"role"`
+	Managed  bool     `json:"managed"`
+	PID      int      `json:"pid"`
+	State    string   `json:"state"`
+	Restarts int      `json:"restarts"`
+	LastExit string   `json:"last_exit"`
+	Command  []string `json:"command"`
+	Mode     string   `json:"mode"`
+}
+
+type healthDetail struct {
+	Companions []healthCompanion `json:"companions"`
+	Receiver   *struct {
+		Channels []struct {
+			ID string `json:"id"`
+		} `json:"channels"`
+	} `json:"receiver"`
+}
+
+func detail(t *testing.T, base string) healthDetail {
+	t.Helper()
+	var d healthDetail
+	code, body := get(base + "/api/v1/health/detail")
+	if code != http.StatusOK {
+		return d
+	}
+	if err := json.Unmarshal([]byte(body), &d); err != nil {
+		t.Fatalf("the health detail: %v: %s", err, body)
+	}
+	return d
+}
+
 var linkStarted = regexp.MustCompile(`station_link\s+Started\s+\{"pid": (\d+)`)
 
 // linkPIDs are the station links the server has said it started, in order.
@@ -227,6 +262,31 @@ func TestTheStationLinkLivesAndStopsWithTheServer(t *testing.T) {
 				// It reads the station again: one reading a second.
 				before := reads.Load()
 				waitUntil(t, c, "a reading by the second link", 10*time.Second, func() bool { return reads.Load() > before+1 })
+
+				// The health says so: the link by its pid, restarted once, and
+				// the channels on the air it reported.
+				var link healthCompanion
+				waitUntil(t, c, "the second link in the health", 10*time.Second, func() bool {
+					d := detail(t, base)
+					for _, comp := range d.Companions {
+						if comp.Role == "station_link" {
+							link = comp
+						}
+					}
+					return link.PID == second
+				})
+				if !link.Managed || link.State != "running" || link.Restarts != 1 || link.Mode != "continuous" ||
+					link.LastExit != "signal: killed" || len(link.Command) == 0 || link.Command[0] != program {
+					t.Errorf("the link in the health: %+v", link)
+				}
+				for _, arg := range link.Command {
+					if strings.Contains(arg, "COATC_LINK_TOKEN") || len(arg) == 64 {
+						t.Errorf("the key shows in the command: %q", link.Command)
+					}
+				}
+				if d := detail(t, base); d.Receiver == nil || len(d.Receiver.Channels) != 2 {
+					t.Errorf("the channels on the air: %+v", d.Receiver)
+				}
 
 				// Stopped with the server, which exits cleanly.
 				stopped := time.Now()

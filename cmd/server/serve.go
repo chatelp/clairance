@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/yegors/co-atc/internal/companion"
 	"github.com/yegors/co-atc/internal/config"
 	"github.com/yegors/co-atc/internal/frequencies"
+	"github.com/yegors/co-atc/internal/lifecycle"
 	"github.com/yegors/co-atc/internal/transcription"
 	"github.com/yegors/co-atc/internal/weather"
 	"github.com/yegors/co-atc/pkg/logger"
@@ -19,12 +21,17 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// serve refuses to open a server nobody can lock, then starts one HTTP server
-// per configured port, each in its own goroutine, and returns them for
-// shutdown.
-func serve(cfg *config.Config, router *api.Router, log *logger.Logger) []*http.Server {
+// serve refuses to open a server nobody can lock, then opens every configured
+// port and serves each in its own goroutine. It returns the servers, for
+// shutdown, and what each port did, for the launcher's health. A primary port
+// that cannot be opened is an error: until 26/10 the server went on without
+// it, and another co-atc holding the port answered for it -- the launcher took
+// that one's health for this one's. An additional port that cannot be opened
+// is said, and the others serve.
+func serve(cfg *config.Config, router *api.Router, log *logger.Logger) ([]*http.Server, []api.Listener, error) {
 	// --- Setup for multiple HTTP servers ---
 	var servers []*http.Server
+	var listeners []api.Listener
 	allPorts := []int{cfg.Server.Port}       // Start with the primary port
 	if len(cfg.Server.AdditionalPorts) > 0 { // Only append if there are additional ports
 		allPorts = append(allPorts, cfg.Server.AdditionalPorts...)
@@ -37,6 +44,7 @@ func serve(cfg *config.Config, router *api.Router, log *logger.Logger) []*http.S
 	// scrolls past and the server stays open.
 	if router.Handler().Auth().NeedsSetup() {
 		if !isLoopbackHost(cfg.Server.Host) {
+			lifecycle.Failed("no_account", fmt.Errorf("no account exists and the server is not bound to loopback (host %q)", cfg.Server.Host))
 			fatalLog := log.WithOptions(zap.AddStacktrace(zapcore.PanicLevel))
 			fatalLog.Fatal("Refusing to start: no account exists and the server is not bound to loopback",
 				logger.String("host", cfg.Server.Host),
@@ -49,31 +57,44 @@ func serve(cfg *config.Config, router *api.Router, log *logger.Logger) []*http.S
 	log.Info("Configured listener ports", logger.Any("ports", allPorts))
 
 	// Start a server for each configured port
-	for _, port := range allPorts {
+	for i, port := range allPorts {
 		addr := fmt.Sprintf("%s:%d", cfg.Server.Host, port)
+		l := api.Listener{Addr: addr, URL: listenerURL(cfg, port), Primary: i == 0}
+		// Opened here rather than in the goroutine, so that the server knows
+		// it listens before it says it is ready.
+		ln, err := net.Listen("tcp", addr)
+		if err != nil {
+			l.Error = err.Error()
+			listeners = append(listeners, l)
+			if i == 0 {
+				return servers, listeners, fmt.Errorf("listening on %s: %w", addr, err)
+			}
+			log.Error("HTTP server error on startup", logger.String("addr", addr), logger.Error(err))
+			continue
+		}
+		l.OK = true
+		listeners = append(listeners, l)
 		server := httpServer(cfg, addr, router.Routes()) // All servers use the same main router
 		servers = append(servers, server)
 
-		go func(s *http.Server) {
+		go func(s *http.Server, ln net.Listener) {
 			// TLS served by co-atc itself when a certificate is configured, and by
 			// nothing when it is not. Behind a reverse proxy both stay empty and the
 			// proxy terminates TLS -- neither shape is the privileged one.
 			if cfg.Server.TLSCert != "" && cfg.Server.TLSKey != "" {
 				log.Info("Starting HTTPS server", logger.String("addr", s.Addr))
-				if err := s.ListenAndServeTLS(cfg.Server.TLSCert, cfg.Server.TLSKey); err != nil && err != http.ErrServerClosed {
+				if err := s.ServeTLS(ln, cfg.Server.TLSCert, cfg.Server.TLSKey); err != nil && err != http.ErrServerClosed {
 					log.Error("HTTPS server error on startup", logger.String("addr", s.Addr), logger.Error(err))
 				}
 				return
 			}
 			log.Info("Starting HTTP server", logger.String("addr", s.Addr))
-			if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			if err := s.Serve(ln); err != nil && err != http.ErrServerClosed {
 				log.Error("HTTP server error on startup", logger.String("addr", s.Addr), logger.Error(err))
-				// If one server fails to start, log the error. Depending on requirements,
-				// you might want to os.Exit(1) here or implement more complex error handling.
 			}
-		}(server)
+		}(server, ln)
 	}
-	return servers
+	return servers, listeners, nil
 }
 
 // readHeaderTimeout bounds how long a client may take to send a request's

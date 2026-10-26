@@ -71,6 +71,16 @@ func newRotatingFile(path string, maxSizeMB, maxFiles int) (*rotatingFile, error
 	return r, nil
 }
 
+// current is the path of the file being written.
+func (r *rotatingFile) current() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.file == nil {
+		return ""
+	}
+	return r.file.Name()
+}
+
 func (r *rotatingFile) name(day string, seq int) string {
 	if seq == 0 {
 		return filepath.Join(r.dir, fmt.Sprintf("%s-%s%s", r.base, day, r.ext))

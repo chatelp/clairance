@@ -9,9 +9,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/yegors/co-atc/internal/companion"
 	"github.com/yegors/co-atc/internal/config"
+	"github.com/yegors/co-atc/internal/lifecycle"
 	"github.com/yegors/co-atc/pkg/logger"
 	"github.com/yegors/co-atc/pkg/tool"
 	"go.uber.org/zap"
@@ -43,6 +45,7 @@ func stationLinkProgram(cfg *config.Config, log *logger.Logger) string {
 	}
 	p, ok := tool.Find(name)
 	if !ok {
+		lifecycle.Failed("station_link", fmt.Errorf("station link program not found: %s", name))
 		fatalLog := log.WithOptions(zap.AddStacktrace(zapcore.PanicLevel))
 		fatalLog.Fatal("Station link program not found",
 			logger.String("program", name),
@@ -71,16 +74,27 @@ func newLinkToken() string {
 	return hex.EncodeToString(b)
 }
 
-// localURL is where this machine reaches the server's primary port. The
-// configuration has checked that the link can: a server bound to the loopback
-// or to every address, in plain HTTP.
-func localURL(cfg *config.Config) string {
-	host := "127.0.0.1"
-	switch cfg.Server.Host {
+// listenerURL is where this machine reaches the server on port: the loopback
+// for a server bound to it or to every address, else the address it is bound
+// to. For the station link the configuration has checked it is the loopback,
+// in plain HTTP.
+func listenerURL(cfg *config.Config, port int) string {
+	host := cfg.Server.Host
+	switch host {
+	case "", "0.0.0.0", "127.0.0.1", "localhost":
+		host = "127.0.0.1"
 	case "::", "::1":
 		host = "[::1]"
+	default:
+		if strings.Contains(host, ":") {
+			host = "[" + host + "]"
+		}
 	}
-	return fmt.Sprintf("http://%s:%d", host, cfg.Server.Port)
+	scheme := "http"
+	if cfg.Server.TLSCert != "" {
+		scheme = "https"
+	}
+	return fmt.Sprintf("%s://%s:%d", scheme, host, port)
 }
 
 // startStationLink starts radio-ctl-sync on this server, with the key that
@@ -91,7 +105,7 @@ func startStationLink(ctx context.Context, cfg *config.Config, program, token st
 		return nil
 	}
 	l := cfg.StationLink
-	args := []string{"-station", l.StationURL, "-streams", l.StreamsURL, "-coatc", localURL(cfg),
+	args := []string{"-station", l.StationURL, "-streams", l.StreamsURL, "-coatc", listenerURL(cfg, cfg.Server.Port),
 		"-interval", strconv.Itoa(l.IntervalSeconds) + "s"}
 	if l.StationHost != "" {
 		args = append(args, "-station-host", l.StationHost)
@@ -107,6 +121,7 @@ func startStationLink(ctx context.Context, cfg *config.Config, program, token st
 		Output: func(line string) { said.Info(line) },
 	}, log)
 	if err != nil {
+		lifecycle.Failed("station_link", err)
 		fatalLog := log.WithOptions(zap.AddStacktrace(zapcore.PanicLevel))
 		fatalLog.Fatal("Station link did not start", logger.Error(err))
 	}

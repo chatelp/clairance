@@ -12,6 +12,7 @@ import (
 	"github.com/yegors/co-atc/internal/api"
 	"github.com/yegors/co-atc/internal/config"
 	"github.com/yegors/co-atc/internal/frequencies"
+	"github.com/yegors/co-atc/internal/lifecycle"
 	"github.com/yegors/co-atc/internal/reference"
 	"github.com/yegors/co-atc/internal/storage/sqlite"
 	"github.com/yegors/co-atc/internal/transcription"
@@ -35,12 +36,14 @@ func loadConfig(configPath string) (*config.Config, string) {
 	// Load configuration with fallback logic
 	cfg, resolvedConfigPath, err := config.LoadWithFallbackAndPath(configPath)
 	if err != nil {
+		lifecycle.Failed("config", err)
 		fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Validate configuration
 	if err := cfg.Validate(); err != nil {
+		lifecycle.Failed("config", err)
 		fmt.Fprintf(os.Stderr, "Invalid configuration: %v\n", err)
 		os.Exit(1)
 	}
@@ -57,6 +60,7 @@ func newLogger(cfg *config.Config) *logger.Logger {
 		MaxFiles:  cfg.Logging.MaxFiles,
 	})
 	if err != nil {
+		lifecycle.Failed("logger", err)
 		fmt.Fprintf(os.Stderr, "Error creating logger: %v\n", err)
 		os.Exit(1)
 	}
@@ -74,9 +78,11 @@ func buildADSBClient(cfg *config.Config, log *logger.Logger) *adsb.Client {
 		log,
 	)
 
+	lifecycle.Say(lifecycle.Step, map[string]any{"step": "adsb_source", "timeout_s": 10})
 	probeCtx, probeCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	if err := adsbClient.ValidateSource(probeCtx); err != nil {
 		probeCancel()
+		lifecycle.Failed("adsb_source", err)
 		fatalLog := log.WithOptions(zap.AddStacktrace(zapcore.PanicLevel))
 		fatalLog.Fatal("ADS-B source validation failed", logger.Error(err), logger.String("source_type", cfg.ADSB.SourceType))
 	}
@@ -108,8 +114,10 @@ func startSidecar(signalCtx context.Context, cfg *config.Config, log *logger.Log
 		return sttSidecar
 	}
 	sidecarCtx, sidecarCancel := context.WithTimeout(signalCtx, 5*time.Minute)
+	lifecycle.Say(lifecycle.Step, map[string]any{"step": "sidecar", "timeout_s": 300})
 	if err := sttSidecar.Start(sidecarCtx); err != nil {
 		sidecarCancel()
+		lifecycle.Failed("sidecar", err)
 		fatalLog := log.WithOptions(zap.AddStacktrace(zapcore.PanicLevel))
 		fatalLog.Fatal("Local transcription sidecar unavailable", logger.Error(err))
 	}
@@ -154,7 +162,9 @@ func openStorage(cfg *config.Config, configPath string, log *logger.Logger) (*co
 
 	// Ensure the directory exists
 	dbDir := cfg.Storage.SQLiteBasePath
+	lifecycle.Say(lifecycle.Step, map[string]any{"step": "storage"})
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
+		lifecycle.Failed("storage", err)
 		log.Error("Failed to create database directory", logger.Error(err), logger.String("path", dbDir))
 		os.Exit(1)
 	}
@@ -184,6 +194,7 @@ func openStorage(cfg *config.Config, configPath string, log *logger.Logger) (*co
 		log,
 	)
 	if err != nil {
+		lifecycle.Failed("storage", err)
 		log.Error("Failed to create SQLite storage", logger.Error(err))
 		os.Exit(1)
 	}
@@ -313,6 +324,7 @@ func startWeather(cfg *config.Config, effectiveAirport string, refAirport *refer
 
 	// Start weather service
 	if err := weatherService.Start(); err != nil {
+		lifecycle.Failed("weather", err)
 		log.Error("Failed to start weather service", logger.Error(err))
 		os.Exit(1)
 	}
@@ -379,6 +391,7 @@ func startFrequencies(ctx context.Context, cfg *config.Config, adsbService *adsb
 
 	// Start frequencies service
 	if err := frequenciesService.Start(ctx); err != nil {
+		lifecycle.Failed("frequencies", err)
 		log.Error("Failed to start frequencies service", logger.Error(err))
 		os.Exit(1)
 	}

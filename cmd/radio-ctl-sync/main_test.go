@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -252,5 +253,52 @@ func TestTheLinkKeyGoesToCoatcAndNowhereElse(t *testing.T) {
 		if r.Header.Get("Authorization") != "" {
 			t.Errorf("no key, yet %s %s carries one", r.Method, r.URL.Path)
 		}
+	}
+}
+
+// The report lists what is on the air, a channel without a stream said so. A
+// co-atc from before that refuses the field: it is told the rest without it,
+// at once and from then on.
+func TestTheReportListsTheChannelsAndAnOlderCoatcGetsItWithout(t *testing.T) {
+	st, _ := parsed(t)
+	rep := report(st)
+	if len(rep.Channels) != 4 {
+		t.Fatalf("channels: %+v", rep.Channels)
+	}
+	if c := rep.Channels[0]; c.ID != "132275" || c.Designation != "132.275" || c.MHz != 132.275 || !c.Stream {
+		t.Errorf("first: %+v", c)
+	}
+	if rep.Channels[3].Stream {
+		t.Errorf("121500 has no stream: %+v", rep.Channels[3])
+	}
+
+	station, _ := fakeStation(t, stateJSON)
+	co := &fakeCoatc{refuse: func(r *http.Request, body string) (int, string) {
+		if r.URL.Path == "/api/v1/receiver" && strings.Contains(body, `"channels"`) {
+			return http.StatusBadRequest, `invalid report: json: unknown field "channels"`
+		}
+		return 0, ""
+	}}
+	srv := httptest.NewServer(co)
+	t.Cleanup(srv.Close)
+	s := newSyncer(station.URL, srv.URL)
+	for i := 0; i < 2; i++ {
+		if err := s.once(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var reports []string
+	for i, r := range co.requests {
+		if r.URL.Path == "/api/v1/receiver" {
+			reports = append(reports, co.bodies[i])
+		}
+	}
+	// Refused with the channels, sent again without; then without at once.
+	if len(reports) != 3 || !strings.Contains(reports[0], `"channels"`) ||
+		strings.Contains(reports[1], `"channels"`) || strings.Contains(reports[2], `"channels"`) {
+		t.Errorf("reports: %q", reports)
+	}
+	if s.lastReportErr != "" {
+		t.Errorf("the report was said to fail: %s", s.lastReportErr)
 	}
 }

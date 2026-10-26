@@ -150,6 +150,7 @@ func New(config Config) (*Logger, error) {
 			return nil, err
 		}
 		sink = zapcore.NewMultiWriteSyncer(sink, zapcore.AddSync(rot))
+		currentFile.Store(rot)
 	}
 
 	// Create core
@@ -230,4 +231,18 @@ func SetLevel(name string) error {
 	}
 	l.SetLevel(parsed)
 	return nil
+}
+
+// The file the server's log is written to, for the launcher's health
+// (docs-fr/36): the launcher rebuilt its name from the configuration and the
+// date, and missed a file cut by size. The last logger built with a file.
+var currentFile atomic.Pointer[rotatingFile]
+
+// File is the log file being written now -- the day's, or its next part once
+// it outgrew its ceiling -- or "" when the log goes to stdout alone.
+func File() string {
+	if r := currentFile.Load(); r != nil {
+		return r.current()
+	}
+	return ""
 }

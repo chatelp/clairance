@@ -115,9 +115,11 @@ l'antenne**, relayé par la liaison depuis `/radio/etat` ; une liaison qui ne ra
 ## 7. Les compagnons : `companions[]`
 
 Un objet par compagnon : `role` (`sidecar`, `station_link`, `keep_awake`), `managed` (co-atc l'a lancé et le
-surveille ; faux pour un sidecar lancé par quelqu'un d'autre), `pid`, `state` (`running`, `restarting`, `stopped`,
-`failed` : le sidecar mort cinq fois en dix minutes n'est plus relancé), `started_at`, `restarts`, `last_exit`,
-`last_output` (sa dernière ligne, pour la cause), `command`, `kind` (sidecar : `model` ou `fake`, d'après ce qu'il
+surveille ; faux pour un sidecar lancé par quelqu'un d'autre, listé seulement quand il répond), `pid` (pour le
+sidecar, celui qu'il déclare : le processus Python), `state` (`running`, `restarting`, `stopped`, `failed` : le
+sidecar mort cinq fois en dix minutes n'est plus relancé), `started_at`, `restarts`, `last_exit`, `last_output` (sa
+dernière ligne, pour la cause), `next_start_at` (pendant le délai avant une relance), `command` (la clé de la
+liaison n'y est jamais : elle passe par l'environnement), `kind` (sidecar : `model` ou `fake`, d'après ce qu'il
 déclare), `mode` (liaison : `continuous`), `memory_bytes`. Une liaison qui meurt est relancée après 1 s, puis un
 délai qui double tant qu'elle meurt en moins d'une minute, jusqu'à 2 min.
 

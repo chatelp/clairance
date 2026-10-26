@@ -17,6 +17,7 @@ audio_replay = "owner"                      # who listens to the streams and the
 # static_dir = "www"                        # the page; a snapshot copy for an instance that must not see edits
 # tls_cert and tls_key serve HTTPS with no proxy at all; leave them out behind one.
 # keep_awake = true                         # macOS: the Mac does not sleep while the server runs (caffeinate)
+# instance = "production"                   # this server's name for the launcher (docs-fr/36-contrat-lanceur.md)
 
 [auth]
 enabled = false                             # off on purpose: nobody cloning this may be locked out of their own receiver

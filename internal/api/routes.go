@@ -13,6 +13,7 @@ import (
 	"github.com/yegors/co-atc/internal/auth"
 	"github.com/yegors/co-atc/internal/config"
 	"github.com/yegors/co-atc/internal/frequencies"
+	"github.com/yegors/co-atc/internal/lifecycle"
 	"github.com/yegors/co-atc/internal/reference"
 	"github.com/yegors/co-atc/internal/storage/sqlite"
 	"github.com/yegors/co-atc/internal/weather"
@@ -56,6 +57,7 @@ func newOrigins(cfg *config.Config, log *logger.Logger) *auth.Origins {
 	ports := append([]int{cfg.Server.Port}, cfg.Server.AdditionalPorts...)
 	o, err := auth.NewOrigins(cfg.Server.Host, ports, cfg.Server.AllowedOrigins)
 	if err != nil {
+		lifecycle.Failed("origins", err)
 		log.Error(fmt.Sprintf("Failed to build the allowed origins: %v", err))
 		os.Exit(1)
 	}
