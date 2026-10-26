@@ -130,6 +130,8 @@ command = []                                # empty: a sidecar you run yourself 
 # (1-2 GB a day on two frequencies), which the page then lets you listen to again, line by line.
 # Details in sidecar/README.md and docs-fr/05-decisions.md.
 # command = ["python3", "sidecar/whisper_server.py", "--preload", "--second-opinion"]
+# Linux (faster-whisper, NVIDIA GPU or processor), with CTranslate2 models (sidecar/README.md):
+# command = ["python3", "sidecar/whisper_server.py", "--model-en", "models/whisper-large-v3-atco2-asr-ct2", "--preload"]
 # audio_archive_dir = ""                    # where those clips are; empty: the --save-audio of command
 #
 # Cutting the stream into transmissions: 600 ms of silence ends one, under 400 ms is dropped,
