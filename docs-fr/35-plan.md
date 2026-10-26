@@ -5,6 +5,12 @@ principale (« Clairance - Main Orchestrator ») ; mis à jour à chaque étape 
 questions qu'il cite sont dans `05-decisions.md` ; la vue d'ensemble et les sessions, dans `33-pilotage.md` ;
 le journal au jour le jour, dans la section « État » de `32-audit-produit.md`.*
 
+*Son tableau d'avancement, en blocs logiques : `35-plan-tableau.html`, publié en artefact privé
+(https://claude.ai/artifact/ApUt47do2VUPU9gEcapDYa). **Règle du propriétaire (26/10), pour toute la suite du
+projet** : le tableau reste synchrone avec ce document, `05-decisions.md` et `33-pilotage.md` ; à chaque étape
+franchie ou décision prise, les fichiers `.md` et le tableau sont mis à jour dans le même geste, et le tableau est
+republié à la même adresse.*
+
 ## Ce qui a motivé ce plan
 
 La journée du 26/10 a fait voir, en deux heures, où Clairance tient mal :

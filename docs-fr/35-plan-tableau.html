@@ -1,0 +1,306 @@
+<title>Plan de Clairance</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a control-room board — a status strip, then one panel per block, steps as rows with a state chip; dark first, like Clairance itself. */
+:root {
+  --bg: #0b0d0c;
+  --panel: #151917;
+  --raised: #1d2320;
+  --line: #2a312d;
+  --fg: #e3e6e4;
+  --muted: #a3aba6;
+  --faint: #7d8681;
+  --accent: #4caf50;
+  --accent-soft: #163020;
+  --done: #4caf50;
+  --doing: #4c9ce8;
+  --doing-soft: #12233a;
+  --todo: #8a938e;
+  --wait: #ec8b34;
+  --wait-soft: #2e2410;
+  --later: #6b736e;
+  --font-text: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f3f5f3; --panel: #ffffff; --raised: #eef1ef; --line: #d6dcd8;
+    --fg: #17201b; --muted: #4c5751; --faint: #6c7770;
+    --accent: #2e7d32; --accent-soft: #dcefdc;
+    --done: #2e7d32; --doing: #1f63b0; --doing-soft: #dde9f7;
+    --todo: #6c7770; --wait: #b25e12; --wait-soft: #f6e7d6; --later: #8a938e;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f3f5f3; --panel: #ffffff; --raised: #eef1ef; --line: #d6dcd8;
+  --fg: #17201b; --muted: #4c5751; --faint: #6c7770;
+  --accent: #2e7d32; --accent-soft: #dcefdc;
+  --done: #2e7d32; --doing: #1f63b0; --doing-soft: #dde9f7;
+  --todo: #6c7770; --wait: #b25e12; --wait-soft: #f6e7d6; --later: #8a938e;
+  color-scheme: light;
+}
+
+body { background: var(--bg); color: var(--fg); font: 14px/1.5 var(--font-text); }
+.wrap {
+  max-width: 1180px; margin: 0 auto;
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 28px;
+}
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+header { display: grid; gap: 6px; }
+.eyebrow { font: 600 11px/1.3 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+h1 { font-size: 26px; line-height: 1.2; font-weight: 650; }
+.lede { color: var(--muted); max-width: 72ch; margin: 0; }
+
+/* the strip: what runs now, and the legend */
+.strip { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; }
+.live { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--done); box-shadow: 0 0 0 4px var(--accent-soft); flex: none; }
+.live small { font: 12px var(--font-mono); color: var(--muted); font-weight: 400; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+
+.chip { display: inline-flex; align-items: center; gap: 6px; font: 600 11px/1 var(--font-mono);
+  letter-spacing: .04em; padding: 4px 8px; border-radius: 999px; white-space: nowrap; border: 1px solid transparent; }
+.chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.s-done  { color: var(--done);  background: var(--accent-soft); }
+.s-doing { color: var(--doing); background: var(--doing-soft); }
+.s-todo  { color: var(--todo);  border-color: var(--line); }
+.s-wait  { color: var(--wait);  background: var(--wait-soft); }
+.s-later { color: var(--later); border-color: var(--line); border-style: dashed; }
+
+/* the board */
+.board { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+.block { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; display: grid; align-content: start; min-width: 0; }
+.block.focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.bhead { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; padding: 14px 16px 12px; border-bottom: 1px solid var(--line); }
+.letter { grid-row: span 2; font: 700 22px/1 var(--font-mono); color: var(--accent);
+  width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; background: var(--accent-soft); }
+.bhead h2 { font-size: 15px; line-height: 1.3; font-weight: 650; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font: 12px var(--font-mono); color: var(--faint); }
+.bar { height: 4px; width: 90px; background: var(--raised); border-radius: 2px; overflow: hidden; display: inline-block; }
+.bar i { display: block; height: 100%; background: var(--done); }
+.goal { padding: 10px 16px 0; color: var(--muted); font-size: 13px; }
+ul.steps { list-style: none; margin: 0; padding: 8px 8px 12px; display: grid; gap: 2px; }
+.steps li { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: start; padding: 7px 8px; border-radius: 6px; min-width: 0; }
+.steps li:hover { background: var(--raised); }
+.code { font: 600 12px/1.6 var(--font-mono); color: var(--faint); font-variant-numeric: tabular-nums; }
+.what { min-width: 0; }
+.what b { font-weight: 600; }
+.what small { display: block; color: var(--faint); font-size: 12px; margin-top: 1px; }
+.exit { margin: 0 16px 14px; padding: 9px 12px; border-left: 2px solid var(--accent); background: var(--raised);
+  border-radius: 0 6px 6px 0; font-size: 12.5px; color: var(--muted); }
+.exit b { color: var(--fg); font-weight: 600; }
+
+/* lower band: timeline, decisions, owner */
+.lower { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.card h3 { font-size: 14px; font-weight: 650; }
+.timeline { display: grid; gap: 10px; }
+.period { display: grid; grid-template-columns: 112px 1fr; gap: 12px; }
+.period .when { font: 600 12px/1.5 var(--font-mono); color: var(--accent); font-variant-numeric: tabular-nums; }
+.period p { margin: 0; color: var(--muted); font-size: 13px; }
+ul.plain { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--muted); font-size: 13px; }
+ul.plain b { color: var(--fg); font-weight: 600; }
+.deps { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.deps div { display: grid; grid-template-columns: 70px 1fr; gap: 10px; }
+.deps .arrow { font: 600 12px/1.6 var(--font-mono); color: var(--wait); }
+footer { color: var(--faint); font: 12px var(--font-mono); }
+
+@media (max-width: 520px) {
+  .legend { margin-left: 0; }
+  .steps li { grid-template-columns: 30px 1fr; }
+  .steps li .chip { grid-column: 2; justify-self: start; }
+  .period { grid-template-columns: 1fr; gap: 2px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dot { animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 7px transparent; } }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Clairance · plan des étapes à venir · docs-fr/35-plan.md</span>
+    <h1>Où en est le plan, bloc par bloc</h1>
+    <p class="lede">Ce qui a été acté le 26/10 avec le propriétaire, et l'avancement de chaque étape. La production passe toujours en premier : une étape qui révèle un problème de production passe devant les autres.</p>
+  </header>
+
+  <div class="strip" role="status">
+    <div class="live"><span class="dot" aria-hidden="true"></span>Production en marche
+      <small>depuis 26/10 10:58 · ADS-B · 2 fréquences · transcrit</small></div>
+    <div class="legend" aria-label="Légende">
+      <span class="chip s-done">fait</span>
+      <span class="chip s-doing">en cours</span>
+      <span class="chip s-todo">à faire</span>
+      <span class="chip s-wait">attend</span>
+      <span class="chip s-later">plus tard</span>
+    </div>
+  </div>
+
+  <section class="board" aria-label="Les blocs du plan">
+
+    <article class="block focus">
+      <div class="bhead">
+        <span class="letter">A</span>
+        <h2>Une production fiable</h2>
+        <div class="meta"><span>maintenant</span><span class="bar"><i style="width:33%"></i></span><span>2 / 6</span></div>
+      </div>
+      <p class="goal">Qu'elle tourne, entende et transcrive, et que le lanceur dise vrai.</p>
+      <ul class="steps">
+        <li><span class="code">A1</span><span class="what"><b>Plus de faux « did not start »</b><small>un co-atc trop ancien signalé, le commit du binaire dans le journal</small></span><span class="chip s-done">fait</span></li>
+        <li><span class="code">A2</span><span class="what"><b>Aucune installation sous un porteur vivant</b><small>build.sh refuse ; cause de la surdité de 10:49</small></span><span class="chip s-done">fait</span></li>
+        <li><span class="code">A3</span><span class="what"><b>Un porteur qui tourne depuis sa propre copie de l'application</b><small>une mise à jour du lanceur ne touchera plus la production</small></span><span class="chip s-todo">à faire</span></li>
+        <li><span class="code">A4</span><span class="what"><b>Une journée sans fausse alerte</b><small>ouverte à la relance de 10:58</small></span><span class="chip s-doing">en cours</span></li>
+        <li><span class="code">A5</span><span class="what"><b>Une journée de mesures</b><small>piste et sortie probables, mémoire du sidecar, sauts des avions</small></span><span class="chip s-doing">en cours</span></li>
+        <li><span class="code">A6</span><span class="what"><b>Le commit écrit par le script</b><small>laissé tel quel jusqu'à B3 ; la ligne du lanceur fait foi</small></span><span class="chip s-later">laissé</span></li>
+      </ul>
+      <p class="exit"><b>Sortie</b> · 24 h sans surdité ni fausse alerte ; une coupure signalée en moins de 2 min.</p>
+    </article>
+
+    <article class="block focus">
+      <div class="bhead">
+        <span class="letter">B</span>
+        <h2>Un serveur auto-contenu</h2>
+        <div class="meta"><span>Q60 · fondation</span><span class="bar"><i style="width:0%"></i></span><span>0 / 5</span></div>
+      </div>
+      <p class="goal">Clairance ne dépend plus de ce qui est installé à côté, ni d'un script hors du dépôt.</p>
+      <ul class="steps">
+        <li><span class="code">B1</span><span class="what"><b>Mesurer le décodage audio en Go</b><small>face à ffmpeg, sur les mêmes flux réels ; 5 min de chaque fréquence enregistrées</small></span><span class="chip s-doing">en cours</span></li>
+        <li><span class="code">B2</span><span class="what"><b>La page dans le binaire</b><small>plus de page figée ni de copie</small></span><span class="chip s-todo">à faire</span></li>
+        <li><span class="code">B3</span><span class="what"><b>Clairance lance lui-même ses compagnons</b><small>liaison avec la station, empêchement de veille ; le script disparaît (décidé)</small></span><span class="chip s-todo">à faire</span></li>
+        <li><span class="code">B4</span><span class="what"><b>Le sidecar dans son propre environnement</b><small>plus d'emprunt au dépôt du labo ; modèles téléchargés au premier lancement</small></span><span class="chip s-todo">à faire</span></li>
+        <li><span class="code">B5</span><span class="what"><b>Un bilan au démarrage</b><small>ce qui manque, et ce qui en souffre</small></span><span class="chip s-todo">à faire</span></li>
+      </ul>
+      <p class="exit"><b>Sortie</b> · la production tourne avec le minimum de macOS, sans le labo ni le script, et dit ce qui lui manque.</p>
+    </article>
+
+    <article class="block focus">
+      <div class="bhead">
+        <span class="letter">D</span>
+        <h2>L'accès à distance d'un proche</h2>
+        <div class="meta"><span>Q62 · en parallèle de B1</span><span class="bar"><i style="width:17%"></i></span><span>1 / 6</span></div>
+      </div>
+      <p class="goal">Un ami écoute ta production de chez lui, audio compris, par Internet derrière ton Traefik. Un usage des tests, pas une fonctionnalité. Rien n'est ouvert avant D3.</p>
+      <ul class="steps">
+        <li><span class="code">D1</span><span class="what"><b>Le passage par Traefik</b><small>route HTTPS vers le Mac, adresse fixe du Mac, Traefik déclaré dans Clairance</small></span><span class="chip s-todo">à faire</span></li>
+        <li><span class="code">D2</span><span class="what"><b>L'audio par la même adresse que la page</b><small>les ports 8001 à 8004 étaient injoignables de l'extérieur</small></span><span class="chip s-done">fait</span></li>
+        <li><span class="code">D3</span><span class="what"><b>Le durcissement de ce qui devient public</b><small>chaque route sans connexion, limite des essais, ce que voit un compte « viewer »</small></span><span class="chip s-doing">en cours</span></li>
+        <li><span class="code">D4</span><span class="what"><b>Son compte et la trace</b><small>compte à son nom, audio ouvert, journal des connexions, comment couper</small></span><span class="chip s-todo">à faire</span></li>
+        <li><span class="code">D5</span><span class="what"><b>La fiabilité vue de chez lui</b><small>chaque relance le déconnecte ; machine Traefik sur l'onduleur qui saute</small></span><span class="chip s-todo">à faire</span></li>
+        <li><span class="code">D6</span><span class="what"><b>Le lanceur chez lui</b><small>après le contrat C ; signature Apple</small></span><span class="chip s-later">plus tard</span></li>
+      </ul>
+      <p class="exit"><b>Sortie</b> · une semaine d'usage par l'ami, aucun accès inattendu, une relance qui ne le laisse pas sans explication.</p>
+    </article>
+
+    <article class="block">
+      <div class="bhead">
+        <span class="letter">C</span>
+        <h2>Le contrat entre le lanceur et le serveur</h2>
+        <div class="meta"><span>Q61 · après B3</span><span class="bar"><i style="width:20%"></i></span><span>1 / 5</span></div>
+      </div>
+      <p class="goal">Le lanceur démarre un programme et lit son API ; il ne lit plus aucun fichier du serveur.</p>
+      <ul class="steps">
+        <li><span class="code">C1</span><span class="what"><b>Écrire le contrat</b><small>démarrer, arrêter, prêt, santé, description du processus, jetons et rôles</small></span><span class="chip s-todo">à faire</span></li>
+        <li><span class="code">C2</span><span class="what"><b>Le serveur l'expose, un test le garde</b></span><span class="chip s-todo">à faire</span></li>
+        <li><span class="code">C3</span><span class="what"><b>Le lanceur cesse de lire les fichiers</b><small>configuration, journaux, git, noms de processus</small></span><span class="chip s-wait">attend B3, C1</span></li>
+        <li><span class="code">C4</span><span class="what"><b>Où vit le lanceur</b><small>dans ce dépôt, rangé à part</small></span><span class="chip s-done">décidé</span></li>
+        <li><span class="code">C5</span><span class="what"><b>Tableau de bord et poste de commande</b><small>les étapes 2 et 3 du lanceur, avec le design</small></span><span class="chip s-wait">attend C</span></li>
+      </ul>
+      <p class="exit"><b>Sortie</b> · le lanceur pilote un Clairance installé n'importe où.</p>
+    </article>
+
+    <article class="block">
+      <div class="bhead">
+        <span class="letter">E</span>
+        <h2>Installable ailleurs</h2>
+        <div class="meta"><span>après B</span><span class="bar"><i style="width:0%"></i></span><span>0 / 4</span></div>
+      </div>
+      <p class="goal">Quelqu'un d'autre installe Clairance seul, avec le guide.</p>
+      <ul class="steps">
+        <li><span class="code">E1</span><span class="what"><b>Le sidecar sur Linux avec NVIDIA</b><small>candidat au crédit cloud</small></span><span class="chip s-todo">à faire</span></li>
+        <li><span class="code">E2</span><span class="what"><b>L'avertissement légal</b></span><span class="chip s-todo">à faire</span></li>
+        <li><span class="code">E3</span><span class="what"><b>Le guide d'installation, en anglais et en français</b></span><span class="chip s-wait">attend B</span></li>
+        <li><span class="code">E4</span><span class="what"><b>Le test sur une machine vierge</b></span><span class="chip s-wait">attend E1–E3</span></li>
+      </ul>
+      <p class="exit"><b>Sortie</b> · moins d'une heure, par quelqu'un qui n'a pas écrit le code ; appariement inchangé (95 %).</p>
+    </article>
+
+    <article class="block">
+      <div class="bhead">
+        <span class="letter">G</span>
+        <h2>Le crédit cloud</h2>
+        <div class="meta"><span>94 $ · jusqu'au 5/11</span><span class="bar"><i style="width:0%"></i></span><span>0 / 3</span></div>
+      </div>
+      <p class="goal">Ce qui se vérifie sans la station et sans audio réel, en fiches relues sur le Mac.</p>
+      <ul class="steps">
+        <li><span class="code">G1</span><span class="what"><b>Le portage Linux du sidecar</b><small>= E1, à lancer tôt</small></span><span class="chip s-todo">à rédiger</span></li>
+        <li><span class="code">G2</span><span class="what"><b>Les tests du contrat</b><small>= C2, une fois C1 écrit</small></span><span class="chip s-wait">attend C1</span></li>
+        <li><span class="code">G3</span><span class="what"><b>La relecture du rôle « viewer »</b><small>= une partie de D3</small></span><span class="chip s-todo">à rédiger</span></li>
+      </ul>
+      <p class="exit"><b>Règle</b> · jamais l'audio ni les bases dans le cloud.</p>
+    </article>
+
+    <article class="block">
+      <div class="bhead">
+        <span class="letter">F</span>
+        <h2>Le produit, ensuite</h2>
+        <div class="meta"><span>après E</span></div>
+      </div>
+      <ul class="steps">
+        <li><span class="code">F</span><span class="what"><b>L'interface en anglais et en français</b></span><span class="chip s-later">plus tard</span></li>
+        <li><span class="code">F</span><span class="what"><b>Rapprocher une instruction et la réponse du pilote</b><small>pour la lecture, jamais un jugement</small></span><span class="chip s-later">plus tard</span></li>
+        <li><span class="code">F</span><span class="what"><b>Une source ADS-B externe en renfort</b><small>Q51</small></span><span class="chip s-later">plus tard</span></li>
+        <li><span class="code">F</span><span class="what"><b>Le corpus simulé, le premier pas public</b></span><span class="chip s-later">plus tard</span></li>
+      </ul>
+    </article>
+
+  </section>
+
+  <section class="lower">
+    <div class="card">
+      <h3>L'enchaînement</h3>
+      <div class="timeline">
+        <div class="period"><span class="when">26/10 → 1/11</span><p>Finir A ; en parallèle B1 et D1 à D4, pour que l'ami commence ; lancer les fiches cloud G1 puis G3.</p></div>
+        <div class="period"><span class="when">2/11 → 8/11</span><p>B2 à B5 ; C1 et C2 ; D5 sur une semaine d'usage réel.</p></div>
+        <div class="period"><span class="when">ensuite</span><p>C3 à C5, puis E, puis F.</p></div>
+      </div>
+      <div class="deps" aria-label="Dépendances">
+        <div><span class="arrow">B3 → C3</span><span>le lanceur ne démarre qu'un programme si Clairance lance ses compagnons</span></div>
+        <div><span class="arrow">C → D6</span><span>le lanceur chez l'ami attend le contrat</span></div>
+        <div><span class="arrow">D3 → ouvrir</span><span>rien n'est public avant la relecture</span></div>
+        <div><span class="arrow">B → E3</span><span>le guide décrit ce que B construit</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Acté le 26/10</h3>
+      <ul class="plain">
+        <li><b>L'ordre des chantiers</b> : A, puis B et C ; D en parallèle ; E et F ensuite.</li>
+        <li><b>ffmpeg</b> : mesurer d'abord le décodage en Go.</li>
+        <li><b>Clairance lance lui-même ses compagnons</b> ; le script de production disparaît.</li>
+        <li><b>Le lanceur reste dans ce dépôt</b>, rangé à part, relié au serveur par un contrat.</li>
+        <li><b>L'ami</b> : audio compris, par Internet derrière Traefik, le temps des tests.</li>
+        <li><b>B1 et D en parallèle.</b></li>
+        <li><b>La production portée à part du menu</b> (Q59, 24/10).</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>Ce qui revient au propriétaire</h3>
+      <ul class="plain">
+        <li>Autoriser chaque relance de la production.</li>
+        <li>La route Traefik vers le Mac, et l'adresse fixe du Mac (D1).</li>
+        <li>Le mot de passe du compte de l'ami (D4).</li>
+        <li>Le compte développeur Apple, le jour de D6.</li>
+        <li>La purge des anciens objets chez GitHub, la description courte du dépôt.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>Mis à jour le 26/10/2026 à 11 h 15 · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
+</div>
