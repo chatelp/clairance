@@ -96,7 +96,8 @@ camp meilleur que l'autre. Rapports : `runs/b1-decodage/{heure,controle-a,contro
 Go devient le seul ; les sources SRT et carte son sont retirées (configuration, exemple, documentation, tests) ; le PCM
 brut par UDP est réécrit en Go (lecture réseau et rééchantillonneur existant), sauf avis contraire du propriétaire ;
 `-fflags nobuffer`, `ffmpeg_path` et les réglages propres à ffmpeg disparaissent ; la recherche d'outils (`pkg/tool`)
-ne sert plus qu'à pdftotext. Si N5 échoue, rien de cela n'est fait.
+ne sert plus qu'à pdftotext. Si N5 échoue, rien de cela n'est fait. **Et, décidé le 26/10, la production passe de
+24 à 16 kHz** (la fréquence de Whisper), appliqué juste après N5 pour ne pas mêler deux changements dans l'essai.
 
 **Décidé le 26/10** : B3, co-atc lance lui-même ses compagnons (le propriétaire, « oui, Clairance fait tout »).
 

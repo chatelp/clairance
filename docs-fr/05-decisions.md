@@ -5373,6 +5373,11 @@ perturbation. **N5 lancé le 26/10 à 13:09:51** : 24 h de production en Go, jug
 ffmpeg ; les sources SRT et carte son sont retirées. Le PCM brut par UDP (GQRX, SDR++, rtl_fm), qui ne demande
 aucun décodage, est réécrit en Go, sauf avis contraire du propriétaire. Si N5 échoue, rien de cela n'est fait.
 
+**Décidé par le propriétaire le 26/10 : la production passe de 24 à 16 kHz**, la fréquence de Whisper (le 24 kHz
+venait de l'API d'OpenAI de l'amont ; l'audio de la station est à 8 kHz). Appliqué **après N5**, pour ne pas mêler deux
+changements dans le même essai : `transcription.ffmpeg_sample_rate` à 16000 dans la configuration, et la valeur par
+défaut du code (`defaults.go`, `local.go`) avec, au moment où ffmpeg est retiré.
+
 **Restaient à trancher avant cela** : (1) décoder le MP3 en Go avec goxiph, intégré au dépôt à un commit figé
 (sa licence le permet), ffmpeg ne restant qu'en option pour les autres entrées (carte son, autres formats) ; ou
 embarquer un ffmpeg ; (2) retirer `-fflags nobuffer` dès maintenant ; (3) passer la production de 24 à 16 kHz,
