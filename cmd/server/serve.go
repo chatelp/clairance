@@ -9,6 +9,7 @@ import (
 
 	"github.com/yegors/co-atc/internal/adsb"
 	"github.com/yegors/co-atc/internal/api"
+	"github.com/yegors/co-atc/internal/companion"
 	"github.com/yegors/co-atc/internal/config"
 	"github.com/yegors/co-atc/internal/frequencies"
 	"github.com/yegors/co-atc/internal/transcription"
@@ -100,9 +101,13 @@ func httpServer(cfg *config.Config, addr string, handler http.Handler) *http.Ser
 }
 
 // shutdown stops the background services, then the HTTP servers, in that
-// order. cancel is the context the services were started with.
-func shutdown(log *logger.Logger, weatherService *weather.Service, frequenciesService *frequencies.Service, sttSidecar *transcription.Sidecar, adsbService *adsb.Service, cancel context.CancelFunc, servers []*http.Server) {
+// order. cancel is the context the services were started with. The station
+// link goes first, so that it does not set sources on a server going away;
+// the keep-awake assertion last, so that the Mac does not sleep mid-way.
+func shutdown(log *logger.Logger, stationLink *companion.Process, weatherService *weather.Service, frequenciesService *frequencies.Service, sttSidecar *transcription.Sidecar, adsbService *adsb.Service, cancel context.CancelFunc, servers []*http.Server, keepAwake *companion.Process) {
 	log.Info("Shutting down server...")
+
+	stationLink.Stop()
 
 	// Stop background services first
 	log.Info("Stopping weather service...")
@@ -147,6 +152,8 @@ func shutdown(log *logger.Logger, weatherService *weather.Service, frequenciesSe
 	wg.Wait() // Wait for all server shutdowns to complete
 
 	log.Info("All HTTP servers shutdown.")
+
+	keepAwake.Stop()
 
 	log.Info("Server fully stopped")
 }

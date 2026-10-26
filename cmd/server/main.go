@@ -116,6 +116,12 @@ func main() {
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer stopSignals()
 
+	// The companions that are not the sidecar (companions.go): the Mac kept
+	// awake from the start, and the station link's program found before
+	// anything is started, so that a missing one is said at once.
+	keepAwake := startKeepAwake(signalCtx, cfg, log)
+	linkProgram := stationLinkProgram(cfg, log)
+
 	// Create ADS-B components
 	adsbClient := buildADSBClient(cfg, log)
 
@@ -159,6 +165,12 @@ func main() {
 	frequenciesService := startFrequencies(ctx, cfg, adsbService, refService, runtimeSettings, wsServer, store, sttSidecar, log)
 
 	router := buildRouter(cfg, adsbService, frequenciesService, weatherService, refService, wsServer, store, runtimeSettings, sttSidecar, log)
+	// The station link's key, opened before the server answers anyone.
+	linkToken := ""
+	if linkProgram != "" {
+		linkToken = newLinkToken()
+		router.Handler().SetLinkToken(linkToken)
+	}
 
 	// The list of official names around the station (internal/aip, Q55), made
 	// from the settings page, kept beside the databases with the pages it was
@@ -176,11 +188,13 @@ func main() {
 
 	servers := serve(cfg, router, log)
 
+	stationLink := startStationLink(signalCtx, cfg, linkProgram, linkToken, log)
+
 	// Wait for one of the signals armed at startup. A signal that arrived while
 	// the services were still coming up is already recorded here.
 	<-signalCtx.Done()
 
-	shutdown(log, weatherService, frequenciesService, sttSidecar, adsbService, cancel, servers)
+	shutdown(log, stationLink, weatherService, frequenciesService, sttSidecar, adsbService, cancel, servers, keepAwake)
 }
 
 // startPlaceNamer builds the namer of the procedures heard, from the list

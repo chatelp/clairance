@@ -114,7 +114,9 @@ func (r *Router) Routes() http.Handler {
 		// its own, which is what lets its middleware be declared after the public
 		// routes above -- chi refuses a Use() that follows a route on the same mux.
 		router.Group(func(router chi.Router) {
-			router.Use(r.handler.Auth().Require)
+			// A session, or the key of the station link co-atc started, on the
+			// link's routes alone; see link_token.go.
+			router.Use(r.handler.RequireSignIn)
 			// A viewer account reads, and is not given the audio; see
 			// auth_handlers.go.
 			router.Use(r.handler.ViewerGuard)

@@ -40,6 +40,8 @@ type Handler struct {
 
 	// Who is asking. See internal/auth and auth_handlers.go.
 	auth *auth.Service
+	// The key of the station link co-atc started; see link_token.go.
+	linkToken string
 
 	// Operational state for the settings panel. See server_handlers.go.
 	runtime       *config.Runtime

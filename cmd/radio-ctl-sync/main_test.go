@@ -2,8 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
+	"sync"
 	"testing"
+	"time"
 )
 
 // Trimmed from the station's /radio/etat and /radio/frequences, 25/09/2026.
@@ -149,6 +154,103 @@ func TestTheStationModesMapOntoReceiverStates(t *testing.T) {
 		got := report(st)
 		if got.State != want || got.Label != "A l antenne" || got.Title != st.Selection.Title || got.Since != st.Since {
 			t.Errorf("mode %q: %+v, want state %s", mode, got, want)
+		}
+	}
+}
+
+// fakeStation serves /radio/etat and /radio/frequences, and records what
+// reached it.
+func fakeStation(t *testing.T, state string) (*httptest.Server, *[]*http.Request) {
+	t.Helper()
+	var mu sync.Mutex
+	var seen []*http.Request
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		seen = append(seen, r.Clone(r.Context()))
+		mu.Unlock()
+		switch r.URL.Path {
+		case "/radio/etat":
+			io.WriteString(w, state)
+		case "/radio/frequences":
+			io.WriteString(w, catalogueJSON)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return srv, &seen
+}
+
+// fakeCoatc answers the five routes the link calls, and records each request.
+type fakeCoatc struct {
+	mu       sync.Mutex
+	requests []*http.Request
+	bodies   []string
+	refuse   func(r *http.Request, body string) (int, string) // a status and message to answer instead, or 0
+}
+
+func (f *fakeCoatc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	b, _ := io.ReadAll(r.Body)
+	f.mu.Lock()
+	f.requests = append(f.requests, r.Clone(r.Context()))
+	f.bodies = append(f.bodies, string(b))
+	refuse := f.refuse
+	f.mu.Unlock()
+	if refuse != nil {
+		if code, msg := refuse(r, string(b)); code != 0 {
+			http.Error(w, msg, code)
+			return
+		}
+	}
+	if r.Method == "GET" && r.URL.Path == "/api/v1/frequencies" {
+		io.WriteString(w, `{"frequencies":[]}`)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func newSyncer(station, coatc string) *syncer {
+	return &syncer{station: station, streams: "http://audio.lan", coatc: coatc,
+		http: &http.Client{Timeout: 5 * time.Second}, sent: map[string]source{}}
+}
+
+// Started by co-atc, the link carries the key co-atc gave it on every call to
+// co-atc, and never to the station.
+func TestTheLinkKeyGoesToCoatcAndNowhereElse(t *testing.T) {
+	station, seen := fakeStation(t, stateJSON)
+	co := &fakeCoatc{}
+	srv := httptest.NewServer(co)
+	t.Cleanup(srv.Close)
+
+	s := newSyncer(station.URL, srv.URL)
+	s.token = "a-key-made-at-start"
+	if err := s.once(); err != nil {
+		t.Fatal(err)
+	}
+	if len(co.requests) < 4 { // the receiver, the list, three sources
+		t.Fatalf("%d calls to co-atc", len(co.requests))
+	}
+	for _, r := range co.requests {
+		if got := r.Header.Get("Authorization"); got != "Bearer a-key-made-at-start" {
+			t.Errorf("%s %s: Authorization %q", r.Method, r.URL.Path, got)
+		}
+	}
+	for _, r := range *seen {
+		if r.Header.Get("Authorization") != "" {
+			t.Errorf("the key went to the station: %s", r.URL.Path)
+		}
+	}
+
+	// Without a key, as the production script runs it: no header at all.
+	co2 := &fakeCoatc{}
+	srv2 := httptest.NewServer(co2)
+	t.Cleanup(srv2.Close)
+	if err := newSyncer(station.URL, srv2.URL).once(); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range co2.requests {
+		if r.Header.Get("Authorization") != "" {
+			t.Errorf("no key, yet %s %s carries one", r.Method, r.URL.Path)
 		}
 	}
 }

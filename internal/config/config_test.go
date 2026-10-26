@@ -449,3 +449,51 @@ func TestADuplicateKeyHasOneHomeAndTheOldOneIsStillRead(t *testing.T) {
 		t.Errorf("warnings %q, want %q", cfg.Warnings, want)
 	}
 }
+
+// [station_link] is off unless said; on, it needs the station's two addresses
+// and a server the link can reach on the loopback without TLS
+// (docs-fr/36-contrat-lanceur.md).
+func TestTheStationLinkIsOffByDefaultAndCheckedWhenOn(t *testing.T) {
+	atRepoRoot(t)
+	if cfg := loadAndValidate(t, writeConfig(t, minimalConfig)); cfg.StationLink.Enabled || cfg.StationLink.IntervalSeconds != 10 {
+		t.Errorf("by default: %+v", cfg.StationLink)
+	}
+
+	on := withLines(minimalConfig, "station_link", "enabled = true\nstation_url = \"http://station.lan\"\nstreams_url = \"http://audio.lan\"")
+	cfg := loadAndValidate(t, writeConfig(t, on))
+	if l := cfg.StationLink; !l.Enabled || l.StationURL != "http://station.lan" || l.StreamsURL != "http://audio.lan" || l.IntervalSeconds != 10 {
+		t.Errorf("on: %+v", l)
+	}
+	if len(cfg.Warnings) != 0 {
+		t.Errorf("warnings: %q", cfg.Warnings)
+	}
+	for _, host := range []string{"0.0.0.0", "::", "::1", "localhost"} {
+		if err := validated(t, withLines(on, "server", fmt.Sprintf("host = %q", host))); err != nil {
+			t.Errorf("host %s: %v", host, err)
+		}
+	}
+
+	for _, bad := range []struct{ text, want string }{
+		{withLines(minimalConfig, "station_link", "enabled = true\nstreams_url = \"http://audio.lan\""), "station_url"},
+		{withLines(on, "station_link", `interval_seconds = 0`), "interval_seconds"},
+		{withLines(on, "server", `host = "192.0.2.10"`), "loopback"},
+		{withLines(on, "server", "tls_cert = \"c.pem\"\ntls_key = \"k.pem\""), "tls_cert"},
+	} {
+		if err := validated(t, bad.text); err == nil || !strings.Contains(err.Error(), bad.want) {
+			t.Errorf("%q: err = %v, want one naming %s", bad.text, err, bad.want)
+		}
+	}
+	// Off, none of that is asked.
+	if err := validated(t, withLines(minimalConfig, "server", `host = "192.0.2.10"`)); err != nil {
+		t.Errorf("off, on a network address: %v", err)
+	}
+}
+
+func validated(t *testing.T, text string) error {
+	t.Helper()
+	cfg, err := Load(writeConfig(t, text))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cfg.Validate()
+}

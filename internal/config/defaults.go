@@ -140,5 +140,10 @@ func Defaults() Config {
 			MaxRetries:             2,
 			CacheExpiryMinutes:     60,
 		},
+		// Off; when turned on, the station is read as often as the production
+		// script read it.
+		StationLink: StationLinkConfig{
+			IntervalSeconds: 10,
+		},
 	}
 }

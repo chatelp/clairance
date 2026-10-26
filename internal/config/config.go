@@ -36,6 +36,7 @@ type Config struct {
 	FlightPhases   FlightPhasesConfig   `toml:"flight_phases"`   // Flight phase detection settings
 	Weather        WeatherConfig        `toml:"wx"`              // Weather data fetching and caching settings
 	Auth           AuthConfig           `toml:"auth"`            // Who may use this server; see internal/auth
+	StationLink    StationLinkConfig    `toml:"station_link"`    // radio-ctl-sync, run by co-atc; see docs-fr/36-contrat-lanceur.md
 }
 
 // AuthConfig decides who may reach the data.
@@ -99,6 +100,29 @@ type ServerConfig struct {
 	// and the archived clip of each transmission: "owner" (the default), or
 	// "all", viewer accounts included. See internal/auth/role.go.
 	AudioReplay string `toml:"audio_replay"`
+
+	// KeepAwake keeps the Mac from sleeping while the server runs, as the
+	// production script's caffeinate did: co-atc runs `caffeinate -i -w <its
+	// pid>` beside itself. macOS only; elsewhere it is said once and ignored.
+	KeepAwake bool `toml:"keep_awake"`
+}
+
+// StationLinkConfig is the [station_link] section: the link with a radio-ctl
+// station (cmd/radio-ctl-sync), which co-atc starts, keeps running and stops
+// with itself (docs-fr/36-contrat-lanceur.md). Off by default: a server
+// without such a station sees nothing change.
+type StationLinkConfig struct {
+	Enabled bool `toml:"enabled"`
+
+	// Program is radio-ctl-sync; empty looks next to co-atc's own binary, then
+	// on the PATH and where Homebrew installs.
+	Program string `toml:"program"`
+
+	StationURL      string `toml:"station_url"`      // radio-ctl's base URL
+	StationHost     string `toml:"station_host"`     // the Host header radio-ctl expects, if any
+	StreamsURL      string `toml:"streams_url"`      // base URL of the station's Icecast mounts
+	MixID           string `toml:"mix_id"`           // a mixed stream whose label follows the station
+	IntervalSeconds int    `toml:"interval_seconds"` // how often the station is read
 }
 
 // The two answers to server.audio_replay.
@@ -606,6 +630,9 @@ func (c *Config) Validate() error {
 	if (c.Server.TLSCert == "") != (c.Server.TLSKey == "") {
 		return fmt.Errorf("server.tls_cert and server.tls_key must be set together")
 	}
+	if err := c.validateStationLink(); err != nil {
+		return err
+	}
 
 	if c.PostProcessing.Enabled {
 		if c.PostProcessing.AirlinesDatPath == "" {
@@ -740,6 +767,34 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	return nil
+}
+
+// validateStationLink checks [station_link] when it is on. The link talks to
+// this server in plain HTTP on the loopback, with a key that only the
+// loopback may use: a server bound to one network address alone, or serving
+// TLS itself, cannot be reached that way.
+func (c *Config) validateStationLink() error {
+	l := c.StationLink
+	if !l.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(l.StationURL) == "" || strings.TrimSpace(l.StreamsURL) == "" {
+		return fmt.Errorf("station_link.station_url and station_link.streams_url are required when station_link.enabled is true")
+	}
+	if l.IntervalSeconds < 1 {
+		return fmt.Errorf("invalid station_link.interval_seconds: %d (must be >= 1)", l.IntervalSeconds)
+	}
+	switch c.Server.Host {
+	case "", "0.0.0.0", "::", "127.0.0.1", "::1", "localhost":
+	default:
+		return fmt.Errorf("station_link needs the server on the loopback, and server.host %q is not: "+
+			"use 127.0.0.1, or 0.0.0.0 to be reached from the network as well", c.Server.Host)
+	}
+	if c.Server.TLSCert != "" {
+		return fmt.Errorf("station_link talks to this server in plain HTTP on the loopback, which server.tls_cert prevents: " +
+			"leave TLS to a reverse proxy, or run radio-ctl-sync yourself")
+	}
 	return nil
 }
 
