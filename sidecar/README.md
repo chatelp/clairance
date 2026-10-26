@@ -5,7 +5,9 @@ there, never built. The Go side posts raw PCM, gets a transcript back, and no au
 leaves the machine.
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r sidecar/requirements.txt
+python3 -m venv .venv
+.venv/bin/pip install -r sidecar/requirements-mlx.txt    # Apple Silicon (requirements.txt is the same)
+.venv/bin/pip install -r sidecar/requirements-ct2.txt    # Linux: NVIDIA GPU or processor, below
 .venv/bin/python sidecar/whisper_server.py \
     [--engine auto|mlx|faster-whisper [--device auto|cuda|cpu] [--compute-type auto|<type>]] \
     [--model-en <model-or-hf-repo>] \
@@ -52,6 +54,37 @@ What has no equivalent: when every temperature fails, MLX keeps the last decode
 and faster-whisper the most probable one, reported at the last temperature; and
 MLX skips the fallback on a window whose `no_speech_prob` is over 0.6,
 faster-whisper only when its log-probability is also under -1.
+
+### Installing faster-whisper on Linux
+
+```bash
+python3 -m venv .venv                     # Python 3.12 or later
+.venv/bin/pip install -r sidecar/requirements-ct2.txt
+.venv/bin/python sidecar/whisper_server.py --model-en models/whisper-large-v3-atco2-asr-ct2 --preload
+```
+
+As pinned, the venv takes 6.0 GB, 4.4 of them torch and the CUDA 13 libraries
+PyPI's torch brings along, for a voice gate that runs on the processor. A
+processor-only torch, installed first, leaves them out (not tried here: the
+PyTorch index was out of this session's reach):
+
+```bash
+.venv/bin/pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+```
+
+With an NVIDIA GPU, CTranslate2 4.8.4 loads cuBLAS for CUDA 12
+(`libcublas.so.12`), which that torch does not bring. faster-whisper's README asks
+for cuDNN 9 as well; CTranslate2 4.8.4's library names none. Not tried here (no
+GPU):
+
+```bash
+.venv/bin/pip install nvidia-cublas-cu12
+export LD_LIBRARY_PATH=$(.venv/bin/python -c 'import os, nvidia.cublas.lib; print(os.path.dirname(nvidia.cublas.lib.__file__))')
+```
+
+`LD_LIBRARY_PATH` must be set before Python starts: in the environment co-atc is
+started from, when co-atc starts the sidecar. Without it, `--preload` stops the
+sidecar at start with CTranslate2's own message.
 
 ### Models for faster-whisper
 

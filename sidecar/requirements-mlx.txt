@@ -1,0 +1,11 @@
+# Local speech-to-text sidecar for Clairance, MLX engine: Apple Silicon.
+# mlx-whisper is roughly twice as fast as whisper.cpp there and, unlike
+# CTranslate2/faster-whisper, has Metal acceleration.
+# Lower bounds, as before the faster-whisper engine came: the versions the station
+# runs are the ones in its own venv (pip freeze), to pin here once read there.
+fastapi>=0.115
+uvicorn>=0.32
+mlx-whisper>=0.4.3
+silero-vad>=6.0
+numpy>=2.0
+scipy>=1.14
