@@ -87,6 +87,8 @@ __pycache__/
 configs/users.json
 # The sign-in trace kept beside them: who signed in, from which address.
 configs/signins.jsonl*
+# The sessions kept across restarts: hashes of the cookies, never the cookies.
+configs/sessions.json*
 
 # Aeronautical charts (SIA VAC and eAIP charts), kept next to the code for
 # reference. Never published: they are the SIA's, and they expire each cycle.

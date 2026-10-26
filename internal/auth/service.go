@@ -131,6 +131,13 @@ func NewService(cfg Config) (*Service, error) {
 		configEnabled: cfg.Enabled,
 		localAllowed:  cfg.Loopback && len(cfg.TrustedProxies) == 0,
 	}
+	// A session read back is kept only for an account that still exists with
+	// the role it was issued with: removing an account, or making an owner a
+	// viewer, ends its sessions at the next start.
+	s.store.open(besideUserFile(cfg.UserFile, SessionFile), func(user, role string) bool {
+		r, ok := roles[user]
+		return ok && r == role
+	})
 	s.resolve()
 	return s, nil
 }
@@ -198,11 +205,15 @@ func (s *Service) HasAccount(name string) bool {
 
 // tracePath is where the sign-in trace is kept: beside the accounts file,
 // and nowhere -- in memory only -- without one.
-func tracePath(f *UserFile) string {
+func tracePath(f *UserFile) string { return besideUserFile(f, TraceFile) }
+
+// besideUserFile is a file kept next to the accounts, as the sign-in trace and
+// the sessions are; "" -- in memory only -- without an accounts file.
+func besideUserFile(f *UserFile, name string) string {
 	if f == nil || f.Path() == "" {
 		return ""
 	}
-	return filepath.Join(filepath.Dir(f.Path()), TraceFile)
+	return filepath.Join(filepath.Dir(f.Path()), name)
 }
 
 // SignIn checks a password and issues a session.
@@ -230,7 +241,10 @@ func (s *Service) SignIn(r *http.Request, name, password string) (*Session, erro
 	}
 
 	s.limiter.Succeeded(key)
-	return s.store.Create(strings.TrimSpace(name))
+	s.mu.RLock()
+	role := s.roles[strings.TrimSpace(name)]
+	s.mu.RUnlock()
+	return s.store.Create(strings.TrimSpace(name), role)
 }
 
 // RetryAfter is how long the address r comes from waits before its next

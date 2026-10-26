@@ -100,6 +100,15 @@ func NewHandler(adsbService *adsb.Service, frequenciesService *frequencies.Servi
 		logger.Error(fmt.Sprintf("Failed to build authentication: %v", err))
 		os.Exit(1)
 	}
+	// Sessions are kept across restarts (fiche S). A file that cannot be read
+	// costs a sign-in, not the server: it starts with none, and says so.
+	if kept, dropped, err := authService.Sessions().Restored(); err != nil {
+		logger.Warn(fmt.Sprintf("Sessions could not be read back, everyone signs in again; "+
+			"the file is replaced at the next sign-in: %v", err))
+	} else if kept+dropped > 0 {
+		logger.Info(fmt.Sprintf("Sessions read back: %d kept, %d set aside (expired, or their account changed), from %s",
+			kept, dropped, authService.Sessions().Path()))
+	}
 	if authService.LocalRefused() {
 		// Chosen when the server was reachable from this machine only; it no
 		// longer is. The accounts, if any, are in force -- and with none the

@@ -251,6 +251,10 @@ func main() {
 
 	lifecycle.Say(lifecycle.Stopping, nil)
 	shutdown(log, stationLink, weatherService, frequenciesService, sttSidecar, adsbService, cancel, servers, keepAwake)
+	// After the HTTP servers: no request moves an expiry any more.
+	if err := router.Handler().SaveSessions(); err != nil {
+		log.Warn("Sessions could not be written: the last minute of use is lost, the sign-ins are not", logger.Error(err))
+	}
 	lifecycle.Say(lifecycle.Stopped, nil)
 }
 
