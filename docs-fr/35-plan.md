@@ -44,7 +44,7 @@ entre le lanceur et le serveur), avant d'ouvrir l'accès à un proche et de rend
 | A3. Un porteur qui tourne depuis sa propre copie de l'application, que l'installation ne remplace jamais | lanceur | à faire (proposé le 26/10) |
 | A4. Une journée de production **sans fausse alerte** du gardien | lanceur | en cours depuis la relance du 26/10 à 10 h 58 |
 | A5. Une journée de mesures sur la production : justesse réelle de la piste et de la sortie probables (Q57), mémoire du sidecar (14 → 17 Go en 12 h le 15/10), sauts des avions | principale | en cours, passif |
-| A6. La ligne « co-atc prêt (commit …) » de `production.command` lit le dépôt, pas le binaire : à retirer, en attendant B3 | lanceur | à faire |
+| A6. La ligne « co-atc prêt (commit …) » de `production.command` donne le commit du dépôt, pas celui du binaire | — | **laissée telle quelle** (propriétaire, 26/10) jusqu'à B3 ; la ligne qui fait foi est celle du lanceur, « launcher: co-atc answers, … built from <commit du binaire> » |
 
 **Sortie** : vingt-quatre heures de production sans surdité ni fausse alerte ; une surdité provoquée signalée en
 moins de deux minutes.
@@ -133,7 +133,7 @@ B1 se mesure sur le Mac : il demande l'audio réel de la station, qui ne va jama
 
 | Période | Ce qui avance |
 |---|---|
-| **Du 26/10 au 1/11** | A jusqu'au bout (A3, A4, A5, A6) ; B1, la mesure du décodage ; D1 à D4, pour que l'ami commence ; lancer les fiches cloud G1 puis G3 |
+| **Du 26/10 au 1/11** | A jusqu’au bout (A3, A4, A5) ; B1, la mesure du décodage ; D1 à D4, pour que l'ami commence ; lancer les fiches cloud G1 puis G3 |
 | **Du 2 au 8/11** | B2 à B5 ; C1 et C2 (fiche G2) ; D5 sur une semaine d'usage réel |
 | **Ensuite** | C3 à C5 ; E ; puis F |
 
