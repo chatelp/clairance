@@ -523,7 +523,10 @@ sur la carte.
 - 26/10, 15:35 : **la couche des procédures : pistes en service ou toutes** (572e1e2, page seule, déposée en production
   sans relance). Demandé par le propriétaire : un second choix sous Arrivées/Départs, « Runways in use » ou « All »,
   gardé dans le navigateur, avec ses bulles d'aide. Mesuré sur l'instance d'essai : 13 routes d'arrivée (LFPO 25)
-  en service, 103 avec « All ».
+  en service, 103 avec « All ». Le propriétaire, 16:55 : « le toggle ne change pas les procédures affichées ». Mesuré :
+  les arrivées des autres pistes suivent les mêmes trajets sous d'autres noms (52 routes et 81 segments distincts en
+  service, 103 routes et 84 segments avec « All ») ; les départs changent (136 → 257 segments). La ligne d'état dit
+  désormais le nombre de routes tracées, et la bulle d'aide le pourquoi.
 - 26/10, 15:25 : **Safari reprend l'élément `<audio>` et le MP3** (d80e2c4). Le propriétaire : plus de son dans Safari
   sur Mac avec le lecteur de la page. Le même lecteur joue dans WebKit 18.2 (Playwright) : l'analyseur monte à 0,29
   pendant la parole. Cause non trouvée. `?player=live` ou `?player=element` force l'un ou l'autre pour essayer un

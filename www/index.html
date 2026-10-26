@@ -1101,9 +1101,9 @@
                                                     <button class="cl-seg__item" :aria-pressed="$store.atc.settings.proceduresScope !== 'all'" @click="$store.atc.setProceduresScope('inUse')"
                                                             data-help-title="Runways in use" data-help="Only the routes of the runways in use, as the station sees them land and take off. Learnt again after each start of the server: until then, some may be missing.">Runways in use</button>
                                                     <button class="cl-seg__item" :aria-pressed="$store.atc.settings.proceduresScope === 'all'" @click="$store.atc.setProceduresScope('all')"
-                                                            data-help-title="All runways" data-help="Every published route of the kind, whatever runway is in use: the whole picture, busier on the map.">All</button>
+                                                            data-help-title="All runways" data-help="Every published route of the kind, whatever runway is in use. Departures change a lot. Arrivals hardly do: those of the other runways mostly fly the same tracks, under other names (Paris, 26/10: 103 routes instead of 52, three more lines on the map).">All</button>
                                                 </div>
-                                                <span class="cl-field__source" x-text="$store.atc.procedureLayer.text"></span>
+                                                <span class="cl-field__source" x-text="$store.atc.procedureLayer.text + ' · ' + $store.atc.procedureLayer.routes.length + ($store.atc.procedureLayer.routes.length === 1 ? ' route' : ' routes')"></span>
                                             </div>
                                         </template>
                                     </div>
