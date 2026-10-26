@@ -134,6 +134,29 @@ func TestFFmpegIsNeverAskedFor(t *testing.T) {
 	}
 }
 
+// A source this version cannot read -- one ffmpeg read before it was removed,
+// raw PCM without its rate -- is an error that names it and says why; an MP3
+// stream and raw PCM with its rate are read, and say nothing.
+func TestASourceThatCannotBeReadIsNamed(t *testing.T) {
+	s := newStation(t)
+	s.cfg.Frequencies.Sources = append(s.cfg.Frequencies.Sources,
+		config.FrequencyConfig{ID: "sdr", URL: "udp://127.0.0.1:7355", PCMRate: 48000, PCMChannels: 2},
+		config.FrequencyConfig{ID: "local", URL: "srt://192.0.2.1:42069"},
+		config.FrequencyConfig{ID: "scanner", URL: ":0"},
+		config.FrequencyConfig{ID: "gqrx", URL: "udp://127.0.0.1:7356"},
+	)
+	r := s.run(20)
+	only(t, r, map[string]string{"the source of local": LevelError, "the source of scanner": LevelError,
+		"the source of gqrx": LevelError})
+	for id, says := range map[string]string{"local": "SRT and sound cards went with ffmpeg", "scanner": "not a source this version reads",
+		"gqrx": "pcm_rate"} {
+		m := find(r, "the source of "+id)
+		if m.Kind != "source" || !strings.Contains(m.Effect, "no audio on "+id) || !strings.Contains(m.Effect, says) || m.Hint == "" {
+			t.Errorf("%s: %+v, want its reason %q", id, m, says)
+		}
+	}
+}
+
 // The sidecar's program and script, when the server starts it: an error each,
 // since the server stops without the transcription it is asked for.
 func TestTheSidecarsProgramAndScriptAreErrors(t *testing.T) {

@@ -161,7 +161,7 @@
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 const type = (r.headers.get('Content-Type') || '').toLowerCase();
                 let rate = parseInt(r.headers.get('X-Sample-Rate'), 10) || 8000;
-                // A source with no mu-law (one ffmpeg reads) answers WAV: 16-bit
+                // A source with no mu-law (raw PCM over UDP) answers WAV: 16-bit
                 // PCM after a 44-byte header that says its rate.
                 const wav = type.startsWith('audio/wav');
                 if (!wav && !type.startsWith('audio/basic')) throw new Error(`unexpected ${type}`);

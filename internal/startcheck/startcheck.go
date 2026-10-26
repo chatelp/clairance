@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/yegors/co-atc/internal/audio"
 	"github.com/yegors/co-atc/internal/audioarchive"
 	"github.com/yegors/co-atc/internal/config"
 	"github.com/yegors/co-atc/pkg/disk"
@@ -27,7 +28,7 @@ import (
 
 // Missing is one thing the server depends on and did not find at start.
 type Missing struct {
-	Kind   string `json:"kind"`           // tool, sidecar, model, disk, directory, station_file
+	Kind   string `json:"kind"`           // source, tool, sidecar, model, disk, directory, station_file
 	What   string `json:"what"`           // what is missing, by name
 	Path   string `json:"path,omitempty"` // where it was looked for
 	Effect string `json:"effect"`         // what suffers from it
@@ -84,6 +85,7 @@ func Run(in Inputs) Report {
 		}
 	}
 	c := &check{cfg: in.Config, free: free, r: Report{Missing: []Missing{}}}
+	c.sources()
 	c.pdftotext()
 	c.sidecar()
 	c.databases(in.DBRetentionGB)
@@ -99,6 +101,22 @@ type check struct {
 }
 
 func (c *check) missing(m Missing) { c.r.Missing = append(c.r.Missing, m) }
+
+// sources names each configured source the server cannot read: one ffmpeg
+// read before it was removed (SRT, a sound card, a file), or raw PCM whose
+// rate is not given. The audio needs nothing installed, so this is what can
+// still leave a frequency without it; the source is refused at start, and
+// its status says why, but a line here is what the launcher shows.
+func (c *check) sources() {
+	for _, src := range c.cfg.Frequencies.Sources {
+		pcm := audio.PCMInput{Rate: src.PCMRate, Channels: max(src.PCMChannels, 1)}
+		if err := audio.SourceProblem(src.URL, pcm); err != nil {
+			c.missing(Missing{Kind: "source", What: "the source of " + src.ID, Path: src.URL,
+				Effect: "no audio on " + src.ID + ": " + err.Error(), Level: LevelError,
+				Hint: "an MP3 stream over http(s), or raw PCM over udp with its pcm_rate (configs/config.toml.example)"})
+		}
+	}
+}
 
 // pdftotext reads the charts of the official names list (internal/aip),
 // which the settings page can make at any time.

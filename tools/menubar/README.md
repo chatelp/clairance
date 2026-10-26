@@ -120,7 +120,7 @@ been gone for 10 s, and is written to `events.jsonl` beside the socket:
 | Deaf | no ADS-B read for 30 s, held 15 s; the launcher reads the station itself to tell "the station does not answer" from "no local network for co-atc" | Fault |
 | No local network | production depends on no app any more | Fault |
 | Started from another app | production depends on Terminal, Claude… | Fault |
-| No audio on a frequency | nothing out of ffmpeg for 60 s | Fault |
+| No audio on a frequency | nothing decoded for 60 s | Fault |
 | Station link stopped | radio-ctl-sync gone, held 15 s | Fault |
 | Transcription | sidecar silent 45 s, or a language not loaded for 60 s | Fault |
 | Nothing transcribed | no transmission cut for 10 min from 8 h to 23 h, 45 min at night, while audio arrives and the station is on air | Fault |

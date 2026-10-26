@@ -43,7 +43,7 @@ struct Observation: Sendable {
 
 // Thresholds (34-lanceur.md, the plan accepted on 24/10).
 let deafAfter: TimeInterval = 30          // no ADS-B read for 30 s, then held 15 s
-let silentAudioAfter: TimeInterval = 60   // no byte from ffmpeg for 60 s
+let silentAudioAfter: TimeInterval = 60   // no byte decoded for 60 s
 let diskFault: Int64 = 20_000_000_000
 let diskCritical: Int64 = 5_000_000_000
 
@@ -195,7 +195,7 @@ func assess(_ o: Observation) -> (findings: [Finding], lines: [HealthLine], fact
         lines.append(HealthLine(light: lastRead == nil ? .unknown : .good, name: "ADS-B", fact: lastRead == nil ? "unknown" : "reading"))
     }
 
-    // Audio: bytes out of ffmpeg, per frequency (16-18/10 would have shown here).
+    // Audio: bytes decoded, per frequency (16-18/10 would have shown here).
     let freqs = (d?.frequencies ?? []).filter { $0.status != "stopped" }
     func silentFor(_ fr: HealthDetail.Frequency) -> TimeInterval {
         if let b = fr.last_byte_at { return now.timeIntervalSince(b) }

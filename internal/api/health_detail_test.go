@@ -126,6 +126,41 @@ func TestTheHealthDetailCountsTheAudioThatArrives(t *testing.T) {
 	t.Logf("tone: %d bytes in the last minute, last at %v", f.BytesLast60s, f.LastByteAt)
 }
 
+// With an MP3 stream and raw PCM over UDP, both read, and the startup check
+// run on them with an empty PATH, the health says nothing of ffmpeg: not a
+// program missing, not a process, not a word.
+func TestTheHealthDetailSaysNothingOfTheRemovedDecoder(t *testing.T) {
+	s := newStack(t, stackOptions{tone: true, goMP3: true})
+	t.Setenv("PATH", "")
+	s.handler.SetMissing(startcheck.Run(startcheck.Inputs{Config: s.cfg, DBRetentionGB: 20}).Missing)
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		rec := s.do("GET", "/api/v1/health/detail", "", fromLoopback("127.0.0.1:50123", "127.0.0.1:8000"))
+		body := rec.Body.String()
+		if rec.Code != http.StatusOK {
+			t.Fatalf("health detail: %d %s", rec.Code, body)
+		}
+		if strings.Contains(strings.ToLower(body), "ffmpeg") {
+			t.Fatalf("the health mentions ffmpeg: %s", body)
+		}
+		var d HealthDetail
+		decode(t, rec, &d)
+		flowing := 0
+		for _, f := range d.Frequencies {
+			if (f.ID == "tone" || f.ID == "station") && f.BytesLast60s > 0 {
+				flowing++
+			}
+		}
+		if flowing == 2 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("both sources should carry audio: %+v", d.Frequencies)
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+}
+
 // What the startup check found missing reaches the launcher as it was found;
 // nothing missing is an empty list, never null, so that "all there" and "not
 // told" differ.
