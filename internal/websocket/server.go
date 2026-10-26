@@ -81,6 +81,10 @@ type Client struct {
 	agent  string
 	since  time.Time
 	reason string
+
+	// What this client is sent of each message; nil, everything. See
+	// HandleConnectionFiltered.
+	filter func(*Message) *Message
 }
 
 // leave records the first reason the client goes; later ones are consequences.
@@ -245,6 +249,14 @@ func (s *Server) Run() {
 
 // HandleConnection handles a WebSocket connection
 func (s *Server) HandleConnection(w http.ResponseWriter, r *http.Request) {
+	s.HandleConnectionFiltered(w, r, nil)
+}
+
+// HandleConnectionFiltered is HandleConnection for a client that is not sent
+// everything: each message to it goes through filter first, which returns the
+// message to send -- a copy where it changes something, since every client is
+// handed the same message -- or nil to send nothing.
+func (s *Server) HandleConnectionFiltered(w http.ResponseWriter, r *http.Request, filter func(*Message) *Message) {
 	s.logger.Info("Handling new WebSocket connection request",
 		String("remote_addr", r.RemoteAddr),
 		String("user_agent", r.UserAgent()))
@@ -270,6 +282,7 @@ func (s *Server) HandleConnection(w http.ResponseWriter, r *http.Request) {
 		remote:    r.RemoteAddr,
 		agent:     r.UserAgent(),
 		since:     time.Now(),
+		filter:    filter,
 	}
 
 	// Register client
@@ -498,6 +511,11 @@ func (c *Client) Close() {
 
 // SendMessage sends a message to this specific client
 func (c *Client) SendMessage(message *Message) bool {
+	if c.filter != nil {
+		if message = c.filter(message); message == nil {
+			return true
+		}
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

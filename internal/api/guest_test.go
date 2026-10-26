@@ -267,6 +267,9 @@ func TestWhatAGuestReads(t *testing.T) {
 
 	var lines []string
 	for k, w := range who {
+		if w[0] {
+			t.Errorf("a guest reads %s %s", k.route, k.path)
+		}
 		readers := []string{"-", "-"}
 		if w[0] {
 			readers[0] = "viewer"
@@ -292,5 +295,133 @@ func TestWhatAGuestReads(t *testing.T) {
 	}
 	if got != string(want) {
 		t.Errorf("what a guest reads differs from %s\n--- now\n%s--- frozen\n%s", frozen, got, want)
+	}
+}
+
+// The guest's page still works without them: the frequencies with their
+// state and where to play them, the receiver's state, the source's, the
+// figures of the settings panel, the failure on the WebSocket -- and the
+// sound, which passes by untouched.
+func TestAGuestsPageWorksWithoutTheAddresses(t *testing.T) {
+	g := newGuestFixture(t)
+
+	var freqs struct {
+		Frequencies []map[string]any `json:"frequencies"`
+	}
+	decode(t, g.read(g.viewer, "/api/v1/frequencies"), &freqs)
+	if len(freqs.Frequencies) != 3 {
+		t.Fatalf("%d frequencies, want mix, station, dead", len(freqs.Frequencies))
+	}
+	for _, f := range freqs.Frequencies {
+		if f["url"] != "" || f["stream_url"] != "/api/v1/stream/"+f["id"].(string) || f["stream_port"] != 0.0 ||
+			f["name"] == "" || f["status"] == "" {
+			t.Errorf("a frequency as a guest reads it: %v", f)
+		}
+		if f["id"] == "dead" && (f["status"] != "failed" || f["last_error"] != "") {
+			t.Errorf("the unreachable source: status %v, error %q", f["status"], f["last_error"])
+		}
+	}
+
+	var status struct {
+		Receiver map[string]any `json:"receiver"`
+		ADSB     map[string]any `json:"adsb"`
+	}
+	decode(t, g.read(g.viewer, "/api/v1/status"), &status)
+	if status.Receiver["state"] != "unknown" || status.Receiver["label"] != "?" || status.Receiver["detail"] != "" {
+		t.Errorf("the receiver as a guest reads it: %v", status.Receiver)
+	}
+	if status.ADSB["ok"] != false || status.ADSB["failing_why"] != "the station refuses the connection" {
+		t.Errorf("the ADS-B feed as a guest reads it: %v", status.ADSB)
+	}
+
+	var source map[string]any
+	decode(t, g.read(g.viewer, "/api/v1/adsb/source"), &source)
+	aircraft, _ := source["aircraft"].(map[string]any)
+	if source["status"] != "error" || aircraft["available"] != false || aircraft["last_error"] != "" {
+		t.Errorf("the ADS-B source as a guest reads it: %v", source)
+	}
+
+	var server ServerState
+	decode(t, g.read(g.viewer, "/api/v1/server"), &server)
+	if server.Storage.ActiveDBBytes == 0 || server.Storage.DiskFreeBytes == 0 || !server.Logging.Bounded ||
+		server.Access.Mode != "account" || server.Storage.Dir != "" || server.Logging.File != "" {
+		t.Errorf("the settings panel's figures as a guest reads them: %+v", server)
+	}
+
+	failure, _ := frequencyStatus(t, g.dir, g.viewerWS)
+	if failure["error"] != "" {
+		t.Errorf("the source's failure on a guest's WebSocket: %v", failure)
+	}
+	failure, _ = frequencyStatus(t, g.dir, g.ownerWS)
+	if !strings.Contains(fmt.Sprint(failure["error"]), "connection refused") {
+		t.Errorf("the source's failure on the owner's WebSocket: %v", failure)
+	}
+
+	// The sound, on the real port, as the page asks for it, once the first
+	// frames are decoded (ULawStream waits for them).
+	r, _, ok := g.freqs.ULawStream("station")
+	if !ok {
+		t.Fatal("no sound decoded")
+	}
+	r.Close()
+	g.cookie = g.viewer
+	if ct, head := streamHead(t, g.stack, "/api/v1/stream/station?id=guest-1&format=ulaw"); ct != "audio/basic" || len(head) == 0 {
+		t.Errorf("a guest's sound: %q, %d bytes", ct, len(head))
+	}
+}
+
+// The table names routes the router serves and a guest may read: a route
+// renamed would otherwise leave its addresses to a guest without a word.
+func TestTheGuestTableNamesRoutesAGuestReads(t *testing.T) {
+	s := publicStack(t, stackOptions{})
+	mounted := map[string]bool{}
+	for _, mr := range mountedRoutes(t, s) {
+		if mr[0] == http.MethodGet {
+			mounted[mr[1]] = true
+		}
+	}
+	for route, paths := range guestHidden {
+		if !mounted[route] {
+			t.Errorf("guestHidden names %s, which is not a GET route", route)
+		}
+		if len(paths) == 0 {
+			t.Errorf("guestHidden names %s with nothing to empty", route)
+		}
+	}
+}
+
+// emptied changes the copy it returns, never what it was given: a WebSocket
+// message is the same for every page.
+func TestEmptiedCopiesWhatItChanges(t *testing.T) {
+	v := map[string]any{
+		"frequencies": []any{
+			map[string]any{"id": "a", "url": "http://station.lan:8000/a.mp3", "order": json.Number("1")},
+			map[string]any{"id": "b", "url": "http://station.lan:8000/b.mp3"},
+		},
+		"storage":  map[string]any{"dir": "/home/someone/db", "bytes": 12.0},
+		"accounts": []any{"pierre", "guest"},
+	}
+	before, _ := json.Marshal(v)
+	got := v
+	for _, p := range []string{"frequencies.*.url", "storage.dir", "accounts", "absent.path", "storage.bytes.below"} {
+		got = emptied(got, strings.Split(p, ".")).(map[string]any)
+	}
+	if after, _ := json.Marshal(v); string(after) != string(before) {
+		t.Errorf("the original changed:\n%s\n%s", before, after)
+	}
+	out, _ := json.Marshal(got)
+	want := `{"accounts":[],"frequencies":[{"id":"a","order":1,"url":""},{"id":"b","url":""}],"storage":{"bytes":12,"dir":""}}`
+	if string(out) != want {
+		t.Errorf("emptied:\n got %s\nwant %s", out, want)
+	}
+
+	m := &websocket.Message{Type: websocket.MessageTypeFrequencyStatus,
+		Data: map[string]any{"frequency_id": "a", "status": "failed", "error": "dial tcp 192.0.2.20:8000"}}
+	if g := guestMessage(m); g == m || g.Data["error"] != "" || g.Data["status"] != "failed" || m.Data["error"] == "" {
+		t.Errorf("a guest's frequency status: %+v, the original %+v", g, m)
+	}
+	other := &websocket.Message{Type: websocket.MessageTypeFrequencyActivity, Data: map[string]any{"level": 0.5}}
+	if guestMessage(other) != other {
+		t.Error("a message with nothing to empty was copied")
 	}
 }

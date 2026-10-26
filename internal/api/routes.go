@@ -118,6 +118,8 @@ func (r *Router) Routes() http.Handler {
 			// A viewer account reads, and is not given the audio; see
 			// auth_handlers.go.
 			router.Use(r.handler.ViewerGuard)
+			// Nor where the house's things are: addresses, paths (guest.go).
+			router.Use(r.handler.GuestView)
 
 			// Aircraft routes
 			router.Get("/aircraft", r.handler.GetAllAircraft)

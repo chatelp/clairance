@@ -162,3 +162,57 @@ func TestAMessageTooLargeClosesThatClientOnly(t *testing.T) {
 		t.Errorf("the other client: %v", err)
 	}
 }
+
+// A filtered client is sent what its filter returns, and nothing when it
+// returns nil; the others are sent the message as it was broadcast.
+func TestAFilteredClientIsSentWhatItsFilterReturns(t *testing.T) {
+	log, err := logger.New(logger.Config{Level: "error", Format: "console"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := NewServer(log)
+	go s.Run()
+	filter := func(m *Message) *Message {
+		if m.Type == "secret" {
+			return nil
+		}
+		c := *m
+		c.Data = map[string]interface{}{"error": ""}
+		return &c
+	}
+	filtered := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.HandleConnectionFiltered(w, r, filter)
+	}))
+	t.Cleanup(filtered.Close)
+	plain := httptest.NewServer(http.HandlerFunc(s.HandleConnection))
+	t.Cleanup(plain.Close)
+	guest := dial(t, "ws"+strings.TrimPrefix(filtered.URL, "http"))
+	owner := dial(t, "ws"+strings.TrimPrefix(plain.URL, "http"))
+	waitForClients(t, s, 2)
+
+	s.Broadcast(&Message{Type: "secret", Data: map[string]interface{}{"n": 1}})
+	s.Broadcast(&Message{Type: "frequency_status", Data: map[string]interface{}{"error": "dial tcp 192.0.2.20:8000"}})
+
+	read := func(conn *websocket.Conn) Message {
+		t.Helper()
+		_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var m Message
+		if err := json.Unmarshal(data, &m); err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	if m := read(guest); m.Type != "frequency_status" || m.Data["error"] != "" {
+		t.Errorf("the filtered client was sent %+v, want the status alone, emptied", m)
+	}
+	if m := read(owner); m.Type != "secret" {
+		t.Errorf("the other client's first message: %+v", m)
+	}
+	if m := read(owner); m.Data["error"] != "dial tcp 192.0.2.20:8000" {
+		t.Errorf("the other client's status: %+v, want it as broadcast", m)
+	}
+}
