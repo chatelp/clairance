@@ -1,6 +1,6 @@
 # Pilotage — stratégie, chantiers, jalons, décisions attendues
 
-*Dernière mise à jour : 25/10/2026 (lanceur, étape 1b).*
+*Dernière mise à jour : 26/10/2026 (revue des chantiers avec le propriétaire).*
 
 *Le document du chef d'orchestre. Tenu par la session Clairance, mis à jour à chaque livraison
 d'une session, à chaque décision du propriétaire et à chaque jalon franchi. Ouvert le 12/10/2026
@@ -117,6 +117,18 @@ la mémoire des décisions dans `05-decisions.md` ; ici, la vue d'ensemble, cour
 
 ### En cours
 
+**Ordre des chantiers, accepté par le propriétaire le 26/10** :
+1. le faux « Production did not start » du lanceur (agent du lanceur), puis une journée de production sans
+   fausse alerte ;
+2. une journée de mesures sur la production : justesse réelle de Q57, mémoire du sidecar, sauts ;
+3. **Q60, le serveur auto-contenu** : d'abord la mesure du décodage audio en Go, puis la page dans le
+   binaire, l'environnement propre du sidecar, le script de production absorbé ;
+4. **Q61, le contrat entre le lanceur et le serveur** ; les étapes 2 et 3 du lanceur l'attendent ;
+5. **Q62, l'accès à distance pour un proche** (ajouté le 26/10) : comptes, sécurisation, vecteur ;
+6. en parallèle d'ici le 5/11, le crédit cloud (94 $) sur ce qui se vérifie sans station ni audio réel ;
+7. puis le jalon « installable ailleurs » (avertissement légal, guide), et plus loin l'interface en/fr, le
+   rapprochement instruction/réponse, Q51, le corpus simulé, le premier pas public.
+
 0. **Le lanceur en poste de surveillance** (doc 34, 24/10) : agent dédié, étape 1 (le gardien) d'abord.
    Côté serveur, la route de santé est faite (3307610). Étape 1a fusionnée (14c39e6) ; porteur livré (e71e4bd,
    Q59) ; gardien de l'étape 1b livré (938f8c3, 25/10). À faire par le propriétaire : démarrer la vraie production
@@ -127,7 +139,7 @@ la mémoire des décisions dans `05-decisions.md` ; ici, la vue d'ensemble, cour
 2. **À regarder à l'usage par le propriétaire** : le fond clair IGN/OSM et le téléphone (versés avec la
    migration) ; les étiquettes entre 34 et 48 NM autour de l'approche de Roissy, où les avions qui comptent
    sont serrés (laissé tel quel pour une soirée, choix du propriétaire, 15/10).
-3. **L'analyse des mesures de la nuit du 16 au 17/10** (`runs/mesures/nuit-2026-10-16/` : relevé de la
+3. ~~**L'analyse des mesures de la nuit du 16 au 17/10**~~ — **retirée le 26/10** : la production était sourde, rien à en tirer. (`runs/mesures/nuit-2026-10-16/` : relevé de la
    production toutes les 5 min, instance d'essai avec flux par tranches de 55 min) : **pas encore faite**. Constat de
    la revue du 20/10, de visu sur les fichiers, non analysé : la production était sourde à partir de 23 h 05
    (voir « Les risques suivis »), le total de transmissions du relevé reste figé à 8 109 de 23 h 08 à minuit, et

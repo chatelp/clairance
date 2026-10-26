@@ -5265,6 +5265,63 @@ rien jusqu'au rechargement. **Vérifié** dans un navigateur sur une instance d'
 ports annexes en 200, son ouvert sur la tuile cliquée, source ajoutée en cours de route branchée
 sans rechargement. Sans cookie, le même flux répond 401 : c'était l'ancien comportement.
 
+### Q62 — L'accès à distance pour un proche, et ce qu'il demande à la production *(26/10 — ouverte)*
+
+**La demande du propriétaire** (26/10) : donner à un ami l'accès à sa production à distance, de préférence
+par le lanceur installé sur le Mac de l'ami, avec une adresse de production distante ; d'où la gestion des
+comptes et la sécurisation de l'accès.
+
+**L'existant, relevé le 26/10** : des comptes avec deux rôles (`owner`, `viewer` : un viewer lit, sans
+l'audio ni les écritures, fiche I du 13/10) ; des sessions par cookie (256 bits, expiration glissante,
+révocation par compte) ; une limite des essais de mot de passe ; des mandataires de confiance explicites.
+Ni jeton d'API, ni second facteur. La production écoute sur `0.0.0.0:8000` à `8004` en HTTP, sur le réseau
+local, avec un seul compte (propriétaire). Tailscale est installé sur le Mac. `audio_replay = "owner"` par défaut.
+
+**Le cadre légal** (étude de la session communauté, `01-cadre-legal.md`, `05-recommandation.md`) : rediffuser
+de l'audio réel est exclu ; l'exemption d'« usage domestique » du RGPD tombe avec un nombre indéfini de
+personnes (CJUE, Lindqvist), ce qu'un ami nommé n'est pas, mais la divulgation à un tiers (art. 226-15)
+reste un point non tranché. À poser à la session communauté avant d'ouvrir quoi que ce soit, en particulier
+pour l'audio.
+
+**À trancher** : le chemin réseau (partage du nœud Tailscale, ou exposition publique derrière TLS) ; le
+vecteur (la page dans un navigateur, ou le lanceur en mode client distant, qui demande alors des jetons
+par compte, des routes adaptées au rôle viewer, et une signature Developer ID avec notarisation pour
+s'installer sans contournement de Gatekeeper) ; l'audio pour un viewer distant.
+
+### Q61 — Le lanceur, projet à part, et son contrat avec le serveur *(26/10 — ouverte, ordre accepté)*
+
+**Le constat, relevé le 26/10** : le lanceur (2 825 lignes de Swift) lit `config.toml` lui-même (ports,
+base, journal, sidecar), connaît l'arborescence du dépôt (`runs/`, `bin/co-atc`, `production.command`),
+reconnaît `whisper_server` et `radio-ctl-sync` à leur nom, lance `git` et `lsof`, lit les journaux, et
+interroge la station lui-même. Le faux « Production did not start » du 26/10 vient d'un journal mal lu.
+
+**Proposé** : un contrat standard. Démarrer, c'est `co-atc -config <fichier>` ; arrêter, c'est SIGTERM ; être
+prêt, c'est `/api/v1/health` qui répond. Tout le reste passe par l'API locale en JSON, versionnée et documentée :
+`/api/v1/health/detail`, et une description du processus (PID et enfants, ports, journal, données, version et
+commit du binaire). Un test de contrat côté serveur. Le lanceur ne lit plus aucun fichier du serveur.
+L'accès distant (Q62) ajoute au contrat l'authentification par jeton et le rôle. **Ouvert** : un dossier
+`launcher/` dans ce dépôt, ou un dépôt séparé.
+
+### Q60 — Un serveur auto-contenu, qui ne dépend pas de ce qui manque sur la machine *(26/10 — ouverte ; ordre accepté, ffmpeg mesuré d'abord)*
+
+**Le déclencheur** : le 26/10, la production lancée par le porteur n'avait pas d'audio, faute de trouver
+ffmpeg hors du PATH du shell (134e4fb corrige la recherche). **Le propriétaire** : le serveur doit être
+autant que possible auto-contenu.
+
+**L'inventaire du 26/10** : ffmpeg (Homebrew, 15 bibliothèques Homebrew) pour tout l'audio ; le sidecar
+Python dans le venv **d'un autre dépôt** (`whisper-lab/.venv`, 1,1 Go, Python 3.12) ; le modèle anglais dans
+le cache Hugging Face (2,9 Go) ; le modèle français et l'archive sur le disque externe ; pdftotext (Homebrew,
+outil AIP seulement) ; et `runs/production.command`, **hors du dépôt**, qui fige la page, retrouve co-atc
+par motif, lit le mot de passe, lance `radio-ctl-sync` avec l'adresse de la station en dur, `caffeinate`, et
+vérifie le disque externe.
+
+**Proposé** : la page dans le binaire (`go:embed`) ; le décodage du cas courant (MP3 d'Icecast, PCM brut)
+en Go pur, ffmpeg restant une option pour les sources exotiques ; le sidecar dans son propre environnement
+verrouillé, créé par une commande d'installation, les modèles téléchargés au premier lancement ; pdftotext
+facultatif ; le script de production absorbé (co-atc lance ses compagnons configurés). **Décidé le 26/10** :
+**mesurer d'abord le décodage en Go** (équivalence de l'audio produit, coût processeur) avant de choisir
+entre ne plus dépendre de ffmpeg et en embarquer un. **Ouvert** : le script absorbé par co-atc.
+
 ### Q59 — Qui porte la production quand le lanceur se ferme ? *(24/10 — **tranchée par le propriétaire le 24/10 : (b), séparer la production du menu**)*
 
 **Le constat, mesuré le 24/10 par l'agent du lanceur** (doc 34, « L'étape 1 », branche `lanceur`) sur une
