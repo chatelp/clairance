@@ -494,6 +494,17 @@ sur la carte.
 
 ## État
 
+- 26/10 : **première production par le porteur du lanceur, sans audio** : « off air » sur les deux fréquences (vu par
+  le propriétaire). Cause mesurée : `"ffmpeg": executable file not found in $PATH`, six fois dans le journal ; le
+  porteur, ouvert par `open -n`, donne à co-atc le PATH minimal de launchd (`/usr/bin:/bin:/usr/sbin:/sbin`), sans
+  `/opt/homebrew/bin`. Le gardien n'a rien dit : le binaire en production datait du 16/10 et n'avait pas
+  `/api/v1/health/detail`. **Jugement du propriétaire : la production ne doit pas dépendre de ce qui la lance.**
+  Corrigé dans le serveur (134e4fb, commit autonome) : `pkg/tool` trouve ffmpeg, pdftotext et l'interpréteur du
+  sidecar sur le PATH puis dans les dossiers de Homebrew et de MacPorts, et le démarrage dit où est ffmpeg ou qu'il
+  manque. Mesuré : le test de la tonalité sur un vrai ffmpeg, lancé avec le PATH du porteur, reçoit ses 102 400
+  octets en 3 s. `bin/co-atc` reconstruit (l'ancien dans `runs/co-atc.avant-2026-10-26`). Signalés à l'agent du
+  lanceur : un 404 sur la route de santé doit alerter, et le commit écrit au démarrage est celui du dépôt, pas
+  celui du binaire.
 - 24 → 25/10 : **le lanceur, étapes 1a, porteur et 1b** (agent « Clairance - macOS launcher », fusions 14c39e6,
   e71e4bd, 938f8c3 ; détail et mesures dans le doc 34). Lancement délégué au lanceur, processus suivis par PID ;
   production dans un porteur à part du menu (Q59 b ; l'agent launchd écarté, faute de réseau local) ; gardien et
