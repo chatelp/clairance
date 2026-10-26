@@ -27,6 +27,7 @@ const (
 	MessageTypeFilterUpdate           = "filter_update"          // Client sends filter preferences
 	MessageTypeFrequencyStatus        = "frequency_status"       // Frequency connection status changes
 	MessageTypeFrequenciesChanged     = "frequencies_changed"    // A source was added or removed while running
+	MessageTypeFrequencyActivity      = "frequency_activity"     // Someone is speaking on a frequency, and the level
 )
 
 // Deadlines on the connection. A client that stops reading -- a phone put to

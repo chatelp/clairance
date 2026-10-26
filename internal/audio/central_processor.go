@@ -73,6 +73,10 @@ type CentralAudioProcessor struct {
 	// mp3 relays the stream's own MP3 frames to browsers (mp3relay.go), fed
 	// by the Go decoder.
 	mp3 *mp3Relay
+
+	// activity says when the frequency carries sound (activity.go); nil
+	// until SetActivityCallback.
+	activity *activityMeter
 }
 
 // CentralProcessorConfig contains configuration for the central audio processor
@@ -395,6 +399,10 @@ func (p *CentralAudioProcessor) processFFmpegOutput() {
 						Int("bytes_this_read", n),
 						String("duration", time.Since(lastLogTime).String()))
 					lastLogTime = time.Now()
+				}
+
+				if a := p.activity; a != nil {
+					a.push(buffer[:n])
 				}
 
 				// Write to multi-reader

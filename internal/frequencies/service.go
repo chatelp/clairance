@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -639,6 +640,7 @@ func (s *Service) startSource(freqConfig *cfg.FrequencyConfig) bool {
 
 	// Set status callback to broadcast status changes via WebSocket
 	processor.audioProcessor.SetStatusCallback(s.broadcastFrequencyStatus)
+	processor.audioProcessor.SetActivityCallback(s.config.Transcription.Local.SilenceThreshold, s.broadcastFrequencyActivity)
 
 	err = processor.Start()
 	if err != nil {
@@ -951,6 +953,7 @@ func (s *Service) GetAudioStream(ctx context.Context, id string, clientID string
 				return nil, "", fmt.Errorf("failed to create stream processor: %w", err)
 			}
 
+			processor.audioProcessor.SetActivityCallback(s.config.Transcription.Local.SilenceThreshold, s.broadcastFrequencyActivity)
 			err = processor.Start()
 			if err != nil {
 				s.streamsMu.Unlock()
@@ -1115,4 +1118,22 @@ func (s *Service) broadcastFrequencyStatus(frequencyID string, status audio.Conn
 	}
 
 	s.wsServer.Broadcast(message)
+}
+
+// broadcastFrequencyActivity tells every page that someone is speaking on a
+// frequency, or has stopped, and the level while they speak (internal/audio,
+// activity.go): the page's "someone is speaking" and its level meter, the
+// same in every browser and for a page that does not listen.
+func (s *Service) broadcastFrequencyActivity(frequencyID string, speaking bool, level float64) {
+	if s.wsServer == nil {
+		return
+	}
+	s.wsServer.Broadcast(&websocket.Message{
+		Type: websocket.MessageTypeFrequencyActivity,
+		Data: map[string]interface{}{
+			"frequency_id": frequencyID,
+			"speaking":     speaking,
+			"level":        math.Round(level*100) / 100,
+		},
+	})
 }

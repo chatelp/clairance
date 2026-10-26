@@ -40,6 +40,7 @@ class WebSocketClient {
             phase_change: [],
             clearance_issued: [],
             frequency_status: [],
+            frequency_activity: [],
             frequencies_changed: [],
             state_change: [],
             reconnect_scheduled: [],
