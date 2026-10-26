@@ -77,7 +77,11 @@ class AudioClient {
         // The page plays the stream itself where it can (live-player.js): it
         // starts at once and measures what it plays, in every browser. An
         // <audio> element otherwise.
-        const live = window.LiveStreamPlayer && window.LiveStreamPlayer.supported() && this.audioContext;
+        // Not in Safari for now: there the page's own player gave no sound on
+        // 26/10, cause not found yet, where the <audio> element with the MP3
+        // plays.
+        const webkitOnly = /^((?!chrome|chromium|crios|android|edg|fxios).)*safari/i.test(navigator.userAgent);
+        const live = window.LiveStreamPlayer && window.LiveStreamPlayer.supported() && this.audioContext && !webkitOnly;
         const audioElement = live ? new window.LiveStreamPlayer(this.audioContext) : document.createElement('audio');
         // Streams are spread over the server's additional ports, a different
         // origin from the page: "anonymous" sends no cookie there, and with
