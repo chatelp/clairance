@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/go-chi/chi/v5"
 	"io"
@@ -50,6 +51,18 @@ func (h *Handler) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) PostSetup(w http.ResponseWriter, r *http.Request) {
 	if !h.auth.NeedsSetup() {
 		http.Error(w, "already set up", http.StatusConflict)
+		return
+	}
+	// Reaching this page means being on the machine only when nothing stands
+	// between the two. A server bound to 127.0.0.1 behind a proxy on the same
+	// machine is reached from wherever the proxy serves: the first visitor
+	// would have made the owner's account, or -- the proxy undeclared --
+	// chosen to run without sign-in for the whole Internet.
+	if forwardedByAProxy(r) {
+		h.logger.Warn("Refused the first-run page through a proxy",
+			logger.String("from", h.auth.Proxies().ClientIP(r)))
+		http.Error(w, fmt.Sprintf("Set this server up from the machine it runs on (http://127.0.0.1:%d/), "+
+			"or create an account there with: co-atc -add-user <name>", h.config.Server.Port), http.StatusForbidden)
 		return
 	}
 
