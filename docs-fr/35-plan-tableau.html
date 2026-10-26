@@ -148,7 +148,7 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
       <div class="bhead">
         <span class="letter">A</span>
         <h2>Une production fiable</h2>
-        <div class="meta"><span>maintenant</span><span class="bar"><i style="width:33%"></i></span><span>2 / 6</span></div>
+        <div class="meta"><span>maintenant</span><span class="bar"><i style="width:43%"></i></span><span>3 / 7</span></div>
       </div>
       <p class="goal">Qu'elle tourne, entende et transcrive, et que le lanceur dise vrai.</p>
       <ul class="steps">
@@ -157,6 +157,7 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
         <li><span class="code">A3</span><span class="what"><b>Un porteur qui tourne depuis sa propre copie de l'application</b><small>prêt et mesuré sur sa branche ; installé après la journée A4, production arrêtée</small></span><span class="chip s-wait">à installer</span></li>
         <li><span class="code">A4</span><span class="what"><b>Une journée sans fausse alerte</b><small>ouverte à la relance de 10:58</small></span><span class="chip s-doing">en cours</span></li>
         <li><span class="code">A5</span><span class="what"><b>Une journée de mesures</b><small>piste et sortie probables, sauts des avions ; mémoire du sidecar bornée : 16 → 9 Go, vitesse inchangée</small></span><span class="chip s-doing">en cours</span></li>
+        <li><span class="code">A7</span><span class="what"><b>Les pistes en service gardées d'une relance à l'autre</b><small>la couche des procédures n'en montrait que la moitié après chaque démarrage ; vérifié sur l'instance d'essai, en production à la relance du 27/10 ; la couche a aussi « toutes les pistes » (en production)</small></span><span class="chip s-done">fait</span></li>
         <li><span class="code">A6</span><span class="what"><b>Le commit écrit par le script</b><small>laissé tel quel jusqu'à B3 ; la ligne du lanceur fait foi</small></span><span class="chip s-later">laissé</span></li>
       </ul>
       <p class="exit"><b>Sortie</b> · 24 h sans surdité ni fausse alerte ; une coupure signalée en moins de 2 min.</p>
@@ -185,14 +186,14 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
       <div class="bhead">
         <span class="letter">D</span>
         <h2>L'accès à distance d'un proche</h2>
-        <div class="meta"><span>Q62 · en parallèle de B1</span><span class="bar"><i style="width:50%"></i></span><span>4 / 8</span></div>
+        <div class="meta"><span>Q62 · en parallèle de B1</span><span class="bar"><i style="width:38%"></i></span><span>3 / 8</span></div>
       </div>
       <p class="goal">Un ami écoute ta production de chez lui, audio compris, par Internet derrière ton Traefik. Un usage des tests, pas une fonctionnalité. Rien n'est ouvert avant D3.</p>
       <ul class="steps">
         <li><span class="code">D1</span><span class="what"><b>Le passage par Traefik</b><small>route en place, nom direct (sans Cloudflare) ; barrière retirée, la connexion de Clairance protège ; WebSocket corrigé (wss)</small></span><span class="chip s-done">fait</span></li>
         <li><span class="code">D2</span><span class="what"><b>L'audio par la même adresse que la page</b><small>les ports 8001 à 8004 étaient injoignables de l'extérieur</small></span><span class="chip s-done">fait</span></li>
         <li><span class="code">D2+</span><span class="what"><b>Le son sur tous les navigateurs</b><small>le MP3 de la station au lieu du WAV ; 25 fois moins de débit ; « someone is speaking » et le bouton son corrigés pour Safari (14:24) ; reste le téléphone</small></span><span class="chip s-done">fait</span></li>
-        <li><span class="code">D2++</span><span class="what"><b>La page joue le son elle-même</b><small>μ-law par Web Audio : son immédiat (17 s avant), « someone is speaking » en phase avec la voix, bouton son partout ; en production depuis 15:15 ; reste ton essai, téléphone compris</small></span><span class="chip s-done">fait</span></li>
+        <li><span class="code">D2++</span><span class="what"><b>La page joue le son elle-même</b><small>μ-law par Web Audio : son immédiat (17 s avant), « someone is speaking » en phase avec la voix, bouton son partout ; en production depuis 15:15 ; <b>Safari sur Mac sans son avec ce lecteur</b> (WebKit le joue, cause non trouvée) : Safari garde le MP3 ; <code>?player=live</code> pour l'essayer ; reste le téléphone</small></span><span class="chip s-doing">en cours</span></li>
         <li><span class="code">D3</span><span class="what"><b>Le durcissement de ce qui devient public</b><small>fiche O lancée dans le cloud le 26/10 : chaque route sans connexion, limite des essais (adresse vue à travers Cloudflare), ce que voit un compte « viewer »</small></span><span class="chip s-doing">en cours</span></li>
         <li><span class="code">D4</span><span class="what"><b>Son compte et la trace</b><small>compte à son nom, audio ouvert, journal des connexions, comment couper</small></span><span class="chip s-todo">à faire</span></li>
         <li><span class="code">D5</span><span class="what"><b>La fiabilité vue de chez lui</b><small>chaque relance le déconnecte ; machine Traefik sur l'onduleur qui saute</small></span><span class="chip s-todo">à faire</span></li>
@@ -314,5 +315,5 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
     </div>
   </section>
 
-  <footer>Mis à jour le 26/10/2026 à 15 h 20 · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
+  <footer>Mis à jour le 26/10/2026 à 15 h 50 · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
 </div>

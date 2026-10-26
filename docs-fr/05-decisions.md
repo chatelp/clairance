@@ -5285,6 +5285,11 @@ qui prend la place de l'élément `<audio>` dans `audio-client.js` ; un navigate
 l'élément et le MP3. Mesuré sur la station par une instance d'essai : le son part dans la première seconde (17 s
 avant), l'analyseur suit la voix (environ 110 pendant la parole, 0 dans les silences), réserve de 0,3 à 1,8 s.
 
+**Safari, après la livraison (26/10)** : le propriétaire n'a plus de son dans Safari sur Mac avec ce lecteur, alors
+que WebKit 18.2 le joue (Playwright, analyseur jusqu'à 0,29). Cause non trouvée : **Safari garde l'élément `<audio>`
+et le MP3 pour l'instant** (d80e2c4), avec les défauts relevés plus haut ; `?player=live` ou `?player=element` force
+l'un ou l'autre (ea2b2f6) pour essayer. Le téléphone reste à mesurer.
+
 ### Q62 — L'accès à distance pour un proche, et ce qu'il demande à la production *(26/10 — audio ouvert à l'ami ; **ouvert sur Internet derrière le Traefik du propriétaire** ; page d'abord)*
 
 **La demande du propriétaire** (26/10) : donner à un ami l'accès à sa production à distance, de préférence

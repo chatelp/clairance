@@ -494,6 +494,22 @@ sur la carte.
 
 ## État
 
+- 26/10, 15:45 : **les pistes en service survivent à une relance** (342b637, en production à la prochaine relance
+  prévue, le 27/10 après N5). Le propriétaire : « l'overlay procédure n'est plus complet ». Cause : les pistes en
+  service s'apprennent des mouvements, sur une heure, et repartent de zéro à chaque démarrage (26L seule à LFPG
+  depuis la relance de 15:18, 26L et 27R à 12:29). La base ne garde pas la piste d'un mouvement ; chaque suivi écrit
+  donc ses preuves dans `runways-in-use.json`, à côté des bases, toutes les 30 s et à l'arrêt, et les reprend au
+  démarrage tant qu'elles sont dans la fenêtre. Vérifié sur l'instance d'essai : arrêt à 15:44:36, relance,
+  « Runway evidence restored » (26L 67 %, 27R 33 %), la page montre LFPG 26L et 27R vingt secondes après le démarrage.
+- 26/10, 15:35 : **la couche des procédures : pistes en service ou toutes** (572e1e2, page seule, déposée en production
+  sans relance). Demandé par le propriétaire : un second choix sous Arrivées/Départs, « Runways in use » ou « All »,
+  gardé dans le navigateur, avec ses bulles d'aide. Mesuré sur l'instance d'essai : 13 routes d'arrivée (LFPO 25)
+  en service, 103 avec « All ».
+- 26/10, 15:25 : **Safari reprend l'élément `<audio>` et le MP3** (d80e2c4). Le propriétaire : plus de son dans Safari
+  sur Mac avec le lecteur de la page. Le même lecteur joue dans WebKit 18.2 (Playwright) : l'analyseur monte à 0,29
+  pendant la parole. Cause non trouvée. `?player=live` ou `?player=element` force l'un ou l'autre pour essayer un
+  navigateur (ea2b2f6). Avant (98a3ced) : un son suspendu par le navigateur le dit (« Click anywhere to resume
+  listening ») et reprend au premier geste ; l'icône de l'onglet suit ce qui joue.
 - 26/10, 15:15 : **la page joue le son elle-même** (Q63, décidée par le propriétaire : C2). Mesuré avant : Chromium
   attendait 17,4 s pour jouer le MP3 de la station, Safari le jouait sans Web Audio, les temps du navigateur sont faux
   pour un MP3 à débit variable. Le serveur relaie le son décodé en μ-law (`?format=ulaw`) ; `www/live-player.js` le
