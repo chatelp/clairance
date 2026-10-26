@@ -5265,7 +5265,7 @@ rien jusqu'au rechargement. **Vérifié** dans un navigateur sur une instance d'
 ports annexes en 200, son ouvert sur la tuile cliquée, source ajoutée en cours de route branchée
 sans rechargement. Sans cookie, le même flux répond 401 : c'était l'ancien comportement.
 
-### Q62 — L'accès à distance pour un proche, et ce qu'il demande à la production *(26/10 — ouverte)*
+### Q62 — L'accès à distance pour un proche, et ce qu'il demande à la production *(26/10 — audio ouvert à l'ami, le temps des tests restreints ; chemin et vecteur ouverts)*
 
 **La demande du propriétaire** (26/10) : donner à un ami l'accès à sa production à distance, de préférence
 par le lanceur installé sur le Mac de l'ami, avec une adresse de production distante ; d'où la gestion des
@@ -5287,6 +5287,13 @@ pour l'audio.
 vecteur (la page dans un navigateur, ou le lanceur en mode client distant, qui demande alors des jetons
 par compte, des routes adaptées au rôle viewer, et une signature Developer ID avec notarisation pour
 s'installer sans contournement de Gatekeeper) ; l'audio pour un viewer distant.
+
+**Décidé par le propriétaire le 26/10** : l'audio est ouvert à l'ami aussi. Ce n'est **pas une fonctionnalité à
+part entière** : c'est un usage utile pendant la période de tests restreints, pour un proche nommé. Il pèse
+donc sur la mise en place (partage Tailscale, compte nominatif, `audio_replay`, relecture de ce que voit ce
+compte), pas sur la feuille de route. Le point légal de l'étude (la divulgation à un tiers, art. 226-15, non
+tranchée ; la rediffusion d'audio réel exclue pour le produit) est noté ; le propriétaire décide en connaissance
+de cause, pour un cercle restreint et le temps des essais.
 
 ### Q61 — Le lanceur, projet à part, et son contrat avec le serveur *(26/10 — ouverte, ordre accepté)*
 

@@ -124,7 +124,8 @@ la mémoire des décisions dans `05-decisions.md` ; ici, la vue d'ensemble, cour
 3. **Q60, le serveur auto-contenu** : d'abord la mesure du décodage audio en Go, puis la page dans le
    binaire, l'environnement propre du sidecar, le script de production absorbé ;
 4. **Q61, le contrat entre le lanceur et le serveur** ; les étapes 2 et 3 du lanceur l'attendent ;
-5. **Q62, l'accès à distance pour un proche** (ajouté le 26/10) : comptes, sécurisation, vecteur ;
+5. **Q62, l'accès à distance pour un proche** (ajouté le 26/10) : un usage de la période de tests restreints, pas
+   une fonctionnalité ; audio compris (décidé le 26/10) ; comptes, sécurisation, vecteur ;
 6. en parallèle d'ici le 5/11, le crédit cloud (94 $) sur ce qui se vérifie sans station ni audio réel ;
 7. puis le jalon « installable ailleurs » (avertissement légal, guide), et plus loin l'interface en/fr, le
    rapprochement instruction/réponse, Q51, le corpus simulé, le premier pas public.
