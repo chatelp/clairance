@@ -168,6 +168,7 @@ document.addEventListener('alpine:init', () => {
             // The published routes layer (Q56): off by default; arrivals first.
             showProcedures: JSON.parse(localStorage.getItem('showProcedures')) ?? false,
             proceduresKind: localStorage.getItem('proceduresKind') === 'SID' ? 'SID' : 'STAR',
+            proceduresScope: localStorage.getItem('proceduresScope') === 'all' ? 'all' : 'inUse',
             // The probable runway and exit on the labels (Q57): on by default.
             showProbable: JSON.parse(localStorage.getItem('showProbable')) ?? true,
             showAirspaceBoundaries: JSON.parse(localStorage.getItem('showAirspaceBoundaries')) ?? false,
@@ -262,6 +263,7 @@ document.addEventListener('alpine:init', () => {
             localStorage.setItem('showAltitudeLegend', this.settings.showAltitudeLegend);
             localStorage.setItem('showProcedures', this.settings.showProcedures);
             localStorage.setItem('proceduresKind', this.settings.proceduresKind);
+            localStorage.setItem('proceduresScope', this.settings.proceduresScope);
             localStorage.setItem('showProbable', this.settings.showProbable);
             localStorage.setItem('showAirspaceBoundaries', this.settings.showAirspaceBoundaries);
             localStorage.setItem('airspaceOpacity', this.settings.airspaceOpacity);

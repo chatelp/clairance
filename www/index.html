@@ -1097,6 +1097,12 @@
                                                     <button class="cl-seg__item" :aria-pressed="$store.atc.settings.proceduresKind === 'SID'" @click="$store.atc.setProceduresKind('SID')"
                                                             data-help-title="Departures" data-help="The published departures (SID) of the runways in use: from the runway to the point an aircraft leaves by.">Departures</button>
                                                 </div>
+                                                <div class="cl-seg" role="group" aria-label="Runways">
+                                                    <button class="cl-seg__item" :aria-pressed="$store.atc.settings.proceduresScope !== 'all'" @click="$store.atc.setProceduresScope('inUse')"
+                                                            data-help-title="Runways in use" data-help="Only the routes of the runways in use, as the station sees them land and take off. Learnt again after each start of the server: until then, some may be missing.">Runways in use</button>
+                                                    <button class="cl-seg__item" :aria-pressed="$store.atc.settings.proceduresScope === 'all'" @click="$store.atc.setProceduresScope('all')"
+                                                            data-help-title="All runways" data-help="Every published route of the kind, whatever runway is in use: the whole picture, busier on the map.">All</button>
+                                                </div>
                                                 <span class="cl-field__source" x-text="$store.atc.procedureLayer.text"></span>
                                             </div>
                                         </template>
