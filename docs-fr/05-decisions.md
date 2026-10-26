@@ -5304,6 +5304,12 @@ un mandataire unique) ; durcir ce qui devient public (connexion, limite des essa
 WebSocket) **avant** l'ouverture ; tracer les connexions. Limite connue : cette machine est sur un onduleur qui
 saute (deux redémarrages le 19/10) ; quand elle tombe, l'accès distant tombe avec elle.
 
+**D1 fait le 26/10, fermé** (doc 35) : la route existe, derrière une barrière temporaire du mandataire, retirée
+seulement à l'ouverture. Constat : le domaine du propriétaire passe par le proxy de Cloudflare ; le serveur voit
+l'adresse de Cloudflare, pas celle du client, ce qui pèse sur la limite des essais et le journal des connexions
+(fiche O). Point non vérifié : ce que les conditions de Cloudflare disent d'un flux audio passé par son proxy
+(environ 384 kb/s par fréquence écoutée, en audio non compressé).
+
 ### Q61 — Le lanceur, projet à part, et son contrat avec le serveur *(26/10 — **dans ce dépôt, rangé à part** ; contrat à écrire)*
 
 **Le constat, relevé le 26/10** : le lanceur (2 825 lignes de Swift) lit `config.toml` lui-même (ports,

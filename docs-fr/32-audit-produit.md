@@ -494,6 +494,12 @@ sur la carte.
 
 ## État
 
+- 26/10, 13:19 : **D1, l'accès distant, en place et fermé** (Q62, plan 35). Route ajoutée au Traefik du propriétaire
+  (copie du fichier gardée sur sa machine), certificat obtenu, limite des essais sur `/api/v1/auth/login`, en-têtes de
+  sécurité, et une barrière temporaire du mandataire jusqu'à l'ouverture. Côté Clairance, `trusted_proxies` et
+  `allowed_origins` dans la configuration (sauvegarde `runs/config.toml.avant-d1`), production relancée à 13:19:09, le
+  décodage Go repris à 13:19:13. De l'extérieur, tout reçoit 401 de la barrière. Le domaine passe par le proxy de
+  Cloudflare : l'adresse du client est celle de Cloudflare, à traiter avec la fiche O, lancée dans le cloud.
 - 26/10, 13:09:51 : **N5 lancé, la production décode ses flux en Go** (goxiph, sans ffmpeg) pour 24 h, avec l'accord du
   propriétaire : binaire reconstruit (e8f500b), `decoder = "go"` dans `configs/config.toml` (sauvegarde
   `runs/config.toml.avant-n5`), relance par le lanceur (coupure de 13:09:42 à 13:09:51), station prévenue. Vérifié :

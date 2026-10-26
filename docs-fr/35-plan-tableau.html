@@ -185,13 +185,13 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
       <div class="bhead">
         <span class="letter">D</span>
         <h2>L'accès à distance d'un proche</h2>
-        <div class="meta"><span>Q62 · en parallèle de B1</span><span class="bar"><i style="width:17%"></i></span><span>1 / 6</span></div>
+        <div class="meta"><span>Q62 · en parallèle de B1</span><span class="bar"><i style="width:33%"></i></span><span>2 / 6</span></div>
       </div>
       <p class="goal">Un ami écoute ta production de chez lui, audio compris, par Internet derrière ton Traefik. Un usage des tests, pas une fonctionnalité. Rien n'est ouvert avant D3.</p>
       <ul class="steps">
-        <li><span class="code">D1</span><span class="what"><b>Le passage par Traefik</b><small>route HTTPS vers le Mac, adresse fixe du Mac, Traefik déclaré dans Clairance</small></span><span class="chip s-todo">à faire</span></li>
+        <li><span class="code">D1</span><span class="what"><b>Le passage par Traefik</b><small>route en place, fermée par une barrière temporaire ; passe par Cloudflare ; reste ton essai dans un navigateur</small></span><span class="chip s-done">fait, fermé</span></li>
         <li><span class="code">D2</span><span class="what"><b>L'audio par la même adresse que la page</b><small>les ports 8001 à 8004 étaient injoignables de l'extérieur</small></span><span class="chip s-done">fait</span></li>
-        <li><span class="code">D3</span><span class="what"><b>Le durcissement de ce qui devient public</b><small>chaque route sans connexion, limite des essais, ce que voit un compte « viewer »</small></span><span class="chip s-doing">en cours</span></li>
+        <li><span class="code">D3</span><span class="what"><b>Le durcissement de ce qui devient public</b><small>fiche O lancée dans le cloud le 26/10 : chaque route sans connexion, limite des essais (adresse vue à travers Cloudflare), ce que voit un compte « viewer »</small></span><span class="chip s-doing">en cours</span></li>
         <li><span class="code">D4</span><span class="what"><b>Son compte et la trace</b><small>compte à son nom, audio ouvert, journal des connexions, comment couper</small></span><span class="chip s-todo">à faire</span></li>
         <li><span class="code">D5</span><span class="what"><b>La fiabilité vue de chez lui</b><small>chaque relance le déconnecte ; machine Traefik sur l'onduleur qui saute</small></span><span class="chip s-todo">à faire</span></li>
         <li><span class="code">D6</span><span class="what"><b>Le lanceur chez lui</b><small>après le contrat C ; signature Apple</small></span><span class="chip s-later">plus tard</span></li>
@@ -242,7 +242,7 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
       <ul class="steps">
         <li><span class="code">G1</span><span class="what"><b>Le portage Linux du sidecar</b><small>= E1 ; fiche N écrite</small></span><span class="chip s-todo">à lancer</span></li>
         <li><span class="code">G2</span><span class="what"><b>Les tests du contrat</b><small>= C2, une fois C1 écrit</small></span><span class="chip s-wait">attend C1</span></li>
-        <li><span class="code">G3</span><span class="what"><b>Ce qui devient public, et la trace des connexions</b><small>= D3 et D4 ; fiche O écrite</small></span><span class="chip s-todo">à lancer</span></li>
+        <li><span class="code">G3</span><span class="what"><b>Ce qui devient public, et la trace des connexions</b><small>= D3 et D4 ; fiche O lancée le 26/10</small></span><span class="chip s-doing">en cours</span></li>
       </ul>
       <p class="exit"><b>Règle</b> · jamais l'audio ni les bases dans le cloud.</p>
     </article>
@@ -303,7 +303,7 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
       <ul class="plain">
         <li>Autoriser chaque relance de la production.</li>
         <li>Le PCM par UDP : réécrit en Go (proposé) ou retiré.</li>
-        <li>La route Traefik vers le Mac, et l'adresse fixe du Mac (D1).</li>
+        <li>Essayer l'accès public dans un navigateur, derrière la barrière (D1).</li>
         <li>Le mot de passe du compte de l'ami (D4).</li>
         <li>Le compte développeur Apple, le jour de D6.</li>
         <li>La purge des anciens objets chez GitHub, la description courte du dépôt.</li>
@@ -311,5 +311,5 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
     </div>
   </section>
 
-  <footer>Mis à jour le 26/10/2026 à 13 h 25 · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
+  <footer>Mis à jour le 26/10/2026 à 13 h 25 (D1 : 13 h 30) · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
 </div>
