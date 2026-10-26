@@ -167,17 +167,17 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
       <div class="bhead">
         <span class="letter">B</span>
         <h2>Un serveur auto-contenu</h2>
-        <div class="meta"><span>Q60 · fondation</span><span class="bar"><i style="width:14%"></i></span><span>1 / 7</span></div>
+        <div class="meta"><span>Q60 · fondation</span><span class="bar"><i style="width:43%"></i></span><span>3 / 7</span></div>
       </div>
       <p class="goal">Clairance ne dépend plus de ce qui est installé à côté, ni d'un script hors du dépôt.</p>
       <ul class="steps">
         <li><span class="code">B1</span><span class="what"><b>Mesurer le décodage audio en Go</b><small>identique à ffmpeg à l'arrondi près (≈ 100 dB) ; 5,6 s de calcul par heure ; ffmpeg perd 3,6 s à chaque démarrage</small></span><span class="chip s-done">mesuré</span></li>
         <li><span class="code">B1+</span><span class="what"><b>Valider goxiph, puis abandonner ffmpeg</b><small>décodeur, robustesse, chaîne, audio réel transcrit par paires : passés (17 textes différents sur 237, quand un bruit inaudible en fait basculer 22) ; 24 h de production en Go : en cours depuis 13:09, jugées le 27/10</small></span><span class="chip s-doing">4 / 5</span></li>
         <li><span class="code">B1′</span><span class="what"><b>Abandonner ffmpeg</b><small>si N5 valide goxiph : SRT et carte son retirés, PCM par UDP réécrit en Go ; passage à 16 kHz (décidé)</small></span><span class="chip s-wait">attend N5</span></li>
-        <li><span class="code">B2</span><span class="what"><b>La page dans le binaire</b><small>plus de page figée ni de copie</small></span><span class="chip s-todo">à faire</span></li>
-        <li><span class="code">B3</span><span class="what"><b>Clairance lance lui-même ses compagnons</b><small>liaison avec la station, empêchement de veille ; le script disparaît (décidé)</small></span><span class="chip s-todo">à faire</span></li>
+        <li><span class="code">B2</span><span class="what"><b>La page dans le binaire</b><small>fait par la fiche Q ; la production garde sa copie jusqu'à son passage à la page incorporée</small></span><span class="chip s-done">fait</span></li>
+        <li><span class="code">B3</span><span class="what"><b>Clairance lance lui-même ses compagnons</b><small>fait par la fiche R : liaison (clé interne, plus de mot de passe) et empêchement de veille, désactivés par défaut ; à activer quand le script disparaît</small></span><span class="chip s-doing">code fait</span></li>
         <li><span class="code">B4</span><span class="what"><b>Le sidecar dans son propre environnement</b><small>plus d'emprunt au dépôt du labo ; modèles téléchargés au premier lancement</small></span><span class="chip s-todo">à faire</span></li>
-        <li><span class="code">B5</span><span class="what"><b>Un bilan au démarrage</b><small>ce qui manque, et ce qui en souffre</small></span><span class="chip s-todo">à faire</span></li>
+        <li><span class="code">B5</span><span class="what"><b>Un bilan au démarrage</b><small>fait par la fiche Q : <code>missing</code> dans la santé, une ligne par absence au démarrage</small></span><span class="chip s-done">fait</span></li>
       </ul>
       <p class="exit"><b>Sortie</b> · la production tourne avec le minimum de macOS, sans le labo ni le script, et dit ce qui lui manque.</p>
     </article>
@@ -206,12 +206,12 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
       <div class="bhead">
         <span class="letter">C</span>
         <h2>Le contrat entre le lanceur et le serveur</h2>
-        <div class="meta"><span>Q61 · après B3</span><span class="bar"><i style="width:20%"></i></span><span>1 / 5</span></div>
+        <div class="meta"><span>Q61 · après B3</span><span class="bar"><i style="width:60%"></i></span><span>3 / 5</span></div>
       </div>
       <p class="goal">Le lanceur démarre un programme et lit son API ; il ne lit plus aucun fichier du serveur.</p>
       <ul class="steps">
-        <li><span class="code">C1</span><span class="what"><b>Écrire le contrat</b><small>démarrer, arrêter, prêt, santé, description du processus, jetons et rôles</small></span><span class="chip s-todo">à faire</span></li>
-        <li><span class="code">C2</span><span class="what"><b>Le serveur l'expose, un test le garde</b></span><span class="chip s-todo">à faire</span></li>
+        <li><span class="code">C1</span><span class="what"><b>Écrire le contrat</b><small>écrit par la fiche R : docs-fr/36-contrat-lanceur.md</small></span><span class="chip s-done">fait</span></li>
+        <li><span class="code">C2</span><span class="what"><b>Le serveur l'expose, un test le garde</b><small>fait par la fiche R : canal d'état, processus et compagnons dans la santé, schéma figé (107 champs + 12)</small></span><span class="chip s-done">fait</span></li>
         <li><span class="code">C3</span><span class="what"><b>Le lanceur cesse de lire les fichiers</b><small>configuration, journaux, git, noms de processus</small></span><span class="chip s-wait">attend B3, C1</span></li>
         <li><span class="code">C4</span><span class="what"><b>Où vit le lanceur</b><small>dans ce dépôt, rangé à part</small></span><span class="chip s-done">décidé</span></li>
         <li><span class="code">C5</span><span class="what"><b>Tableau de bord et poste de commande</b><small>les étapes 2 et 3 du lanceur, avec le design</small></span><span class="chip s-wait">attend C</span></li>
@@ -239,15 +239,15 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
       <div class="bhead">
         <span class="letter">G</span>
         <h2>Le crédit cloud</h2>
-        <div class="meta"><span>61 $ · jusqu'au 5/11</span><span class="bar"><i style="width:40%"></i></span><span>2 / 5</span></div>
+        <div class="meta"><span>61 $ · jusqu'au 5/11</span><span class="bar"><i style="width:100%"></i></span><span>5 / 5</span></div>
       </div>
       <p class="goal">Ce qui se vérifie sans la station et sans audio réel, en fiches relues sur le Mac.</p>
       <ul class="steps">
         <li><span class="code">G1</span><span class="what"><b>Le portage Linux du sidecar</b><small>= E1 ; fiche N faite, fusionnée le 26/10</small></span><span class="chip s-done">fait</span></li>
-        <li><span class="code">G2</span><span class="what"><b>Le contrat du lanceur, côté serveur</b><small>fiche R écrite le 26/10 au soir : co-atc lance ses compagnons, le serveur expose ce que le lanceur lit aujourd'hui dans les fichiers, un test le garde</small></span><span class="chip s-doing">lancée</span></li>
+        <li><span class="code">G2</span><span class="what"><b>Le contrat du lanceur, côté serveur</b><small>fiche R intégrée le 26/10 : contrat écrit (doc 36), co-atc lance ses compagnons, le serveur expose ce que le lanceur lisait, schéma figé</small></span><span class="chip s-done">fait</span></li>
         <li><span class="code">G3</span><span class="what"><b>Ce qui devient public, et la trace des connexions</b><small>= D3 et D4 ; fiche O faite, fusionnée le 26/10</small></span><span class="chip s-done">fait</span></li>
-        <li><span class="code">G4</span><span class="what"><b>Le compte invité</b><small>fiche P : adresses de la maison masquées, deux flux par fréquence ; pour l'ami du 28/10</small></span><span class="chip s-doing">lancée</span></li>
-        <li><span class="code">G5</span><span class="what"><b>La page dans le binaire, le bilan au démarrage</b><small>fiche Q (B2, B5)</small></span><span class="chip s-doing">lancée</span></li>
+        <li><span class="code">G4</span><span class="what"><b>Le compte invité</b><small>fiche P intégrée le 26/10 : adresses de la maison masquées, deux flux par fréquence, 429 clair</small></span><span class="chip s-done">fait</span></li>
+        <li><span class="code">G5</span><span class="what"><b>La page dans le binaire, le bilan au démarrage</b><small>fiche Q intégrée le 26/10 (B2, B5)</small></span><span class="chip s-done">fait</span></li>
       </ul>
       <p class="exit"><b>Règle</b> · jamais l'audio ni les bases dans le cloud.</p>
     </article>
@@ -317,5 +317,5 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
     </div>
   </section>
 
-  <footer>Mis à jour le 26/10/2026 à 17 h 55 · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
+  <footer>Mis à jour le 26/10/2026 à 18 h 25 · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
 </div>

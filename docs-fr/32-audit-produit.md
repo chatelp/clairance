@@ -494,6 +494,22 @@ sur la carte.
 
 ## État
 
+- 26/10, 18:20 : **fiches P, Q et R relues et fusionnées** (202a566, 4d3a79a, e810731 ; en production à la relance
+  du 27/10). **P**, le compte invité : treize champs portant une adresse ou un chemin vidés pour un viewer (figés
+  dans `testdata/guest.txt`), deux flux par fréquence au plus quel que soit le format (la limite de dix ne valait
+  que pour le WAV), `429` avec `Retry-After` pour une connexion bloquée. **Q**, le serveur autonome : la page
+  incorporée au binaire (`static_dir` la remplace s'il est donné ; la production garde sa copie pour l'instant), les
+  fichiers propres à la station servis depuis `<sqlite_base_path>/station/`, un bilan au démarrage (`missing` dans
+  `/health/detail`). **R**, le contrat du lanceur côté serveur : `docs-fr/36-contrat-lanceur.md` ; co-atc lance la
+  liaison avec la station (clé interne au lieu du mot de passe) et l'empêchement de veille, **désactivés par
+  défaut** ; canal d'état `-status-fd` ; `contract`, `process`, `companions` dans `/health/detail` ; schéma figé.
+  Fusions : deux conflits Q/P (champs voisins), cinq R/Q (les deux côtés gardés ; `runServer` séparé en arguments et
+  environnement) ; schéma figé réécrit, le diff n'ajoute que `page` et `missing` (12 lignes) ; tous les tests Go et
+  le filet de la page verts. Démarré à part sur l'instance d'essai : canal d'état (`starting`, étapes, `ready` avec
+  ses trois ports), « Startup check: nothing missing », page et feuille servies, mémoire mesurée sur macOS (272 Mo
+  contre 217 Mo de RSS par `ps`, l'empreinte comptant plus large), pression « normal ». Pas encore fait : la liaison
+  lancée par co-atc et `keep_awake` sur le Mac (tant que `production.command` lance sa propre liaison, ne pas
+  activer `[station_link]` : il y en aurait deux).
 - 26/10, 17:02 : **production relancée avec les pistes gardées et les fiches O et N** (457718d), à la demande du
   propriétaire. Binaire démarré d'abord à part (page, santé, `TRACE` refusé, pistes reprises, flux μ-law). Arrêt à
   17:01:19 ; un premier départ refusé à 17:01:53 (« co-atc tourne déjà ») : ma commande contenait le motif que

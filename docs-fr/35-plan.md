@@ -61,10 +61,10 @@ moins de deux minutes.
 | Étape | Ce qu'elle retire | Mesure |
 |---|---|---|
 | B1. **Mesurer le décodage audio en Go** (MP3 d'Icecast, PCM brut) face à ffmpeg | décision du propriétaire du 26/10 : la mesure d'abord | **fait le 26/10** (détail dans Q60) : décodeur goxiph identique à ffmpeg à l'arrondi près (≈ 100 dB), chaîne complète 72 à 80 dB, 5,6 s de calcul par heure ; `-fflags nobuffer` perd 3,6 s à chaque démarrage de ffmpeg. **Choix à faire** : goxiph intégré au dépôt, ou ffmpeg embarqué ; retirer `nobuffer` ; 24 ou 16 kHz |
-| B2. La page dans le binaire (`go:embed`) | la page figée et sa copie (`runs/production/www`) | le binaire sert la page de son propre commit |
-| B3. Les compagnons lancés par co-atc lui-même (la liaison avec la station, l'empêchement de veille), leurs réglages dans la configuration | `runs/production.command`, hors du dépôt, et l'adresse de la station écrite dans un script | le lanceur ne démarre plus qu'un seul programme |
+| B2. La page dans le binaire (`go:embed`) | la page figée et sa copie (`runs/production/www`) | le binaire sert la page de son propre commit ; **fait le 26/10 par la fiche Q** (4d3a79a) ; la production garde sa copie jusqu'à son passage |
+| B3. Les compagnons lancés par co-atc lui-même (la liaison avec la station, l'empêchement de veille), leurs réglages dans la configuration | `runs/production.command`, hors du dépôt, et l'adresse de la station écrite dans un script | le lanceur ne démarre plus qu'un seul programme ; **code fait le 26/10 par la fiche R** (e810731), désactivé par défaut ; à activer quand le script disparaît |
 | B4. Le sidecar dans son propre environnement verrouillé, créé par une commande d'installation ; les modèles téléchargés au premier lancement dans le dossier de données | la dépendance au venv de `whisper-lab` | un compte utilisateur neuf fait tourner la transcription |
-| B5. Un bilan au démarrage : ce qui manque (outil, environnement, modèle, disque) et ce qui en souffre | les pannes découvertes une fois en production | chaque absence nommée au démarrage, testée |
+| B5. Un bilan au démarrage : ce qui manque (outil, environnement, modèle, disque) et ce qui en souffre | les pannes découvertes une fois en production | chaque absence nommée au démarrage, testée ; **fait le 26/10 par la fiche Q** |
 
 **Sortie** : sur ce Mac, la production tourne avec le PATH minimal de macOS, sans `whisper-lab`, sans
 `production.command`, et dit d'elle-même ce qui lui manque.
@@ -106,8 +106,8 @@ ne sert plus qu'à pdftotext. Si N5 échoue, rien de cela n'est fait. **Et, déc
 
 | Étape | Qui |
 |---|---|
-| C1. Écrire le contrat (en anglais, versionné) : démarrer (`co-atc -config <fichier>`), arrêter (SIGTERM), prêt (`/api/v1/health`) ; la santé (`/api/v1/health/detail`) ; la description du processus (PID et enfants, ports, journal, données, version et commit du binaire) ; l'authentification par jeton et le rôle | principale |
-| C2. Le serveur expose ce qui manque, et un test de contrat échoue si une modification casse le lanceur | principale |
+| C1. Écrire le contrat (en anglais, versionné) : démarrer (`co-atc -config <fichier>`), arrêter (SIGTERM), prêt (`/api/v1/health`) ; la santé (`/api/v1/health/detail`) ; la description du processus (PID et enfants, ports, journal, données, version et commit du binaire) ; l'authentification par jeton et le rôle | principale ; **écrit le 26/10 par la fiche R** : `36-contrat-lanceur.md` (en français, comme le voulait la fiche) |
+| C2. Le serveur expose ce qui manque, et un test de contrat échoue si une modification casse le lanceur | principale ; **fait le 26/10 par la fiche R**, schéma figé |
 | C3. Le lanceur cesse de lire `config.toml`, les journaux, `git`, `lsof` et les noms de processus : il démarre un programme et lit l'API | lanceur |
 | C4. Où vit le lanceur | **décidé le 26/10 : dans ce dépôt, rangé à part**, sans dépendance aux fichiers du serveur |
 | C5. Les étapes 2 (tableau de bord) et 3 (poste de commande) du lanceur, sur le contrat | lanceur, design |
@@ -165,7 +165,7 @@ avant d'être intégrées :
 
 4. **Vague 5, écrite le 26/10 au soir** (61 $ restants) : **P**, le compte invité (adresses de la maison masquées,
    flux bornés ; pour l'ami du 28/10) ; **Q**, la page dans le binaire et le bilan au démarrage (B2, B5) ; **R**, le
-   contrat du lanceur côté serveur (B3, C1, C2 ; remplace l'ancienne G2). En parallèle ; **lancées toutes les trois par le propriétaire le 26/10 au soir**.
+   contrat du lanceur côté serveur (B3, C1, C2 ; remplace l'ancienne G2). En parallèle ; lancées par le propriétaire le 26/10 au soir, **revenues, relues et intégrées le soir même** (202a566, 4d3a79a, e810731). Le contrat est écrit : `36-contrat-lanceur.md`.
 
 B1 se mesure sur le Mac : il demande l'audio réel de la station, qui ne va jamais dans le cloud.
 

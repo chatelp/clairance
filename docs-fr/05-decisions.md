@@ -5362,6 +5362,10 @@ public** ; l'accès de l'ami s'ouvre **le 28/10**, après la fin de la bascule a
 production stable. Restent sans décision, faute d'enjeu pour un seul ami : un flux qui survit à la déconnexion, et
 le message de blocage (401 au lieu de 429), corrigé sans question.
 
+**Fiche P intégrée le 26/10 au soir** (202a566) : ces décisions sont dans le code, en production à la relance du
+27/10. Un invité perd aussi la raison d'un échec de source (texte libre, vidé en entier plutôt que nettoyé) ;
+deux flux par fréquence, comptés par compte.
+
 ### Q61 — Le lanceur, projet à part, et son contrat avec le serveur *(26/10 — **dans ce dépôt, rangé à part** ; contrat à écrire)*
 
 **Le constat, relevé le 26/10** : le lanceur (2 825 lignes de Swift) lit `config.toml` lui-même (ports,

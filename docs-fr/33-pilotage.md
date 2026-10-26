@@ -121,6 +121,9 @@ la mémoire des décisions dans `05-decisions.md` ; ici, la vue d'ensemble, cour
 **Soir du 26/10, décisions du propriétaire** : production relancée à 17:02:06 (pistes gardées, fiches O et N en
 service) ; ami le 28/10, invité aux adresses masquées et aux flux limités ; `/vitals` public ; connexion de 30 jours ;
 ensuite **le lanceur, puis le serveur autonome** ; 61 $ de crédit cloud à déléguer dès maintenant.
+Fiches cloud P (invité), Q (page dans le binaire, bilan au démarrage) et R (contrat du lanceur, côté serveur)
+lancées puis intégrées le soir même ; en production à la relance du 27/10. La moitié Swift du contrat (C3)
+revient à l'agent du lanceur, après le 28/10.
 **Fin du 26/10** : plus de relance aujourd'hui sauf panne (propriétaire). Faits l'après-midi : la page joue le son
 elle-même (Q63), Safari compris depuis 16:45 (reprise au clic, rééchantillonnage dans la page) et l'iPhone
 depuis 17:20 ; la couche des
