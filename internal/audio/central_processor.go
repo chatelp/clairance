@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/yegors/co-atc/pkg/logger"
+	"github.com/yegors/co-atc/pkg/tool"
 )
 
 // Import logger functions
@@ -99,13 +100,18 @@ func NewCentralAudioProcessor(
 ) (*CentralAudioProcessor, error) {
 	procCtx, procCancel := context.WithCancel(ctx)
 
+	// "ffmpeg" wherever it is installed, not only on the PATH of whatever
+	// started the server (pkg/tool): from launchd or `open` the PATH holds none
+	// of Homebrew, and production had no audio on 26/10.
+	ffmpegPath, _ := tool.Find(config.FFmpegPath)
+
 	// Create multi-reader for sharing the stream
 	multiReader := NewMultiReader(procCtx, logger.Named("multi-reader"))
 
 	return &CentralAudioProcessor{
 		id:                       id,
 		audioURL:                 audioURL,
-		ffmpegPath:               config.FFmpegPath,
+		ffmpegPath:               ffmpegPath,
 		sampleRate:               config.SampleRate,
 		channels:                 config.Channels,
 		ffmpegTimeoutSecs:        config.FFmpegTimeoutSecs,

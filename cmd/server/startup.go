@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/yegors/co-atc/internal/adsb"
@@ -18,6 +19,7 @@ import (
 	"github.com/yegors/co-atc/internal/weather"
 	"github.com/yegors/co-atc/internal/websocket"
 	"github.com/yegors/co-atc/pkg/logger"
+	"github.com/yegors/co-atc/pkg/tool"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -325,6 +327,18 @@ func startFrequencies(ctx context.Context, cfg *config.Config, adsbService *adsb
 	// The fleet adapter is what lets a spoken callsign be attached to a real
 	// target.
 	fleet := &adsbFleet{service: adsbService, lastSeenMinutes: cfg.PostProcessing.FleetLastSeenMinutes}
+
+	// Said once at start rather than once per stream: without ffmpeg no
+	// frequency has audio, and on 26/10 that was a line per stream asked for,
+	// lost among the rest. Sources can arrive later (PUT /sources), so asked
+	// whether or not any is configured yet.
+	if p, ok := tool.Find(cfg.Transcription.FFmpegPath); ok {
+		log.Info("ffmpeg found", logger.String("path", p))
+	} else {
+		log.Error("ffmpeg not found: no frequency will have audio",
+			logger.String("ffmpeg_path", cfg.Transcription.FFmpegPath), logger.String("PATH", os.Getenv("PATH")),
+			logger.String("looked_in", strings.Join(tool.Dirs, ":")))
+	}
 
 	// What the radio has said about each aircraft, carried on the aircraft itself
 	// so the map can show which targets the controller is actually talking to.

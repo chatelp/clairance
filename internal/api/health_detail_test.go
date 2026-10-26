@@ -2,11 +2,11 @@ package api
 
 import (
 	"net/http"
-	"os/exec"
 	"testing"
 	"time"
 
 	"github.com/yegors/co-atc/internal/frequencies"
+	"github.com/yegors/co-atc/pkg/tool"
 )
 
 // fromLoopback makes a request look as the launcher's does: from this
@@ -101,7 +101,9 @@ func TestTheHealthDetailSaysWhatTheLauncherWatches(t *testing.T) {
 // The bytes out of ffmpeg, on a real ffmpeg reading a tone at its own pace:
 // what tells a frequency that hears from one that only says "connected".
 func TestTheHealthDetailCountsTheAudioThatArrives(t *testing.T) {
-	if _, err := exec.LookPath("ffmpeg"); err != nil {
+	// Found as the server finds it: with the PATH launchd and `open` give,
+	// which holds none of Homebrew, this test runs as production did on 26/10.
+	if _, ok := tool.Find("ffmpeg"); !ok {
 		t.Skip("ffmpeg not installed")
 	}
 	s := newStack(t, stackOptions{tone: true})

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/yegors/co-atc/pkg/logger"
+	"github.com/yegors/co-atc/pkg/tool"
 )
 
 // Sidecar ties the local speech-to-text service to the lifetime of this server.
@@ -281,7 +282,9 @@ func (s *Sidecar) Stop() {
 }
 
 func (s *Sidecar) spawn() error {
-	cmd := exec.Command(s.command[0], s.command[1:]...)
+	// The interpreter wherever it is installed (pkg/tool), as for ffmpeg.
+	name, _ := tool.Find(s.command[0])
+	cmd := exec.Command(name, s.command[1:]...)
 	startInOwnGroup(cmd)
 	// Tells our sidecar to stop if we are killed outright. Stop() handles every
 	// ordinary exit, but not SIGKILL -- and a sidecar that outlives us holds the
