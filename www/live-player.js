@@ -28,6 +28,60 @@
         ULAW[i] = (sign ? -s : s) / 32768;
     }
 
+    // The stream's rate brought to the context's, here and continuously. A
+    // buffer at 8 kHz is resampled by the browser on its own, edges included:
+    // in WebKit each 0.1 s chunk joined the next with a step (0.02 on a tone of
+    // 0.5, nothing between the joins, measured offline on 26/10) and Safari
+    // clicked ten times a second. A windowed sinc whose history runs from one
+    // chunk to the next has no joins.
+    const HALF = 16;          // taps on each side of the output sample
+    const TABLE = 256;        // kernel samples per input sample
+    class Resampler {
+        constructor(inRate, outRate) {
+            this.inRate = inRate;
+            this.step = inRate / outRate;
+            this.cut = Math.min(1, outRate / inRate);
+            this.kernel = new Float32Array(HALF * TABLE + 2);
+            for (let i = 0; i < this.kernel.length; i++) {
+                const x = i / TABLE;
+                const c = this.cut * x;
+                const sinc = c === 0 ? 1 : Math.sin(Math.PI * c) / (Math.PI * c);
+                const w = x < HALF ? 0.42 + 0.5 * Math.cos(Math.PI * x / HALF) + 0.08 * Math.cos(2 * Math.PI * x / HALF) : 0;
+                this.kernel[i] = this.cut * sinc * w;
+            }
+            this.buf = new Float32Array(HALF);   // silence before the first sample
+            this.t = HALF;                       // where the next output falls, in input samples
+        }
+
+        _k(d) {
+            const x = Math.abs(d) * TABLE;
+            const i = Math.floor(x);
+            if (i >= HALF * TABLE) return 0;
+            const f = x - i;
+            return this.kernel[i] * (1 - f) + this.kernel[i + 1] * f;
+        }
+
+        push(samples) {
+            const buf = new Float32Array(this.buf.length + samples.length);
+            buf.set(this.buf); buf.set(samples, this.buf.length);
+            const n = Math.max(0, Math.ceil((buf.length - HALF - this.t) / this.step));
+            const out = new Float32Array(n);
+            let t = this.t;
+            for (let j = 0; j < n; j++, t += this.step) {
+                const c = Math.floor(t);
+                let y = 0;
+                for (let k = c - HALF + 1; k <= c + HALF; k++) {
+                    if (k >= 0 && k < buf.length) y += buf[k] * this._k(t - k);
+                }
+                out[j] = y;
+            }
+            const drop = Math.max(0, Math.floor(t) - HALF);
+            this.buf = buf.slice(drop);
+            this.t = t - drop;
+            return out;
+        }
+    }
+
     const LEAD = 0.3;        // seconds held in reserve against the network's jitter
     const MAX_AHEAD = 2.0;   // more queued than this and a chunk is dropped: latency stays bounded
     const CHUNK = 0.1;       // seconds of sound gathered into one scheduled buffer
@@ -91,6 +145,7 @@
             this._abort = null;
             clearTimeout(this._retryTimer);
             this._acc = []; this._accLength = 0;
+            this._resampler = null;
             this.readyState = 0;
         }
 
@@ -177,28 +232,22 @@
         }
 
         _schedule(samples, rate) {
-            let buffer;
-            try {
-                buffer = this.ctx.createBuffer(1, samples.length, rate);
-                buffer.copyToChannel(samples, 0);
-            } catch (e) {
-                // A browser that refuses a buffer at 8 kHz gets the sound
-                // brought to its own rate, linearly.
-                const to = this.ctx.sampleRate;
-                const n = Math.floor(samples.length * to / rate);
-                const up = new Float32Array(n);
-                for (let i = 0; i < n; i++) {
-                    const x = i * rate / to;
-                    const k = Math.floor(x);
-                    const f = x - k;
-                    up[i] = samples[k] * (1 - f) + (samples[Math.min(k + 1, samples.length - 1)] * f);
-                }
-                buffer = this.ctx.createBuffer(1, n, to);
-                buffer.copyToChannel(up, 0);
-            }
+            const to = this.ctx.sampleRate;
             const now = this.ctx.currentTime;
-            if (this._next < now + 0.02) this._next = now + LEAD;     // starting, or the network fell behind
-            else if (this._next > now + MAX_AHEAD) return;             // too far ahead: this chunk is dropped
+            if (this._next < now + 0.02) {                              // starting, or the network fell behind
+                this._next = now + LEAD;
+                this._resampler = null;                                 // a gap anyway: start the filter afresh
+            } else if (this._next > now + MAX_AHEAD) {
+                this._resampler = null;                                 // too far ahead: this chunk is dropped
+                return;
+            }
+            if (rate !== to) {
+                if (!this._resampler || this._resampler.inRate !== rate) this._resampler = new Resampler(rate, to);
+                samples = this._resampler.push(samples);
+                if (!samples.length) return;
+            }
+            const buffer = this.ctx.createBuffer(1, samples.length, to);
+            buffer.copyToChannel(samples, 0);
             const node = this.ctx.createBufferSource();
             node.buffer = buffer;
             node.connect(this.output);
@@ -209,6 +258,8 @@
 
     // Whether this browser can play a stream this way: a readable fetch body
     // and Web Audio. Otherwise audio-client.js keeps an <audio> element.
+    LiveStreamPlayer.Resampler = Resampler;
+
     LiveStreamPlayer.supported = () =>
         typeof ReadableStream !== 'undefined' && typeof Response !== 'undefined' &&
         'body' in Response.prototype && !!(window.AudioContext || window.webkitAudioContext);
