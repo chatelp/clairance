@@ -78,7 +78,9 @@ func (m *mp3Relay) reader() (io.ReadCloser, bool) {
 	if len(m.burst) == 0 {
 		return nil, false
 	}
-	c := &mp3Reader{relay: m, frames: make(chan []byte, mp3ClientFrames), done: make(chan struct{})}
+	// Room for the burst and the live frames after it: filled under the lock,
+	// a burst larger than the room would hold the relay, and the decoder.
+	c := &mp3Reader{relay: m, frames: make(chan []byte, len(m.burst)+mp3ClientFrames), done: make(chan struct{})}
 	for _, f := range m.burst {
 		c.frames <- f
 	}
