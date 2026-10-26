@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -57,5 +58,33 @@ func TestANewIPv6AddressPerGuessDoesNotEscapeTheLimit(t *testing.T) {
 	}
 	if err := try("2001:db8:1:3::1", "the right one"); err != nil {
 		t.Errorf("another /64: %v", err)
+	}
+}
+
+// An address that tried and never came back is forgotten once its attempts
+// have expired; one still inside its window is kept, count and all.
+func TestTheLimitForgetsAddressesThatStoppedTrying(t *testing.T) {
+	clock := time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
+	l := NewLimiter(3, 15*time.Minute)
+	l.now = func() time.Time { return clock }
+
+	for i := 0; i < 10000; i++ {
+		l.Allow(fmt.Sprintf("2001:db8:%x::/64", i)) // one attempt each, never again
+	}
+	clock = clock.Add(10 * time.Minute)
+	for i := 0; i < 3; i++ {
+		l.Allow("203.0.113.5") // still guessing
+	}
+	clock = clock.Add(6 * time.Minute) // the 10 000 have expired, the guesser has not
+	l.Allow("198.51.100.1")
+
+	l.mu.Lock()
+	n := len(l.attempts)
+	l.mu.Unlock()
+	if n != 2 {
+		t.Errorf("%d addresses kept, want 2: the guesser and the newcomer", n)
+	}
+	if l.Allow("203.0.113.5") {
+		t.Error("forgetting the others forgot the guesser's count")
 	}
 }

@@ -162,17 +162,20 @@ type Limiter struct {
 	attempts map[string][]time.Time
 	max      int
 	window   time.Duration
+	swept    time.Time        // the last time expired addresses were forgotten
+	now      func() time.Time // time.Now; a test's clock
 }
 
 func NewLimiter(max int, window time.Duration) *Limiter {
-	return &Limiter{attempts: map[string][]time.Time{}, max: max, window: window}
+	return &Limiter{attempts: map[string][]time.Time{}, max: max, window: window, now: time.Now}
 }
 
 // Allow records an attempt and reports whether it may proceed.
 func (l *Limiter) Allow(key string) bool {
-	now := time.Now()
+	now := l.now()
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.sweepLocked(now)
 
 	var kept []time.Time
 	for _, t := range l.attempts[key] {
@@ -186,6 +189,23 @@ func (l *Limiter) Allow(key string) bool {
 	}
 	l.attempts[key] = append(kept, now)
 	return true
+}
+
+// sweepLocked forgets, at most once per window, the addresses whose last
+// attempt is older than the window. An address was otherwise kept for the
+// life of the process once it had tried, unless it later got the password
+// right: every visitor who ever mistyped, and every address a guesser drew
+// for one attempt, stayed in memory -- without bound on a public server.
+func (l *Limiter) sweepLocked(now time.Time) {
+	if now.Sub(l.swept) < l.window {
+		return
+	}
+	l.swept = now
+	for key, times := range l.attempts {
+		if len(times) == 0 || now.Sub(times[len(times)-1]) >= l.window {
+			delete(l.attempts, key)
+		}
+	}
 }
 
 // Succeeded clears the count after a correct password, so a user who fumbled twice
