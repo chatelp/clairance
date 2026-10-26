@@ -45,6 +45,7 @@ tar1090_base_url = "http://192.168.1.166/tar1090/data/"   # where tar1090 serves
 # A source is anything ffmpeg reads: Icecast or LiveATC over HTTP, SRT (ffmpeg built with
 # libsrt), raw PCM over UDP from an SDR program, a receiver on the sound card. An 8 KB buffer,
 # a reconnect after 5 s. LiveATC asks not to redistribute its streams.
+# decoder = "go"                            # MP3 over HTTP decoded inside the binary, no ffmpeg (being tested)
 
 [[frequencies.sources]]
 id = "cyyz_twr"                             # unique; names the stream in the database and the API

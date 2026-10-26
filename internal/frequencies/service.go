@@ -69,6 +69,7 @@ func NewStreamProcessor(
 		FFmpegReconnectDelaySecs: config.Frequencies.FFmpegReconnectDelaySecs,
 		NoFFmpegReconnect:        !ffmpegReconnect,
 		InputOptions:             inputOptions,
+		GoDecoder:                config.Frequencies.Decoder == "go",
 	}
 
 	audioProcessor, err := audio.NewCentralAudioProcessor(

@@ -64,6 +64,11 @@ type CentralAudioProcessor struct {
 	statusCallback           StatusChangeCallback // Callback for status changes
 	currentStatus            ConnectionStatus     // Current connection status
 	flow                     flowMeter            // bytes out of ffmpeg, the last minute (flow.go)
+
+	// goDecoder decodes HTTP MP3 streams in Go instead of ffmpeg (godecode.go);
+	// goCancel stops the one running.
+	goDecoder bool
+	goCancel  context.CancelFunc
 }
 
 // CentralProcessorConfig contains configuration for the central audio processor
@@ -88,6 +93,10 @@ type CentralProcessorConfig struct {
 	// a receiver plugged into the sound card. Empty for a stream ffmpeg
 	// recognises by itself, which is every HTTP one.
 	InputOptions []string
+
+	// GoDecoder decodes an HTTP MP3 stream in Go (godecode.go) rather than with
+	// ffmpeg; other sources still go through ffmpeg.
+	GoDecoder bool
 }
 
 // NewCentralAudioProcessor creates a new central audio processor.
@@ -118,6 +127,7 @@ func NewCentralAudioProcessor(
 		ffmpegReconnectDelaySecs: config.FFmpegReconnectDelaySecs,
 		noFFmpegReconnect:        config.NoFFmpegReconnect,
 		inputOptions:             config.InputOptions,
+		goDecoder:                config.GoDecoder,
 		multiReader:              multiReader,
 		ctx:                      procCtx,
 		cancel:                   procCancel,
@@ -210,6 +220,9 @@ func (p *CentralAudioProcessor) Stop() error {
 
 // startFFmpeg starts the ffmpeg process for HTTP streams
 func (p *CentralAudioProcessor) startFFmpeg() error {
+	if p.goDecoder && goDecodes(p.audioURL, p.inputOptions, p.channels, p.format) {
+		return p.startGoDecoder()
+	}
 	p.logger.Debug("Starting ffmpeg process",
 		String("path", p.ffmpegPath),
 		String("url", p.audioURL))
@@ -283,6 +296,7 @@ func isHTTP(audioURL string) bool {
 
 // stopFFmpeg stops the ffmpeg process
 func (p *CentralAudioProcessor) stopFFmpeg() {
+	p.stopGoDecoder()
 	if p.ffmpegCmd != nil && p.ffmpegCmd.Process != nil {
 		p.logger.Info("Stopping ffmpeg process")
 

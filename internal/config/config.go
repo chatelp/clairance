@@ -262,6 +262,11 @@ type FrequenciesConfig struct {
 	// FFmpeg timeout configuration
 	FFmpegTimeoutSecs        int `toml:"ffmpeg_timeout_secs"`         // FFmpeg connection timeout in seconds (0 = no timeout, the default)
 	FFmpegReconnectDelaySecs int `toml:"ffmpeg_reconnect_delay_secs"` // FFmpeg reconnect delay in seconds (default: 2)
+
+	// Decoder reads the HTTP MP3 streams: "ffmpeg" (the default while it is
+	// tested) or "go", the decoder built into the binary (internal/audio,
+	// godecode.go; docs-fr/35-plan.md, B1). Other sources go through ffmpeg.
+	Decoder string `toml:"decoder"`
 }
 
 // LocalSTTFileConfig is the [transcription.local] section of config.toml.
@@ -780,6 +785,12 @@ func (c *Config) ValidateFrequencies() error {
 	// Validate reconnect interval
 	if c.Frequencies.ReconnectIntervalSecs <= 0 {
 		return fmt.Errorf("invalid reconnect interval: %d", c.Frequencies.ReconnectIntervalSecs)
+	}
+
+	switch c.Frequencies.Decoder {
+	case "", "ffmpeg", "go":
+	default:
+		return fmt.Errorf("invalid frequencies.decoder: %q (ffmpeg or go)", c.Frequencies.Decoder)
 	}
 
 	// Validate FFmpeg timeout configuration
