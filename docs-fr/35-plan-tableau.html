@@ -132,7 +132,7 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
 
   <div class="strip" role="status">
     <div class="live"><span class="dot" aria-hidden="true"></span>Production en marche
-      <small>depuis 26/10 13:06 · ADS-B · 2 fréquences · transcrit</small></div>
+      <small>depuis 26/10 13:09 · décodage en Go, sans ffmpeg (essai de 24 h) · ADS-B · 2 fréquences · transcrit</small></div>
     <div class="legend" aria-label="Légende">
       <span class="chip s-done">fait</span>
       <span class="chip s-doing">en cours</span>
@@ -171,7 +171,7 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
       <p class="goal">Clairance ne dépend plus de ce qui est installé à côté, ni d'un script hors du dépôt.</p>
       <ul class="steps">
         <li><span class="code">B1</span><span class="what"><b>Mesurer le décodage audio en Go</b><small>identique à ffmpeg à l'arrondi près (≈ 100 dB) ; 5,6 s de calcul par heure ; ffmpeg perd 3,6 s à chaque démarrage</small></span><span class="chip s-done">mesuré</span></li>
-        <li><span class="code">B1+</span><span class="what"><b>Valider goxiph, puis abandonner ffmpeg</b><small>décodeur, robustesse, chaîne, audio réel transcrit par paires : passés (17 textes différents sur 237, quand un bruit inaudible en fait basculer 22) ; 24 h de production en Go : à faire</small></span><span class="chip s-doing">4 / 5</span></li>
+        <li><span class="code">B1+</span><span class="what"><b>Valider goxiph, puis abandonner ffmpeg</b><small>décodeur, robustesse, chaîne, audio réel transcrit par paires : passés (17 textes différents sur 237, quand un bruit inaudible en fait basculer 22) ; 24 h de production en Go : en cours depuis 13:09, jugées le 27/10</small></span><span class="chip s-doing">4 / 5</span></li>
         <li><span class="code">B2</span><span class="what"><b>La page dans le binaire</b><small>plus de page figée ni de copie</small></span><span class="chip s-todo">à faire</span></li>
         <li><span class="code">B3</span><span class="what"><b>Clairance lance lui-même ses compagnons</b><small>liaison avec la station, empêchement de veille ; le script disparaît (décidé)</small></span><span class="chip s-todo">à faire</span></li>
         <li><span class="code">B4</span><span class="what"><b>Le sidecar dans son propre environnement</b><small>plus d'emprunt au dépôt du labo ; modèles téléchargés au premier lancement</small></span><span class="chip s-todo">à faire</span></li>
@@ -290,6 +290,7 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
         <li><b>B1 mesuré</b> : le décodage en Go vaut ffmpeg.</li>
         <li><b>goxiph testé dans Clairance</b> ; si validé, bascule complète et ffmpeg abandonné.</li>
         <li><b>goxiph passe l'audio réel</b> : ses écarts de transcription sont dans le bruit de Whisper.</li>
+        <li><b>Production en Go pendant 24 h</b>, depuis 13:09.</li>
         <li><b>La production portée à part du menu</b> (Q59, 24/10).</li>
       </ul>
     </div>
@@ -298,7 +299,6 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
       <h3>Ce qui revient au propriétaire</h3>
       <ul class="plain">
         <li>Autoriser chaque relance de la production.</li>
-        <li>Passer la production en Go pendant 24 h (N5).</li>
         <li>Après la validation : les sources que goxiph ne lit pas (SRT, carte son) ; 24 ou 16 kHz.</li>
         <li>La route Traefik vers le Mac, et l'adresse fixe du Mac (D1).</li>
         <li>Le mot de passe du compte de l'ami (D4).</li>
@@ -308,5 +308,5 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
     </div>
   </section>
 
-  <footer>Mis à jour le 26/10/2026 à 13 h 10 · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
+  <footer>Mis à jour le 26/10/2026 à 13 h 15 · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
 </div>

@@ -494,6 +494,13 @@ sur la carte.
 
 ## État
 
+- 26/10, 13:09:51 : **N5 lancé, la production décode ses flux en Go** (goxiph, sans ffmpeg) pour 24 h, avec l'accord du
+  propriétaire : binaire reconstruit (e8f500b), `decoder = "go"` dans `configs/config.toml` (sauvegarde
+  `runs/config.toml.avant-n5`), relance par le lanceur (coupure de 13:09:42 à 13:09:51), station prévenue. Vérifié :
+  « Decoding the stream in Go » sur les deux fréquences, aucun processus ffmpeg, ADS-B à 108 avions, première
+  transcription à 13:10:05, aucun « no route to host ». La station rappelle que les flux arrivent en morceaux par
+  Caddy et qu'Icecast retire un lecteur en retard de 512 Ko sans fermer la connexion : couvert par la coupure après
+  15 s sans données.
 - 26/10 (12:30 – 13:06) : **N4, l'audio réel transcrit par paires, passé** (B1 bis, plan 35). Une demi-heure des deux
   fréquences (11:59 – 12:29) décodée par ffmpeg et par goxiph, découpée comme la production (237 transmissions sur
   237 aux mêmes bornes), transcrite par un sidecar d'essai sans archive, production arrêtée 36 minutes (station

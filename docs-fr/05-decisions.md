@@ -5367,7 +5367,7 @@ dans le doc 35 (B1 bis) ; décodeur intégré (a62e9c2) et branché derrière `f
 découpées aux mêmes bornes ; 17 textes différents sur 237, quand un bruit inaudible d'un pas d'arrondi ajouté à
 l'audio de ffmpeg en fait basculer 22 et que le même audio transcrit deux fois n'en change aucun. Le critère écrit
 d'abord (97 % de textes identiques) était mal posé : Whisper bascule une transmission difficile sur douze à la moindre
-perturbation. Reste N5, 24 h de production en Go.
+perturbation. **N5 lancé le 26/10 à 13:09:51** : 24 h de production en Go, jugées le 27/10 (doc 35).
 
 **Restaient à trancher avant cela** : (1) décoder le MP3 en Go avec goxiph, intégré au dépôt à un commit figé
 (sa licence le permet), ffmpeg ne restant qu'en option pour les autres entrées (carte son, autres formats) ; ou

@@ -90,7 +90,7 @@ goxiph, dont l'audio est à un pas d'arrondi de celui de ffmpeg, sont dans ce br
 transmissions que Whisper lit mal des deux côtés (du français, des passages incompréhensibles) ; aucune ne montre un
 camp meilleur que l'autre. Rapports : `runs/b1-decodage/{heure,controle-a,controle-b,controle-c}/paired-report.json`
 (hors du dépôt).
-| N5. La production en Go | 24 h de production avec `decoder = "go"` | aucune panne du décodeur ; reprise après chaque bascule de la station ; débit conforme ; transmissions par heure dans la plage des jours précédents ; le gardien sans alerte audio | à faire, avec l'accord du propriétaire (binaire à reconstruire, réglage à poser, relance) |
+| N5. La production en Go | 24 h de production avec `decoder = "go"` | aucune panne du décodeur ; reprise après chaque bascule de la station ; débit conforme ; transmissions par heure dans la plage des jours précédents ; le gardien sans alerte audio | **en cours depuis le 26/10 à 13:09:51** (accord du propriétaire ; binaire e8f500b, `decoder = "go"` dans la configuration, sauvegarde `runs/config.toml.avant-n5` ; station prévenue). Vérifié au départ : les deux flux décodés en Go, aucun processus ffmpeg, première transcription à 13:10:05. Jugé le 27/10 vers 13 h 10 sur le journal et la base : erreurs du décodeur, reconnexions et coupures pour silence, transmissions par heure face aux mêmes heures des jours précédents, alertes du gardien. Retour arrière : retirer la ligne et relancer |
 
 Après N5 : `go` par défaut, ffmpeg retiré du chemin des flux HTTP. **À décider alors** : les sources que goxiph ne
 lit pas (SRT, carte son, PCM brut par UDP, qui est simple à écrire en Go) — les retirer, ou garder ffmpeg en option
