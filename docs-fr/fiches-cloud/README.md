@@ -30,8 +30,13 @@ seule.*
 | [K — « Then », ce que l'avion a fait, sans verdict](K-then-sans-verdict.md) | 3 | `Lis docs-fr/fiches-cloud/README.md puis docs-fr/fiches-cloud/K-then-sans-verdict.md, et exécute la fiche K en entier.` | `cloud/k-then-sans-verdict` | G, H, I, J | intégrée le 14/10 (matin) |
 | [L — le bloc position, trajectoire, prédiction : un seul modèle, l'observé séparé du déduit](L-bloc-position.md) | 3 (ajoutée le 13/10 au soir) | `Lis docs-fr/fiches-cloud/README.md puis docs-fr/fiches-cloud/L-bloc-position.md, et exécute la fiche L en entier.` | `cloud/l-bloc-position` | J, K (H et I sont en intégration) | intégrée dans la nuit du 13 au 14/10 |
 | [M — le mouvement à l'écran : le mesurer dans un vrai navigateur, le rendre le plus fluide possible](M-mouvement-ecran.md) | 3 (ajoutée le 13/10 dans la nuit) | `Lis docs-fr/fiches-cloud/README.md puis docs-fr/fiches-cloud/M-mouvement-ecran.md, et exécute la fiche M en entier.` | `cloud/m-mouvement-ecran` | J, K | intégrée le 14/10 (matin) |
+| [N — le sidecar hors du Mac : Linux et NVIDIA, repli processeur](N-sidecar-linux.md) | 4 (26/10, plan 35, G1) | `Lis docs-fr/fiches-cloud/README.md puis docs-fr/fiches-cloud/N-sidecar-linux.md, et exécute la fiche N en entier.` | `cloud/n-sidecar-linux` | O | à lancer |
+| [O — ouvrir la production sur Internet derrière un mandataire : relecture, tests, trace](O-ouverture-publique.md) | 4 (26/10, plan 35, G3) | `Lis docs-fr/fiches-cloud/README.md puis docs-fr/fiches-cloud/O-ouverture-publique.md, et exécute la fiche O en entier.` | `cloud/o-ouverture-publique` | N | à lancer |
 
 **Vague 1 intégrée le 10/10** (doc 32, « Retour de la vague 1 »). **Vague 2 écrite le 10/10** : D et F intégrées le 10/10 ; **E intégrée le 10/10** (doc 32, « Retour de la fiche E ») ; son étape 4 n'est pas faite. **Vague 3 écrite le 13/10**, validée par le propriétaire : du serveur et de la logique pure, en parallèle de la migration de l'interface qui, elle, reste sur le Mac (instance d'essai, relecture de la session design, soirées d'écoute). Les sept fiches (G à M) sont indépendantes et pouvaient tourner en même temps ; G et K touchent toutes deux `explain.go` (G ajoute `value`/`unit`, K les lit ou les déduit) : K marche sans G.
+
+**Vague 4, écrite le 26/10** (plan `35-plan.md`, bloc G) : N et O, indépendantes, à lancer en parallèle ;
+G2 (les tests du contrat du lanceur) attend que le contrat soit écrit.
 
 **État au 20/10 (revue du 20/10) : les treize fiches, A à M, sont intégrées** (dates dans la dernière colonne ; détail dans la section « État » de `32-audit-produit.md`) ; **rien n'est en attente**. Le crédit de 250 $ expire le 5/11 : ce qu'on y lance encore est une décision du propriétaire (`33-pilotage.md`, décisions attendues, n° 10).
 

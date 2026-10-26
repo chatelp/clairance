@@ -141,9 +141,10 @@ Ce qui se vérifie sans la station et sans audio réel, en fiches autonomes (`fi
 avant d'être intégrées :
 
 1. **E1, le portage Linux du sidecar**, testé sur processeur avec un petit modèle (le plus long, le plus utile à
-   lancer tôt) ;
+   lancer tôt) — **fiche N écrite le 26/10**, à lancer ;
 2. **C2, les tests de contrat** et la description du processus, une fois C1 écrit ;
-3. **D3, la relecture du rôle viewer**, route par route, avec ses tests.
+3. **D3, la relecture du rôle viewer**, route par route, avec ses tests — **fiche O écrite le 26/10**, élargie à
+   tout ce qui devient public derrière le mandataire et à la trace des connexions (D4), à lancer.
 
 B1 se mesure sur le Mac : il demande l'audio réel de la station, qui ne va jamais dans le cloud.
 
