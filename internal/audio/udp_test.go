@@ -76,16 +76,30 @@ func receiving(t *testing.T, in PCMInput, rate int) (int, *syncBuffer, func() er
 	go func() {
 		ended <- decodeUDP(ctx, fmt.Sprintf("udp://127.0.0.1:%d", port), in, rate, out, quietLog(t))
 	}()
-	// Listening is not instant: wait until the port is taken.
+	// Listening is not instant: wait until the port answers. Not by trying to
+	// bind it -- holding it a moment then is what kept the source from it,
+	// once in a few runs under load -- but with an empty datagram, which adds
+	// nothing to the stream: the loopback refuses it while nobody listens.
+	probe, err := net.Dial("udp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer probe.Close()
 	deadline := time.Now().Add(2 * time.Second)
 	for {
-		c, err := net.ListenPacket("udp", fmt.Sprintf("127.0.0.1:%d", port))
-		if err != nil {
-			break
+		select {
+		case err := <-ended:
+			t.Fatalf("the source ended before listening: %v", err)
+		default:
 		}
-		c.Close()
+		_, _ = probe.Write(nil)
+		_ = probe.SetReadDeadline(time.Now().Add(20 * time.Millisecond))
+		_, err := probe.Read(make([]byte, 1))
+		if ne, ok := err.(net.Error); ok && ne.Timeout() {
+			break // not refused: someone listens
+		}
 		if time.Now().After(deadline) {
-			t.Fatal("the source never listened")
+			t.Fatalf("the source never listened: %v", err)
 		}
 		time.Sleep(5 * time.Millisecond)
 	}

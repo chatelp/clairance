@@ -148,7 +148,7 @@ func TestASourceThatCannotBeReadIsNamed(t *testing.T) {
 	r := s.run(20)
 	only(t, r, map[string]string{"the source of local": LevelError, "the source of scanner": LevelError,
 		"the source of gqrx": LevelError})
-	for id, says := range map[string]string{"local": "SRT and sound cards went with ffmpeg", "scanner": "not a source this version reads",
+	for id, says := range map[string]string{"local": "SRT and sound cards are no longer read", "scanner": "not a source this version reads",
 		"gqrx": "pcm_rate"} {
 		m := find(r, "the source of "+id)
 		if m.Kind != "source" || !strings.Contains(m.Effect, "no audio on "+id) || !strings.Contains(m.Effect, says) || m.Hint == "" {

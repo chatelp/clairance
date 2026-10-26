@@ -93,7 +93,7 @@ func TestASourceThisVersionDoesNotReadIsRefusedWithTheReason(t *testing.T) {
 		pcm  PCMInput
 		want string
 	}{
-		{"srt://192.0.2.1:42069", PCMInput{}, "SRT and sound cards went with ffmpeg"},
+		{"srt://192.0.2.1:42069", PCMInput{}, "SRT and sound cards are no longer read"},
 		{":0", PCMInput{}, "not a source this version reads"},
 		{"hw:1", PCMInput{}, "not a source this version reads"},
 		{"/var/audio/a.wav", PCMInput{}, "not a source this version reads"},

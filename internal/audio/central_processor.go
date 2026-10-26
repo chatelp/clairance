@@ -135,7 +135,7 @@ func SourceProblem(audioURL string, pcm PCMInput) error {
 		return err
 	default:
 		return fmt.Errorf("%q: not a source this version reads -- an MP3 stream over http(s), or raw PCM over udp; "+
-			"SRT and sound cards went with ffmpeg", audioURL)
+			"SRT and sound cards are no longer read", audioURL)
 	}
 }
 

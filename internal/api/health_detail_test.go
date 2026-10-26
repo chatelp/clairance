@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yegors/co-atc/internal/config"
 	"github.com/yegors/co-atc/internal/frequencies"
 	"github.com/yegors/co-atc/internal/startcheck"
 )
@@ -128,11 +129,23 @@ func TestTheHealthDetailCountsTheAudioThatArrives(t *testing.T) {
 
 // With an MP3 stream and raw PCM over UDP, both read, and the startup check
 // run on them with an empty PATH, the health says nothing of ffmpeg: not a
-// program missing, not a process, not a word.
+// program missing, not a process, not a word -- not even in the reason an SRT
+// source left in the file is refused.
 func TestTheHealthDetailSaysNothingOfTheRemovedDecoder(t *testing.T) {
 	s := newStack(t, stackOptions{tone: true, goMP3: true})
 	t.Setenv("PATH", "")
-	s.handler.SetMissing(startcheck.Run(startcheck.Inputs{Config: s.cfg, DBRetentionGB: 20}).Missing)
+	cfg := *s.cfg
+	cfg.Frequencies.Sources = append(append([]config.FrequencyConfig(nil), cfg.Frequencies.Sources...),
+		config.FrequencyConfig{ID: "local", URL: "srt://192.0.2.1:42069"})
+	missing := startcheck.Run(startcheck.Inputs{Config: &cfg, DBRetentionGB: 20}).Missing
+	named := false
+	for _, m := range missing {
+		named = named || m.What == "the source of local"
+	}
+	if !named {
+		t.Fatalf("the SRT source is not named: %+v", missing)
+	}
+	s.handler.SetMissing(missing)
 	deadline := time.Now().Add(10 * time.Second)
 	for {
 		rec := s.do("GET", "/api/v1/health/detail", "", fromLoopback("127.0.0.1:50123", "127.0.0.1:8000"))
