@@ -58,8 +58,9 @@ app = FastAPI(title="Clairance STT sidecar")
 
 # What turns audio into text (engines.py), chosen at startup (main).
 engine = None
-# What the models run on, as /health declares it: the GPU's name when MLX gives
-# it, else "mlx". Read once at startup, on the model thread (main).
+# What the models run on, as /health declares it: the GPU's name when MLX or
+# CUDA gives it, else "mlx" or "CPU". Read once at startup, on the model thread
+# (main).
 _backend = "mlx"
 _vad = None
 _counters = {"second_opinion_ok": 0, "second_opinion_failed": 0,
@@ -682,9 +683,9 @@ def main() -> None:
     if cfg.preload:
         _model_thread.submit(functools.partial(engine.load, cfg.model_en)).result()
         if cfg.model_fr:
-            # A French model that cannot be loaded costs the second opinion, not
-            # the sidecar (/health says degraded): the English one is what must
-            # load. MLX only registers a model here and never fails at this point.
+            # A French model that cannot be loaded costs French, not the sidecar
+            # (a missing path shows as degraded in /health): the English one is
+            # what must load. MLX only registers a model here and does not fail.
             try:
                 _model_thread.submit(functools.partial(engine.load, cfg.model_fr)).result()
             except Exception as e:

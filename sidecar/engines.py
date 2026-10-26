@@ -27,8 +27,6 @@ from __future__ import annotations
 
 import importlib.util
 
-ENGINES = ("auto", "mlx", "faster-whisper")
-
 
 def available(module: str) -> bool:
     """Whether a module can be found, without importing it: importing MLX at
@@ -54,13 +52,15 @@ def resolve(name: str = "auto") -> str:
 
 
 def pick(name: str = "auto", device: str = "auto", compute_type: str = "auto"):
-    """The engine called `name` (one of ENGINES). device and compute_type are
-    faster-whisper's; MLX has neither."""
+    """The engine called `name`: auto, mlx or faster-whisper. device and
+    compute_type are faster-whisper's; MLX has neither."""
     name = resolve(name)
     if name == "mlx":
         from engine_mlx import MLXEngine
         return MLXEngine()
     if name == "faster-whisper":
+        if not available("ctranslate2"):
+            raise RuntimeError("faster-whisper is not installed: install sidecar/requirements-ct2.txt")
         from engine_ct2 import CT2Engine
         return CT2Engine(device=device, compute_type=compute_type)
     raise ValueError(f"unknown engine {name!r}")
