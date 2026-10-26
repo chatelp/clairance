@@ -494,6 +494,14 @@ sur la carte.
 
 ## État
 
+- 26/10, 14:12 : **le MP3 de la station pour les navigateurs** (D2 bis). Safari, sur Mac comme sur iPhone, ne lit pas le
+  WAV sans fin de la page (le propriétaire : son dans Dia, rien dans Safari, par la même adresse publique). Le décodeur
+  Go remet chaque trame entière à un relais (`internal/audio/mp3relay.go`) : deux secondes d'avance au nouvel auditeur,
+  puis les trames au fil de l'eau ; un auditeur lent perd des trames sans retenir les autres ; un changement de format
+  ou l'arrêt du flux libère les auditeurs. `?format=mp3` sert de l'`audio/mpeg`, le WAV sinon ; la page le demande
+  partout. Environ 15 kb/s par fréquence au lieu de 384. Les tests ont trouvé qu'un auditeur libéré pouvait perdre ses
+  dernières trames (corrigé) ; l'essai sur la station, qu'une page ouverte juste après un démarrage recevait du WAV
+  (attente portée à 8 s). En production à 14:12:37.
 - 26/10, après-midi : **la page derrière HTTPS**. Le WebSocket était ouvert en `ws://` en dur : sur une page HTTPS le
   navigateur le refuse sans bruit, plus d'avions ni de fil (corrigé, 5976a05 ; la copie de la page de production
   rafraîchie sans relance). La barrière Traefik, incompatible avec le service worker de la page, retirée sur décision
