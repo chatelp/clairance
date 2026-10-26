@@ -8,8 +8,12 @@ import SwiftUI
 
 let showInDockKey = "showInDock"
 
-/// Whether the launcher shows in the Dock: yes unless switched off.
-var showsInDock: Bool { UserDefaults.standard.object(forKey: showInDockKey) as? Bool ?? true }
+/// Whether the launcher shows in the Dock: yes unless switched off; never a
+/// test bench's, which would stand beside the owner's own.
+var showsInDock: Bool {
+    ProcessInfo.processInfo.environment["CLAIRANCE_SUPPORT_DIR"] == nil
+        && UserDefaults.standard.object(forKey: showInDockKey) as? Bool ?? true
+}
 
 /// In the Dock, or only in the menu bar. Info.plist says LSUIElement, so the
 /// app starts out of the Dock and comes in when this says so.

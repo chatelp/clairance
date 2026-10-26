@@ -245,6 +245,39 @@ l'agent ne lance pas (règle 5) : son premier démarrage par le nouveau lanceur 
 Corrigé au passage : chaque démarrage de la production vidait `runs/launcher.log` au lieu d'y
 ajouter (il ne restait que les lignes du 16/10 à 22 h 47).
 
+### A3, préparé et mesuré le 26/10 (pas encore installé) : le porteur sur sa propre copie
+
+Le porteur devient une application à part, « Clairance Carrier » (`dev.clairance.carrier`),
+construite à l'intérieur de Clairance.app. Chaque démarrage en fait une copie par compilation dans
+`~/Library/Application Support/Clairance/carriers/`, qu'aucune installation ne remplace, et c'est
+cette copie que le système ouvre. Une copie ancienne est supprimée dès que plus rien ne tourne
+depuis elle. Chaque compilation porte un tampon (date et commit), pour que deux compilations ne
+produisent jamais le même programme.
+
+Mesuré sur le banc, avec une instance d'essai qui lit l'ADS-B de la station par le réseau local.
+La boucle locale (127.0.0.1) échappe aux règles du réseau local de macOS : elle n'aurait rien
+montré.
+
+| Mesure | Résultat |
+|---|---|
+| Premier lancement de « Clairance Carrier » | **pas de réseau local** : la sonde a échoué 40 fois en 20 s, puis co-atc a reçu « no route to host ». macOS l'avait inscrite, coupée, dans Réglages Système > Confidentialité et sécurité > Réseau local. Le propriétaire l'a activée |
+| Remplacement de l'application sous un porteur qui tourne depuis sa copie, avec une compilation différente (empreinte 0597… puis b17e…) | **aucune lecture manquée** sur 2 min de suivi |
+| Une nouvelle compilation, donc une nouvelle copie du porteur | l'autorisation suit : la station est jointe au 2ᵉ essai, comme pour toute compilation neuve ; l'ancienne copie est supprimée |
+
+**Les autorisations** (demande du propriétaire, 26/10) : le lanceur les demande à son premier
+lancement, puis signale celles qui manquent :
+- les notifications ;
+- le réseau local pour le lanceur, qui lit la page de la station ;
+- le réseau local pour Clairance Carrier.
+
+macOS ne dit pas si une application a droit au réseau local. Le lanceur le déduit en comparant ce
+qu'il joint lui-même et ce que joint un porteur ouvert pour ce seul essai. Une autorisation
+manquante s'affiche en tête du menu, avec un bouton qui ouvre le bon réglage ; un démarrage manqué
+pour cette raison le dit dans sa cause. Vérifié sur le banc dans le cas où tout est accordé ; le
+cas d'une autorisation manquante n'est pas encore vérifié.
+
+À installer après la journée de mesure A4, production arrêtée, avec l'accord du propriétaire.
+
 ### Le 26/10 : la production démarrée par le lanceur, trois défauts et un incident
 
 - **Pas d'audio** : ouvert par le système, le porteur a le PATH de launchd (`/usr/bin:/bin:/usr/sbin:/sbin`), où co-atc ne trouvait pas ffmpeg. Corrigé dans le serveur par l'orchestrateur (134e4fb, `pkg/tool`), sur décision du propriétaire : la production ne dépend pas de ce qui la lance. Le banc ne l'avait pas vu, parce que j'ouvrais son lanceur depuis mon shell, qui lui passait mon PATH ; il s'ouvre désormais dans un environnement vierge, comme celui du propriétaire.

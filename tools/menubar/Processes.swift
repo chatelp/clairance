@@ -143,7 +143,9 @@ func dependence(of pid: Int32) -> Dependence? {
     let r = f(pid)
     guard r > 0 else { return nil }
     let app = NSRunningApplication(processIdentifier: r)
-    if app?.bundleIdentifier == launcherBundleID { return Dependence(app: "Clairance", pid: r, launcher: true) }
+    if app?.bundleIdentifier == launcherBundleID || app?.bundleIdentifier == carrierBundleID {
+        return Dependence(app: "Clairance", pid: r, launcher: true)
+    }
     if let name = app?.localizedName { return Dependence(app: name, pid: r, launcher: false) }
     // No app registered under that PID: the .app its executable sits in, else its name.
     var path = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
