@@ -173,7 +173,7 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
       <ul class="steps">
         <li><span class="code">B1</span><span class="what"><b>Mesurer le décodage audio en Go</b><small>identique à ffmpeg à l'arrondi près (≈ 100 dB) ; 5,6 s de calcul par heure ; ffmpeg perd 3,6 s à chaque démarrage</small></span><span class="chip s-done">mesuré</span></li>
         <li><span class="code">B1+</span><span class="what"><b>Valider goxiph, puis abandonner ffmpeg</b><small>décodeur, robustesse, chaîne, audio réel transcrit par paires : passés (17 textes différents sur 237, quand un bruit inaudible en fait basculer 22) ; 24 h de production en Go : en cours depuis 13:09, jugées le 27/10</small></span><span class="chip s-doing">4 / 5</span></li>
-        <li><span class="code">B1′</span><span class="what"><b>Abandonner ffmpeg</b><small>si N5 valide goxiph : SRT et carte son retirés, PCM par UDP réécrit en Go ; passage à 16 kHz (décidé)</small></span><span class="chip s-wait">attend N5</span></li>
+        <li><span class="code">B1′</span><span class="what"><b>Abandonner ffmpeg</b><small>si N5 valide goxiph : SRT et carte son retirés, PCM par UDP réécrit en Go ; passage à 16 kHz (décidé) ; <b>prêt sur la branche b1-ter</b> (26/10 au soir), mis en service demain si N5 est validé</small></span><span class="chip s-wait">attend N5</span></li>
         <li><span class="code">B2</span><span class="what"><b>La page dans le binaire</b><small>fait par la fiche Q ; la production garde sa copie jusqu'à son passage à la page incorporée</small></span><span class="chip s-done">fait</span></li>
         <li><span class="code">B3</span><span class="what"><b>Clairance lance lui-même ses compagnons</b><small>fait par la fiche R : liaison (clé interne, plus de mot de passe) et empêchement de veille, désactivés par défaut ; à activer quand le script disparaît</small></span><span class="chip s-doing">code fait</span></li>
         <li><span class="code">B4</span><span class="what"><b>Le sidecar dans son propre environnement</b><small>plus d'emprunt au dépôt du labo ; modèles téléchargés au premier lancement</small></span><span class="chip s-todo">à faire</span></li>
@@ -317,5 +317,5 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
     </div>
   </section>
 
-  <footer>Mis à jour le 26/10/2026 à 18 h 25 · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
+  <footer>Mis à jour le 26/10/2026 à 19 h 30 · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
 </div>

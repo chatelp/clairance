@@ -100,6 +100,12 @@ brut par UDP est réécrit en Go (lecture réseau et rééchantillonneur existan
 ne sert plus qu'à pdftotext. Si N5 échoue, rien de cela n'est fait. **Et, décidé le 26/10, la production passe de
 24 à 16 kHz** (la fréquence de Whisper), appliqué juste après N5 pour ne pas mêler deux changements dans l'essai.
 
+**Préparé le 26/10 au soir** sur la branche `b1-ter` (6 commits, non fusionnée) : l'UDP lu en Go, le décodeur Go
+seul, SRT et carte son retirés, le bilan au démarrage sans ffmpeg, 16 kHz par défaut ; les anciennes clés ffmpeg
+ignorées avec un avertissement, jamais refusées. Essai à part sans ffmpeg dans le `PATH` : démarrage en 0,4 s, flux
+UDP à 31 873 o/s pour 32 000 attendus. **La relance du 27/10 se fait en trois temps** (avis de l'agent du lanceur,
+une cause par relance) : A3 seul, puis le nouveau co-atc (P, Q, R), puis `b1-ter` si N5 est validé.
+
 **Décidé le 26/10** : B3, co-atc lance lui-même ses compagnons (le propriétaire, « oui, Clairance fait tout »).
 
 ### C — Le contrat entre le lanceur et le serveur ; le lanceur, produit à part (Q61) *(fondation ; après B3)*
