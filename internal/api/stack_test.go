@@ -135,16 +135,17 @@ const tone = "sine=frequency=440:sample_rate=16000"
 var toneOptions = []string{"-re", "-f", "lavfi"}
 
 type stackOptions struct {
-	host      string   // bind address; "127.0.0.1" when empty
-	proxies   []string // server.trusted_proxies
-	noAccount bool     // local-only, nothing to sign in as
-	viewer    bool     // a second account, viewerUser, with the viewer role
-	tone      bool     // a configured frequency carrying audio; needs ffmpeg
-	goMP3     bool     // a frequency serving MP3 over HTTP, decoded in Go (no ffmpeg)
-	sidecar   string   // health URL of a transcription sidecar; none when empty
-	idle      bool     // started without transcription, as main does when nothing asks for it
-	static    string   // server.static_dir; www next to the package, which has none, when empty
-	origins   []string // server.allowed_origins
+	host      string        // bind address; "127.0.0.1" when empty
+	proxies   []string      // server.trusted_proxies
+	noAccount bool          // local-only, nothing to sign in as
+	viewer    bool          // a second account, viewerUser, with the viewer role
+	tone      bool          // a configured frequency carrying audio; needs ffmpeg
+	goMP3     bool          // a frequency serving MP3 over HTTP, decoded in Go (no ffmpeg)
+	sidecar   string        // health URL of a transcription sidecar; none when empty
+	idle      bool          // started without transcription, as main does when nothing asks for it
+	static    string        // server.static_dir; www next to the package, which has none, when empty
+	origins   []string      // server.allowed_origins
+	adsbEvery time.Duration // how often the receiver is read after the first time; an hour when zero
 }
 
 type stack struct {
@@ -246,7 +247,10 @@ func newStack(t *testing.T, o stackOptions) *stack {
 	go ws.Run()
 
 	client := adsb.NewClient(cfg.ADSB, stationLat, stationLon, 5*time.Second, log)
-	adsbSvc := adsb.NewService(client, store, time.Hour, log, cfg.Station, cfg.ADSB, cfg.FlightPhases, ws)
+	if o.adsbEvery == 0 {
+		o.adsbEvery = time.Hour
+	}
+	adsbSvc := adsb.NewService(client, store, o.adsbEvery, log, cfg.Station, cfg.ADSB, cfg.FlightPhases, ws)
 	ws.SetMessageHandler(adsb.NewWebSocketHandler(adsbSvc, log))
 	ctx, cancel := context.WithCancel(context.Background())
 	if err := adsbSvc.Start(ctx); err != nil {

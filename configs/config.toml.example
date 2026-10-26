@@ -24,7 +24,8 @@ enabled = false                             # off on purpose: nobody cloning thi
 # 720 h unused; 8 wrong passwords per address (an IPv6 /64) per 15 min. Restarting ends every session.
 # An account is an owner unless it says role = "viewer" (here or in users.json): a viewer reads
 # the map, the aircraft and the transcriptions, changes nothing, and is given the audio only
-# when [server] audio_replay = "all". Every sign-in, refused or not, is traced in signins.jsonl
+# when [server] audio_replay = "all", two streams of a frequency at most; it is not told the
+# streams' addresses nor the server's paths. Every sign-in, refused or not, is traced in signins.jsonl
 # beside the accounts (two files of 1 MB at most); the owner reads the last ones at /api/v1/signins.
 
 [station]

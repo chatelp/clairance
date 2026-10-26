@@ -37,6 +37,7 @@ type Handler struct {
 	status               statusCache                // the receiver as reported, the sidecar as last read
 	vitals               vitalsCache                // the sign-in page's figures, see vitals_handlers.go
 	healthDetail         healthDetailCache          // the launcher's health, see health_detail_handlers.go
+	guestStreams         streamSlots                // the streams each guest holds, see guest.go
 
 	// Who is asking. See internal/auth and auth_handlers.go.
 	auth *auth.Service

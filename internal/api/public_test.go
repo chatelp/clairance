@@ -489,8 +489,8 @@ func TestThroughTheProxyTheLimitIsTheBrowsersAddress(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
-	if rec := s.do("POST", "/api/v1/auth/login", right, throughTheProxy("10.9.8.7, 203.0.113.66")); rec.Code != http.StatusUnauthorized {
-		t.Errorf("the right password after eight wrong ones, another spoofed prefix: %d, want 401", rec.Code)
+	if rec := s.do("POST", "/api/v1/auth/login", right, throughTheProxy("10.9.8.7, 203.0.113.66")); rec.Code != http.StatusTooManyRequests {
+		t.Errorf("the right password after eight wrong ones, another spoofed prefix: %d, want 429", rec.Code)
 	}
 	if rec := s.do("POST", "/api/v1/auth/login", right, throughTheProxy("203.0.113.67")); rec.Code != http.StatusOK {
 		t.Errorf("another browser behind the same proxy: %d, want 200", rec.Code)
@@ -530,8 +530,8 @@ func TestBehindTwoProxiesOneVisitorDoesNotLockOutTheOthers(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	if rec := s.do("POST", "/api/v1/auth/login", right, throughTheProxy("203.0.113.66, 198.51.100.20")); rec.Code != http.StatusUnauthorized {
-		t.Errorf("the visitor who guessed: %d, want 401", rec.Code)
+	if rec := s.do("POST", "/api/v1/auth/login", right, throughTheProxy("203.0.113.66, 198.51.100.20")); rec.Code != http.StatusTooManyRequests {
+		t.Errorf("the visitor who guessed: %d, want 429", rec.Code)
 	}
 	if rec := s.do("POST", "/api/v1/auth/login", right, throughTheProxy("203.0.113.67, 198.51.100.20")); rec.Code != http.StatusOK {
 		t.Errorf("another visitor through the same CDN: %d, want 200", rec.Code)

@@ -244,7 +244,9 @@ the first-run page to whatever comes through it, keeps `/api/v1/health/detail` t
 and refuses to run without sign-in. Give a guest an account of their own:
 `co-atc -add-user <name>`, answer `viewer` when it asks the role, and paste the block it
 prints into the configuration. A viewer reads, changes nothing, and hears nothing unless
-`audio_replay = "all"`.
+`audio_replay = "all"` -- then two streams of a frequency at most. It is not told where the
+server's things are: the streams' and the receiver's addresses, the database's and the log's
+paths, and the errors that repeat them are emptied in what it reads.
 
 An example for Traefik v3 (file provider; the names and addresses are placeholders, the
 `192.0.2.x` ones from the documentation range):

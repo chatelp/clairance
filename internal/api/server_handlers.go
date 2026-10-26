@@ -122,12 +122,10 @@ func (h *Handler) GetServerState(w http.ResponseWriter, r *http.Request) {
 		Logging:       h.loggingState(),
 		Settings:      h.runtime.Settings(),
 		Writable:      false, // flips once authentication is in place
-		Access:        h.auth.Access(),
-	}
-	// Who else has an account is the owner's to know: a viewer is told the
-	// mode, not the names, which are half of what signing in asks for.
-	if h.auth.Role(r) == auth.RoleViewer {
-		st.Access.Accounts = []string{}
+		// Who else has an account is the owner's to know: a viewer is told
+		// the mode, not the names, which are half of what signing in asks
+		// for (guestHidden, guest.go).
+		Access: h.auth.Access(),
 	}
 
 	if h.sttSidecar != nil && h.sttSidecar.Off() {

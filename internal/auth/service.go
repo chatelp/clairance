@@ -233,6 +233,13 @@ func (s *Service) SignIn(r *http.Request, name, password string) (*Session, erro
 	return s.store.Create(strings.TrimSpace(name))
 }
 
+// RetryAfter is how long the address r comes from waits before its next
+// sign-in is tried: zero when it may try now. The limit is the address's,
+// not an account's, so saying it tells nothing of who has one.
+func (s *Service) RetryAfter(r *http.Request) time.Duration {
+	return s.limiter.Wait(limitKey(s.proxies.ClientIP(r)))
+}
+
 // decoyHash is a real Argon2id hash of a value nobody knows, used only to spend the
 // same time on an unknown user as on a known one.
 const decoyHash = "$argon2id$v=19$m=65536,t=3,p=2$AAAAAAAAAAAAAAAAAAAAAA$kFYJ0kYOQ0aH7VbTlSJ8YZm1LcAqvJLHhWpFkYhqQ2M"

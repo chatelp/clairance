@@ -191,6 +191,24 @@ func (l *Limiter) Allow(key string) bool {
 	return true
 }
 
+// Wait is how long until key may try again: zero when it may now, else
+// until enough of its attempts are older than the window.
+func (l *Limiter) Wait(key string) time.Duration {
+	now := l.now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	var kept []time.Time
+	for _, t := range l.attempts[key] {
+		if now.Sub(t) < l.window {
+			kept = append(kept, t)
+		}
+	}
+	if len(kept) < l.max {
+		return 0
+	}
+	return kept[len(kept)-l.max].Add(l.window).Sub(now)
+}
+
 // sweepLocked forgets, at most once per window, the addresses whose last
 // attempt is older than the window. An address was otherwise kept for the
 // life of the process once it had tried, unless it later got the password

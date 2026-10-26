@@ -17,7 +17,12 @@ import (
 func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	h.logger.Info("WebSocket connection request received")
 
-	// Handle the WebSocket connection
+	// Handle the WebSocket connection; a guest's page is not sent what a
+	// guest is not told (guest.go).
+	if h.guest(r) {
+		h.wsServer.HandleConnectionFiltered(w, r, guestMessage)
+		return
+	}
 	h.wsServer.HandleConnection(w, r)
 }
 

@@ -30,6 +30,21 @@ func (h *Handler) StreamAudio(w http.ResponseWriter, r *http.Request) {
 
 	clientRemoteAddr := r.RemoteAddr
 
+	// A guest holds two streams of a frequency at most, in any format
+	// (guest.go); a HEAD opens none.
+	if r.Method != http.MethodHead {
+		release, ok := h.guestStream(r, id)
+		if !ok {
+			h.logger.Warn("Refused a guest's stream: two are open already",
+				logger.String("id", id), logger.String("remote_addr", clientRemoteAddr))
+			WriteJSON(w, http.StatusTooManyRequests, map[string]string{"error": fmt.Sprintf(
+				"%d streams of this frequency are open for this account, the most it may hold: close another page or tab that plays it",
+				guestStreamsPerFrequency)})
+			return
+		}
+		defer release()
+	}
+
 	// The station's own MP3 when the page asks for it and the stream has it:
 	// what every browser plays, Safari included, at a twenty-fifth of the WAV's
 	// rate (docs-fr/35-plan.md, D2 bis). Otherwise the WAV stream, as before.

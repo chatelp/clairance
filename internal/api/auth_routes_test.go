@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -243,8 +244,10 @@ func TestTheCookieIsSecureBehindATrustedProxyOnHTTPS(t *testing.T) {
 }
 
 // Eight wrong passwords from one address in a quarter of an hour, and the
-// ninth attempt is refused even with the right one. The eight are sent at
-// once: each wrong answer costs a 250 ms pause, which is the point of it.
+// ninth attempt is refused even with the right one -- as too many attempts,
+// 429, with how long to wait, so that the page says to wait rather than to
+// try another password. The eight are sent at once: each wrong answer costs
+// a 250 ms pause, which is the point of it.
 func TestEightWrongPasswordsLockTheAddress(t *testing.T) {
 	s := newStack(t, stackOptions{})
 	var wg sync.WaitGroup
@@ -263,9 +266,18 @@ func TestEightWrongPasswordsLockTheAddress(t *testing.T) {
 		}
 	}
 	rec := s.do("POST", "/api/v1/auth/login", `{"name":"`+testUser+`","password":"`+testPassword+`"}`)
-	if rec.Code != http.StatusUnauthorized || len(rec.Result().Cookies()) != 0 {
-		t.Errorf("the right password after eight wrong ones: %d with %d cookies, want 401 and none",
+	if rec.Code != http.StatusTooManyRequests || len(rec.Result().Cookies()) != 0 {
+		t.Errorf("the right password after eight wrong ones: %d with %d cookies, want 429 and none",
 			rec.Code, len(rec.Result().Cookies()))
+	}
+	// Fifteen minutes from the first wrong one, a moment ago.
+	if wait, err := strconv.Atoi(rec.Header().Get("Retry-After")); err != nil || wait < 14*60 || wait > 15*60 {
+		t.Errorf("Retry-After %q, want about 900 seconds", rec.Header().Get("Retry-After"))
+	}
+	// An unknown name from the blocked address is answered the same: the
+	// block is the address's, and says nothing of the accounts.
+	if other := s.do("POST", "/api/v1/auth/login", `{"name":"nobody","password":"x"}`); other.Code != http.StatusTooManyRequests {
+		t.Errorf("an unknown name from the blocked address: %d, want 429", other.Code)
 	}
 	// Another address is not locked out with it. The limiter is per address,
 	// and the address is the client's, not a forwarded header's: this stack
