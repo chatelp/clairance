@@ -117,6 +117,7 @@ la mémoire des décisions dans `05-decisions.md` ; ici, la vue d'ensemble, cour
 
 ### En cours
 
+**Le plan détaillé, par blocs, avec étapes, dépendances et mesures de sortie : `35-plan.md`** (26/10).
 **Ordre des chantiers, accepté par le propriétaire le 26/10** :
 1. le faux « Production did not start » du lanceur (agent du lanceur), puis une journée de production sans
    fausse alerte ;
