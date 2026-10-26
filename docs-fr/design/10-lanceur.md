@@ -71,7 +71,9 @@ petite que ses voisines dans le Dock.
   presque noire (`#1e1e1e`), avait la taille des voisines (196 px contre 197 pour Réglages système,
   mesuré sur la capture du Dock agrandie) mais se fondait dans un Dock sombre : l'œil n'en voyait que
   l'intérieur. Quatre fonds comparés à côté de Terminal et des Réglages système, sur un Dock sombre et
-  clair : celui-ci est le seul qui dessine son contour sur les deux.
+  clair : celui-ci est le seul qui dessine son contour sur les deux. Validée par le propriétaire dans son
+  Dock le 26/10 (« l'icône graphite se détache comme ses voisines », relayé par l'agent du lanceur) ;
+  sur `main` en c707f65.
 - **Deux groupes de calques**, en SVG sur la grille de 1024. Derrière, l'écran (le disque sombre,
   sans verre, l'anneau et l'anneau de distance, `#e0e0e0`) ; devant, la lueur (sans verre), le balayage et le plot (vert
   `#4caf50`, le plot `#66c56a`), avec le reflet du verre. La profondeur vient du système, pas du
