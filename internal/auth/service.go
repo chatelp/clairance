@@ -182,8 +182,8 @@ func (s *Service) Proxies() *TrustedProxies { return s.proxies }
 // same Argon2id cost: telling them apart would turn the login form into a way to
 // enumerate accounts.
 func (s *Service) SignIn(r *http.Request, name, password string) (*Session, error) {
-	ip := s.proxies.ClientIP(r)
-	if !s.limiter.Allow(ip) {
+	key := limitKey(s.proxies.ClientIP(r))
+	if !s.limiter.Allow(key) {
 		return nil, fmt.Errorf("too many attempts")
 	}
 
@@ -200,7 +200,7 @@ func (s *Service) SignIn(r *http.Request, name, password string) (*Session, erro
 		return nil, fmt.Errorf("invalid credentials")
 	}
 
-	s.limiter.Succeeded(ip)
+	s.limiter.Succeeded(key)
 	return s.store.Create(strings.TrimSpace(name))
 }
 

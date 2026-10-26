@@ -132,6 +132,26 @@ func (t *TrustedProxies) ClientIP(r *http.Request) string {
 	return host
 }
 
+// limitKey is what the sign-in limit counts under: the address, and for IPv6
+// its /64. An IPv6 subscriber, phone or server holds a whole /64 and can
+// take a new address from it for every guess; counted per address, it could
+// guess without end. A /64 is one subscriber, so nobody else is caught with
+// it. What does not parse as an address is its own key.
+func limitKey(addr string) string {
+	host := addr
+	if h, _, err := net.SplitHostPort(addr); err == nil {
+		host = h
+	}
+	ip := net.ParseIP(strings.Trim(host, "[]"))
+	if ip == nil {
+		return addr
+	}
+	if v4 := ip.To4(); v4 != nil {
+		return v4.String()
+	}
+	return ip.Mask(net.CIDRMask(64, 128)).String() + "/64"
+}
+
 // Limiter slows down password guessing.
 //
 // Per client address, with a window rather than a token bucket: the useful property
