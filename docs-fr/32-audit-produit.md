@@ -494,6 +494,17 @@ sur la carte.
 
 ## État
 
+- 26/10, 16:45 : **Safari joue par le lecteur de la page, sans cliquetis** (623d132, c50787c ; page seule, en
+  production sans relance). Vu dans le Safari du propriétaire : le bandeau « Click anywhere to resume listening »
+  restait après un clic. Safari ne laisse pas reprendre le son sur `pointerdown`, seulement sur click, touchend ou
+  keydown, et la page n'essayait qu'au premier geste : elle réessaie maintenant à chaque geste. Le son est alors
+  revenu, avec un cliquetis : Safari rééchantillonnait chaque morceau de 0,1 s à 8 kHz séparément. Mesuré hors
+  ligne dans WebKit sur un son pur : un écart de 0,02 (pour 0,5) à chaque jointure, rien ailleurs. La page
+  rééchantillonne maintenant elle-même, par un sinus cardinal fenêtré dont l'historique passe d'un morceau à
+  l'autre : 3·10⁻⁸ entre morceaux et son entier, le son pur exact à 10⁻⁴ près, 6 à 9 ms de calcul par seconde de
+  son ; un test (`www/live-player.test.js`). Safari reprend le lecteur de la page par défaut ; `?player=element`
+  force encore l'élément `<audio>`. Une fois, après le rechargement, ni son ni activité, puis le son à la
+  réouverture de la console : cause non trouvée (les scripts sont toujours revalidés).
 - 26/10, 16:00 : **fiches O et N relues et fusionnées** (en production à la relance du 27/10). **O** (6fa8dd5) :
   l'ouverture derrière le mandataire, dix défauts corrigés avec un test rouge avant chacun, qui peut quoi figé route
   par route, la trace des connexions (`configs/signins.jsonl`, `GET /api/v1/signins`) ; tous les tests Go verts après

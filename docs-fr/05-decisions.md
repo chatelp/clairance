@@ -5289,6 +5289,11 @@ avant), l'analyseur suit la voix (environ 110 pendant la parole, 0 dans les sile
 que WebKit 18.2 le joue (Playwright, analyseur jusqu'à 0,29). Cause non trouvée : **Safari garde l'élément `<audio>`
 et le MP3 pour l'instant** (d80e2c4), avec les défauts relevés plus haut ; `?player=live` ou `?player=element` force
 l'un ou l'autre (ea2b2f6) pour essayer. Le téléphone reste à mesurer.
+**Cause trouvée le même jour** (623d132, c50787c) : Safari ne reprend pas un contexte audio sur `pointerdown`, et
+la page n'essayait qu'au premier geste ; puis Safari rééchantillonnait chaque morceau à 8 kHz séparément (un
+cliquetis à chaque jointure, mesuré dans WebKit). La page reprend le son à chaque geste (click, touchend, keydown)
+et rééchantillonne elle-même, en continu. **Safari est revenu au lecteur de la page**, son confirmé par le
+propriétaire. Reste : l'iPhone.
 
 ### Q62 — L'accès à distance pour un proche, et ce qu'il demande à la production *(26/10 — audio ouvert à l'ami ; **ouvert sur Internet derrière le Traefik du propriétaire** ; page d'abord)*
 
