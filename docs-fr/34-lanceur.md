@@ -247,7 +247,7 @@ ajouter (il ne restait que les lignes du 16/10 à 22 h 47).
 
 ### A3, préparé et mesuré le 26/10 (pas encore installé) : le porteur sur sa propre copie
 
-Le porteur devient une application à part, « Clairance Carrier » (`dev.clairance.carrier`),
+Le porteur devient une application à part, « Clairance Server » (`dev.clairance.carrier` ; d'abord nommée « Clairance Carrier », renommée le 26/10 sur la proposition du design, l'autorisation du réseau local a suivi le nouveau nom),
 construite à l'intérieur de Clairance.app. Chaque démarrage en fait une copie par compilation dans
 `~/Library/Application Support/Clairance/carriers/`, qu'aucune installation ne remplace, et c'est
 cette copie que le système ouvre. Une copie ancienne est supprimée dès que plus rien ne tourne
@@ -260,7 +260,7 @@ montré.
 
 | Mesure | Résultat |
 |---|---|
-| Premier lancement de « Clairance Carrier » | **pas de réseau local** : la sonde a échoué 40 fois en 20 s, puis co-atc a reçu « no route to host ». macOS l'avait inscrite, coupée, dans Réglages Système > Confidentialité et sécurité > Réseau local. Le propriétaire l'a activée |
+| Premier lancement du porteur (alors « Clairance Carrier ») | **pas de réseau local** : la sonde a échoué 40 fois en 20 s, puis co-atc a reçu « no route to host ». macOS l'avait inscrite, coupée, dans Réglages Système > Confidentialité et sécurité > Réseau local. Le propriétaire l'a activée |
 | Remplacement de l'application sous un porteur qui tourne depuis sa copie, avec une compilation différente (empreinte 0597… puis b17e…) | **aucune lecture manquée** sur 2 min de suivi |
 | Une nouvelle compilation, donc une nouvelle copie du porteur | l'autorisation suit : la station est jointe au 2ᵉ essai, comme pour toute compilation neuve ; l'ancienne copie est supprimée |
 
@@ -268,11 +268,11 @@ montré.
 lancement, puis signale celles qui manquent :
 - les notifications ;
 - le réseau local pour le lanceur, qui lit la page de la station ;
-- le réseau local pour Clairance Carrier.
+- le réseau local pour Clairance Server, le porteur.
 
 macOS ne dit pas si une application a droit au réseau local. Le lanceur le déduit en comparant ce
 qu'il joint lui-même et ce que joint un porteur ouvert pour ce seul essai. Une autorisation
-manquante s'affiche en tête du menu, avec un bouton qui ouvre le bon réglage ; un démarrage manqué
+manquante s'affiche en tête du menu (« ▲ Clairance Server · local network not allowed »), avec un bouton qui ouvre le bon réglage, et l'autorisation du porteur est notifiée une fois ; un démarrage manqué
 pour cette raison le dit dans sa cause. Vérifié sur le banc dans le cas où tout est accordé ; le
 cas d'une autorisation manquante n'est pas encore vérifié.
 

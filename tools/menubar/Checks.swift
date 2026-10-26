@@ -39,6 +39,7 @@ struct Observation: Sendable {
     var silenceLimit: TimeInterval = 600
     var tests: [Instance] = []
     var orphans: [Orphan] = []
+    var permissions: [Permission] = []
 }
 
 // Thresholds (34-lanceur.md, the plan accepted on 24/10).
@@ -372,9 +373,18 @@ private func localLines(_ o: Observation, _ f: inout [Finding], _ facts: inout [
     return lines
 }
 
-/// Test instances and helpers: their own notifications, never the sign.
+/// Test instances, helpers and the carrier's permission: their own notifications, never the sign.
 func assessOthers(_ o: Observation) -> [Finding] {
     var f: [Finding] = []
+    // A production started without it would not hear the station (design 10).
+    if o.permissions.contains(where: { $0.app == carrierName }) {
+        f.append(Finding(key: "permission-carrier", kind: "production", production: false,
+            cause: "\(carrierName) has no local network",
+            notice: Notice(title: "\(carrierName) has no local network",
+                           body: "Production started now would not hear the station. Allow \(carrierName) in System Settings › Privacy & Security › Local Network.",
+                           click: .settings(localNetworkSettings), category: "permission"),
+            recovery: { _, _ in Notice(title: "\(carrierName) has the local network again", body: "", level: .passive) }))
+    }
     for t in o.tests where t.until == nil && t.proc.elapsed > 12 * 3600 {
         let port = t.port.map { "Port \($0)" } ?? t.name
         f.append(Finding(key: "test-\(t.pid)", kind: "instances", production: false,

@@ -62,7 +62,7 @@ cat > "$app/Contents/Info.plist" <<EOF
 EOF
 # The carrier: the same program as an app of its own, which the launcher copies
 # per build out of reach of any install before it runs production in it (A3).
-carrier="$app/Contents/Helpers/Clairance Carrier.app"
+carrier="$app/Contents/Helpers/Clairance Server.app"
 mkdir -p "$carrier/Contents/MacOS"
 cp "$app/Contents/MacOS/clairance" "$carrier/Contents/MacOS/clairance"
 cat > "$carrier/Contents/Info.plist" <<PLIST
@@ -70,7 +70,8 @@ cat > "$carrier/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleName</key><string>Clairance Carrier</string>
+	<key>CFBundleName</key><string>Clairance Server</string>
+	<key>CFBundleDisplayName</key><string>Clairance Server</string>
 	<key>CFBundleIdentifier</key><string>dev.clairance.carrier</string>
 	<key>CFBundleExecutable</key><string>clairance</string>
 	<key>CFBundlePackageType</key><string>APPL</string>

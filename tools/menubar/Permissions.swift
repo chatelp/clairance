@@ -9,12 +9,12 @@ import AppKit
 import UserNotifications
 
 struct Permission: Hashable, Sendable {
-    let app: String        // "Clairance", "Clairance Carrier"
+    let app: String        // "Clairance", "Clairance Server"
     let what: String       // "notifications", "local network"
     let settings: String   // the System Settings pane that grants it
 
-    var line: String { "▲ Permission missing · \(app), \(what)" }
-    var button: String { what == "notifications" ? "Open Notification Settings…" : "Open Local Network Settings…" }
+    /// "▲ Clairance Server · local network not allowed" (design 10): who, then what.
+    var line: String { "▲ \(app) · \(what) not allowed" }
 }
 
 let localNetworkSettings = "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork"
@@ -74,19 +74,12 @@ extension Production {
             let carrier = await probeCarrier()
             let launcher = observation.station.answered
             if carrier == false && launcher {
-                missing.append(Permission(app: "Clairance Carrier", what: "local network", settings: localNetworkSettings))
+                missing.append(Permission(app: carrierName, what: "local network", settings: localNetworkSettings))
             } else if carrier == true && !launcher {
                 missing.append(Permission(app: "Clairance", what: "local network", settings: localNetworkSettings))
             }
         }
-        let newlyCarrier = missing.contains { $0.app == "Clairance Carrier" } && !permissions.contains { $0.app == "Clairance Carrier" }
         permissions = missing
-        if newlyCarrier {
-            guardian.event("permission-carrier", thread: "production",
-                           Notice(title: "Clairance Carrier has no local network",
-                                  body: "Production started now would not hear the station. Allow Clairance Carrier in System Settings, Privacy & Security, Local Network.",
-                                  click: .none))
-        }
     }
 
     /// Checked again every 2 min while something is missing, every 10 min otherwise.

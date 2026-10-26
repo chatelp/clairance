@@ -55,8 +55,10 @@ struct LauncherConfig: Decodable {
 let builtRepo = "@REPO@"
 
 let launcherBundleID = "dev.clairance.launcher"
-/// The carrier, the same program as an app of its own (build.sh, A3).
+/// The carrier, the same program as an app of its own (build.sh, A3), and the
+/// name System Settings lists it under (design 10).
 let carrierBundleID = "dev.clairance.carrier"
+let carrierName = "Clairance Server"
 /// Replaced by build.sh with when and from which commit the app was built: each
 /// build differs, and names the folder of its carrier's copy.
 let buildStamp = "@BUILD@"
@@ -543,6 +545,7 @@ final class Production: ObservableObject {
         o.archiveVolume = prod?.archiveVolume
         o.dataDir = prod?.database ?? repo
         o.silenceLimit = cfg.silence_minutes.map { $0 * 60 } ?? silenceLimit(at: o.now)
+        o.permissions = permissions
         // The launcher reads production's ADS-B source itself only when co-atc reads nothing,
         // to say whether the station or co-atc's local network is at fault.
         if let p = prod, let src = p.adsbSource,
@@ -703,7 +706,7 @@ final class Production: ObservableObject {
         // The station answering the launcher and not the carrier: the carrier lacks the local network.
         if s.stationSilent != nil && observation.station.answered {
             Task { await checkPermissions() }
-            return "Clairance Carrier has no local network: allow it in System Settings"
+            return "\(carrierName) has no local network: allow it in System Settings"
         }
         if s.stationSilent != nil { return station }
         if let line = s.coatcLines.last(where: { $0.contains("ADS-B source validation failed") }) {
@@ -830,13 +833,13 @@ final class Production: ObservableObject {
     /// local network away at once (26/10, 10:49); a carrier now runs from a copy
     /// nothing touches while it lives (A3).
     func carrierCopy() -> String? {
-        let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/Clairance Carrier.app").path
+        let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/\(carrierName).app").path
         guard Bundle.main.bundleURL.pathExtension == "app", FileManager.default.fileExists(atPath: helper) else { return nil }
         let root = (supportDir as NSString).appendingPathComponent("carriers")
         // Named after the carrier on disk, which an install may have changed under a launcher still open.
         let version = (NSDictionary(contentsOfFile: helper + "/Contents/Info.plist")?["CFBundleVersion"] as? String) ?? buildStamp
         let dir = (root as NSString).appendingPathComponent(version)
-        let copy = (dir as NSString).appendingPathComponent("Clairance Carrier.app")
+        let copy = (dir as NSString).appendingPathComponent("\(carrierName).app")
         if !FileManager.default.fileExists(atPath: copy) {
             try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
             guard run("/usr/bin/ditto", [helper, copy]).status == 0 else { return nil }
@@ -1196,6 +1199,7 @@ final class Production: ObservableObject {
         case .log: openLog()
         case .restart: restart()
         case .finder: run("/usr/bin/open", ["/Volumes"])
+        case .settings: if let u = URL(string: localNetworkSettings) { NSWorkspace.shared.open(u) }
         case .stop:
             if let i = instances.first(where: { $0.pid == pid && $0.proc.start == start }) { stopInstance(i) }
             else if let h = orphans.first(where: { $0.pid == pid && $0.proc.start == start }) { stopHelper(h) }
@@ -1206,6 +1210,7 @@ final class Production: ObservableObject {
             case .clairance: if let p = production, p.answers, let u = p.url { open(u) }
             case .finder(let path): NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: path)
             case .activityMonitor: run("/usr/bin/open", ["-a", "Activity Monitor"])
+            case .settings(let pane): if let u = URL(string: pane) { NSWorkspace.shared.open(u) }
             }
         }
     }
@@ -1591,9 +1596,14 @@ struct ClairanceLauncher: App {
     var body: some Scene {
         MenuBarExtra {
             ForEach(Array(p.header.enumerated()), id: \.offset) { Text($0.element).monospacedDigit() }
-            ForEach(p.permissions, id: \.self) { perm in
-                Text(perm.line)
-                Button(perm.button) { if let u = URL(string: perm.settings) { NSWorkspace.shared.open(u) } }
+            ForEach(p.permissions, id: \.self) { Text($0.line) }
+            ForEach(Array(Set(p.permissions.map(\.settings))).sorted(), id: \.self) { pane in
+                Button(pane == notificationSettings ? "Open Notification Settings…" : "Open Local Network Settings…") {
+                    if let u = URL(string: pane) { NSWorkspace.shared.open(u) }
+                }
+            }
+            if case .didNotStart(_, let cause, _) = p.down, cause.hasPrefix(carrierName + " has no local network") {
+                Button("Open Local Network Settings…") { if let u = URL(string: localNetworkSettings) { NSWorkspace.shared.open(u) } }
             }
             if p.offerRestartFromClairance {
                 Button("Restart from Clairance") { p.restart() }.disabled(p.busy)

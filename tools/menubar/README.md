@@ -98,7 +98,7 @@ an identical build, which the deterministic compiler had made). Hence the
 carrier's own copy; and `build.sh --install` still refuses while a carrier of
 an older build runs from the installed app itself.
 
-The carrier is an app of its own, "Clairance Carrier" (dev.clairance.carrier),
+The carrier is an app of its own, "Clairance Server" (dev.clairance.carrier),
 built inside Clairance.app; each start opens a copy of it kept per build in
 `~/Library/Application Support/Clairance/carriers/`, which no install replaces,
 and an older build's copy goes once nothing runs from it. The launcher itself,

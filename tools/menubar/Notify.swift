@@ -9,7 +9,7 @@ import UserNotifications
 
 /// What a notification's buttons ask the launcher for.
 enum NoticeAction: String {
-    case start, log, restart, finder, stop
+    case start, log, restart, finder, stop, settings
 }
 
 @MainActor
@@ -36,6 +36,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             category("archive", [action(.finder, "Show in Finder")]),
             category("instance", [action(.stop, "Stop it…")]),
             category("helper", [action(.stop, "Stop it…")]),
+            category("permission", [action(.settings, "Open Local Network Settings…")]),
         ])
         c.requestAuthorization(options: [.alert, .sound]) { granted, error in
             Task { @MainActor in
@@ -64,6 +65,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         case .clairance: info["click"] = "clairance"
         case .finder(let path): info["click"] = "finder:" + path
         case .activityMonitor: info["click"] = "activity"
+        case .settings(let pane): info["click"] = "settings:" + pane
         }
         content.userInfo = info
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: content, trigger: nil))
@@ -81,7 +83,8 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         let action = NoticeAction(rawValue: response.actionIdentifier)
         let c = info["click"] ?? ""
         let click: Notice.Click = c == "log" ? .log : c == "clairance" ? .clairance : c == "activity" ? .activityMonitor
-            : c.hasPrefix("finder:") ? .finder(String(c.dropFirst("finder:".count))) : .none
+            : c.hasPrefix("finder:") ? .finder(String(c.dropFirst("finder:".count)))
+            : c.hasPrefix("settings:") ? .settings(String(c.dropFirst("settings:".count))) : .none
         Task { @MainActor in self.handle(action, click, info) }
         done()
     }

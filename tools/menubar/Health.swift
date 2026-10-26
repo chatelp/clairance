@@ -175,7 +175,7 @@ func memoryPressure() -> Int32 {
 /// What a notification says and does (design 10, "Les notifications").
 struct Notice: Sendable {
     enum Level: Sendable { case timeSensitive, active, passive }
-    enum Click: Sendable { case none, log, clairance, finder(String), activityMonitor }
+    enum Click: Sendable { case none, log, clairance, finder(String), activityMonitor, settings(String) }
     var title: String
     var body: String
     var sound = false
