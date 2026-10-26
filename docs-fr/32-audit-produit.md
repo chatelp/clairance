@@ -494,6 +494,15 @@ sur la carte.
 
 ## État
 
+- 26/10, 17:02 : **production relancée avec les pistes gardées et les fiches O et N** (457718d), à la demande du
+  propriétaire. Binaire démarré d'abord à part (page, santé, `TRACE` refusé, pistes reprises, flux μ-law). Arrêt à
+  17:01:19 ; un premier départ refusé à 17:01:53 (« co-atc tourne déjà ») : ma commande contenait le motif que
+  cherche le script de production (piège connu, mémoire du 16/10) ; reprise à 17:02:06, station prévenue. Première
+  transcription à 17:02:27 ; 16 en deux minutes, 5 secondes lectures ouvertes par la détection de langue, 2 boucles
+  coupées, archivage en marche ; MLX 8,8 Go actifs, cache 0,7 Go sous sa borne. Le fichier des pistes s'écrit
+  (`data/runways-in-use.json`) ; rien à reprendre à ce démarrage-ci, le premier avec la fonction. Débit décodé :
+  2,82 à 2,86 Mo par minute par fréquence, soit le PCM à 24 kHz en continu (la station avait demandé ; ce n'est pas
+  le débit Icecast).
 - 26/10, 17:20 : **le son sur l'iPhone** (cbf7ecf, page seule). Le propriétaire : pas de son dans Safari sur iPhone,
   mode silencieux désactivé, pas de bandeau. La page déclare désormais son son comme lecture
   (`navigator.audioSession.type = 'playback'`) : sur iPhone, Web Audio est sinon un son d'ambiance que le mode

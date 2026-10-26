@@ -129,7 +129,7 @@ multi-utilisateurs. **Rien n'est ouvert avant D3.**
 | D2 bis. Le son sur tous les navigateurs | la page jouait du WAV sans fin, que Safari (Mac et iPhone) refuse (vérifié par le propriétaire le 26/10 : son dans Dia, rien dans Safari) ; désormais le **MP3 d'origine de la station**, relayé trame par trame par le décodeur Go (`?format=mp3`, `audio/mpeg`), environ 15 kb/s au lieu de 384 ; repli sur le WAV pour une source sans MP3 ; une page ouverte juste après un démarrage attend jusqu'à 8 s la première trame (5,5 s mesurées) | **fait le 26/10** (c45ddd3, b081228), vérifié sur une instance d'essai branchée sur la station, en production depuis 14:12. **Le propriétaire : son dans Safari sur Mac, mais pas sur le téléphone ; dans Safari, le bouton son ne coupait rien et « someone is speaking » n'apparaissait pas** (Safari joue un flux en direct sans passer par Web Audio). Corrigé (32d05e8, en production à 14:24) : l'activité est mesurée par le serveur et envoyée par le WebSocket (`frequency_activity`), le bouton coupe aussi l'élément `<audio>`. Reste : le téléphone |
 | D2 ter. La page joue le son elle-même (Q63) | le serveur envoie le son décodé en μ-law à 8 kHz (64 kb/s), la page le décode et le joue par Web Audio : démarrage immédiat, « someone is speaking » mesuré sur ce qui sort, le bouton son partout, l'iPhone | **fait le 26/10** (4d15c1e), en production à 15:15:43. Safari sur Mac : d'abord sans son, puis avec un cliquetis ; causes trouvées et corrigées le jour même (reprise du son à chaque geste, rééchantillonnage dans la page : 623d132, c50787c), **Safari joue par ce lecteur** ; l'iPhone aussi (cbf7ecf, son déclaré comme lecture). Reste, à juger par le propriétaire à une heure creuse (trop de trafic le 26/10 en fin d'après-midi) : l'écran verrouillé, et « someone is speaking » en phase avec la voix sur iPhone |
 | D3. Le durcissement de ce qui devient public | relecture de chaque route ouverte sans session (`/health`, `/vitals`, `/auth/*`, `/setup/*`) ; la limite des essais de mot de passe, vérifiée derrière le mandataire ; ce que voit et fait un viewer, route par route, WebSocket, flux, archive, réglages, outil AIP, un test par interdit ; `/api/v1/health/detail` refusée depuis l'extérieur (déjà) ; une limite de débit côté Traefik | principale ; **fait le 26/10 par la fiche O** (6fa8dd5), en production à la relance du 27/10 ; six constats à trancher par le propriétaire (05, Q62) |
-| D4. Le compte et la trace | un compte `viewer` à son nom ; l'audio ouvert aux viewers (`audio_replay = "all"`, global, suffit tant qu'il est seul) ; un journal des connexions (qui, quand, d'où), et la marche à suivre pour couper l'accès | principale, propriétaire pour le mot de passe ; **la trace faite** (fiche O : `configs/signins.jsonl`, `GET /api/v1/signins`) ; reste le compte et l'audio ouvert |
+| D4. Le compte et la trace | un compte `viewer` à son nom ; l'audio ouvert aux viewers (`audio_replay = "all"`, global, suffit tant qu'il est seul) ; un journal des connexions (qui, quand, d'où), et la marche à suivre pour couper l'accès | principale, propriétaire pour le mot de passe ; **la trace faite** (fiche O : `configs/signins.jsonl`, `GET /api/v1/signins`) ; reste le compte et l'audio ouvert ; **ouverture le 28/10** ; avant : adresses internes masquées et flux limités pour un invité (décision du 26/10) |
 | D5. La fiabilité vue de chez lui | les sessions vivent en mémoire, par choix : **chaque relance de la production le déconnecte** ; ce que voit sa page quand la production s'arrête ou redémarre ; la reprise des flux ; le débit montant des deux flux ; la machine du mandataire est sur l'onduleur qui saute (deux redémarrages le 19/10) : une sonde Uptime Kuma sur l'adresse publique | principale, propriétaire |
 | D6. Plus tard : le lanceur chez lui, en client distant | jetons par appareil, routes adaptées au viewer, signature Developer ID et notarisation (compte développeur Apple) | lanceur, après C |
 
@@ -177,10 +177,14 @@ B1 se mesure sur le Mac : il demande l'audio réel de la station, qui ne va jama
 | Période | Ce qui avance |
 |---|---|
 | **Du 26/10 au 1/11** | A jusqu’au bout (A3, A4, A5) ; **en parallèle (décidé le 26/10)** B1, la mesure du décodage, et D1 à D4, pour que l'ami commence ; lancer les fiches cloud G1 puis G3 |
-| **Du 2 au 8/11** | B2 à B5 ; C1 et C2 (fiche G2) ; D5 sur une semaine d'usage réel |
-| **Ensuite** | C3 à C5 ; E ; puis F |
+| **Du 2 au 8/11** | **le lanceur d'abord (décidé le 26/10 au soir)** : C1 à C5 ; puis B2 à B5 ; D5 sur une semaine d'usage réel |
+| **Ensuite** | E ; puis F |
 
 Les dates suivent le travail, pas l'inverse : une étape qui révèle un problème de production passe devant.
+
+**Décidé le 26/10 au soir** : la production est relancée le soir même (pistes gardées, fiches O et N, 17:02:06) ;
+l'ami entre le 28/10 ; après la bascule audio et l'ami, **le lanceur passe avant le serveur autonome** ; le crédit
+cloud restant (**61 $**) part dès maintenant en fiches, choisies par la session principale.
 
 ## Les dépendances, en une ligne chacune
 

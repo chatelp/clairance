@@ -5356,6 +5356,12 @@ lit des adresses internes (flux de la station, chemins de `/server` et `/config`
 par fréquence ; bloquée par la limite, la connexion répond 401 et la page attend 429 (message moins clair) ;
 `/vitals` dit à tous la version et la durée de marche (désactivable dans les réglages).
 
+**Tranché par le propriétaire le 26/10 au soir** (questions posées sans jargon) : la connexion reste de **30 jours** ;
+pour un invité (viewer), **les adresses internes sont masquées et ses flux audio limités** ; `/vitals` **reste
+public** ; l'accès de l'ami s'ouvre **le 28/10**, après la fin de la bascule audio, pour qu'il arrive sur une
+production stable. Restent sans décision, faute d'enjeu pour un seul ami : un flux qui survit à la déconnexion, et
+le message de blocage (401 au lieu de 429), corrigé sans question.
+
 ### Q61 — Le lanceur, projet à part, et son contrat avec le serveur *(26/10 — **dans ce dépôt, rangé à part** ; contrat à écrire)*
 
 **Le constat, relevé le 26/10** : le lanceur (2 825 lignes de Swift) lit `config.toml` lui-même (ports,
