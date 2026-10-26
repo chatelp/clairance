@@ -41,8 +41,10 @@ locale. La liaison n'a plus besoin du compte du propriétaire. `[server] instanc
 ## 2. Le canal d'état (`-status-fd N`)
 
 Facultatif. co-atc écrit sur le descripteur N (1 ou 2 sous Windows ; n'importe lequel ailleurs) **une ligne JSON
-par événement**, qui commence toujours par `{"coatc_status":`. Un lanceur qui lance co-atc avec `Process` de
-Foundation donne `-status-fd 2` et lit la sortie d'erreur : les autres lignes (sortie du sidecar, panique de Go) ne
+par événement**, qui commence toujours par `{"coatc_status":`. Le lanceur, **ou le porteur qui lance co-atc pour
+lui** (c'est le cas sur ce Mac : le menu n'est pas le parent de co-atc), donne `-status-fd 2` et lit la sortie
+d'erreur. Le porteur range les lignes `{"coatc_status":` dans un fichier d'état que le lanceur suit, avec le statut
+de sortie de co-atc, qu'il est seul à connaître : un lanceur rouvert retrouve ainsi l'histoire : les autres lignes (sortie du sidecar, panique de Go) ne
 commencent pas ainsi.
 
 | Événement | Champs | Quand |
@@ -108,7 +110,7 @@ l'antenne**, relayé par la liaison depuis `/radio/etat` ; une liaison qui ne ra
 | `paths` | `static_dir`, `databases_dir`, `database` (celle du jour), `log` (le fichier du jour, rotation comprise ; absent si le journal ne va qu'à la sortie standard), `audio_archive` (absent sans archive) |
 | `sidecar_url` | `[transcription.local] server_url` |
 | `adsb_source` | `type` ; `url` pour `tar1090` (`…/aircraft.json`) et `readsb-api`, absente pour les sources externes |
-| `memory_bytes` | mémoire résidente de co-atc (RSS ; le lanceur lisait l'empreinte physique de macOS, un peu différente) |
+| `footprint_bytes` | **macOS seulement** : l'empreinte physique de co-atc (`proc_pid_rusage`, `ri_phys_footprint`, ce que le Moniteur d'activité appelle sa mémoire). **Absente ailleurs** plutôt que fausse : la mémoire résidente ne compte pas ce qu'un modèle tient sur le GPU (26/10, le sidecar de production : 93 Mo résidents pour 8 879 Mo d'empreinte). Corrigé le 26/10 après relecture par l'agent du lanceur ; le champ s'appelait `memory_bytes` (mémoire résidente) avant toute mise en production |
 | `memory_pressure` | macOS : `normal`, `warn` ou `critical` (`kern.memorystatus_vm_pressure_level`, la lecture du lanceur) |
 | `repository` | quand co-atc tourne dans un dépôt git : `dir`, `branch`, `head`, `commits_behind` (de combien le binaire est en retard ; absent si son commit n'est pas dans la branche) |
 
@@ -120,7 +122,7 @@ sidecar, celui qu'il déclare : le processus Python), `state` (`running`, `resta
 sidecar mort cinq fois en dix minutes n'est plus relancé), `started_at`, `restarts`, `last_exit`, `last_output` (sa
 dernière ligne, pour la cause), `next_start_at` (pendant le délai avant une relance), `command` (la clé de la
 liaison n'y est jamais : elle passe par l'environnement), `kind` (sidecar : `model` ou `fake`, d'après ce qu'il
-déclare), `mode` (liaison : `continuous`), `memory_bytes`. Une liaison qui meurt est relancée après 1 s, puis un
+déclare), `mode` (liaison : `continuous`), `footprint_bytes` (macOS seulement, comme pour `process`). Une liaison qui meurt est relancée après 1 s, puis un
 délai qui double tant qu'elle meurt en moins d'une minute, jusqu'à 2 min.
 
 ## 8. La version
@@ -148,11 +150,20 @@ délai qui double tant qu'elle meurt en moins d'une minute, jusqu'à 2 min.
 | la production reconnue au chemin de sa configuration | `process.instance` |
 | les processus `radio-ctl-sync` (`-coatc`, `-once`), `whisper_server.py` / `fake-sidecar.py` | `companions[]` (`role`, `pid`, `kind`, `mode`) |
 | le script de production comme parent | plus de script : le porteur lance co-atc |
-| la mémoire par PID, la pression mémoire | `process.memory_bytes`, `companions[].memory_bytes`, `process.memory_pressure` |
+| la mémoire par PID, la pression mémoire | `process.footprint_bytes`, `companions[].footprint_bytes` (macOS), `process.memory_pressure` |
 | les orphelins dans la table des processus | la garantie du § 4 |
 | `/radio/etat` de la station (mode, titre, fréquences) | `receiver.mode`, `receiver.title`, `receiver.channels[]` |
 
 ## Hors du serveur (le lanceur garde)
+
+**La découverte des instances qu'il n'a pas démarrées** (lancées par un agent ou d'un double-clic) : localement
+seulement, par la table des processus, le nom exact du processus et son port d'écoute ; tout le reste passe par
+l'API de chaque instance, `process.instance` disant laquelle est la production. Un lanceur distant (D6) ne connaît
+que les instances qu'on lui nomme. (Proposé par l'agent du lanceur, accepté le 26/10.)
+
+**Un co-atc sans `contract`** (d'avant la version 1) n'est pas lu par les fichiers en secours : le lanceur dit
+« co-atc trop ancien pour le lanceur », comme pour un 404 sur `/health/detail`, avec un suivi réduit (processus,
+`/api/v1/health`). La production passe à la version 1 le 27/10 : la transition ne dure qu'une relance.
 
 Le planning GPU du labo ; la sonde de la station par le porteur avant le lancement (le réseau local de macOS refuse
 la première connexion d'un binaire neuf) ; les instances d'essai lancées avec le binaire posé à côté de leur

@@ -1,44 +1,35 @@
+//go:build darwin && cgo
+
 package api
 
-import (
-	"context"
-	"os/exec"
-	"strconv"
-	"strings"
-	"time"
+/*
+#include <libproc.h>
+#include <sys/resource.h>
 
-	"golang.org/x/sys/unix"
-)
+// The physical footprint macOS charges a process -- what Activity Monitor
+// calls its memory -- or -1 when it cannot be read (gone, or another user's).
+static long long phys_footprint(int pid) {
+	struct rusage_info_v2 ri;
+	if (proc_pid_rusage(pid, RUSAGE_INFO_V2, (rusage_info_t *)&ri) != 0) {
+		return -1;
+	}
+	return (long long)ri.ri_phys_footprint;
+}
+*/
+import "C"
 
-// processMemory is the resident memory of each process, in bytes, as ps reads
-// it -- one call for all of them. Resident memory, not the "physical
-// footprint" the launcher read by itself (proc_pid_rusage), which only cgo
-// would reach: close, and the same for both readers from now on. A process
-// that is gone is left out.
-func processMemory(pids []int) map[int]int64 {
+import "golang.org/x/sys/unix"
+
+// processFootprint is the physical footprint of each process, in bytes. Not
+// the resident memory ps reads: the sidecar's models live in Metal buffers
+// that resident memory leaves out (26/10, the production's sidecar: 93 MB
+// resident for 8,879 MB of footprint), where the footprint counts them, as
+// the launcher always read it. A process that is gone is left out.
+func processFootprint(pids []int) map[int]int64 {
 	out := map[int]int64{}
-	if len(pids) == 0 {
-		return out
-	}
-	list := make([]string, len(pids))
-	for i, p := range pids {
-		list[i] = strconv.Itoa(p)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	b, err := exec.CommandContext(ctx, "/bin/ps", "-o", "pid=,rss=", "-p", strings.Join(list, ",")).Output()
-	if err != nil && len(b) == 0 {
-		return out
-	}
-	for _, line := range strings.Split(string(b), "\n") {
-		f := strings.Fields(line)
-		if len(f) != 2 {
-			continue
-		}
-		pid, err1 := strconv.Atoi(f[0])
-		kb, err2 := strconv.ParseInt(f[1], 10, 64)
-		if err1 == nil && err2 == nil {
-			out[pid] = kb * 1024
+	for _, pid := range pids {
+		if b := int64(C.phys_footprint(C.int(pid))); b >= 0 {
+			out[pid] = b
 		}
 	}
 	return out

@@ -38,7 +38,7 @@ type HealthProcess struct {
 	Paths          HealthPaths       `json:"paths"`
 	SidecarURL     string            `json:"sidecar_url,omitempty"`
 	ADSBSource     *HealthADSBSource `json:"adsb_source,omitempty"`
-	MemoryBytes    *int64            `json:"memory_bytes,omitempty"`
+	FootprintBytes *int64            `json:"footprint_bytes,omitempty"` // macOS only, see memory_darwin.go
 	MemoryPressure string            `json:"memory_pressure,omitempty"`
 	Repository     *HealthRepository `json:"repository,omitempty"`
 }
@@ -87,19 +87,19 @@ type HealthRepository struct {
 // started it and watches over it; a sidecar run by someone else is listed,
 // unmanaged, when it answers.
 type HealthCompanion struct {
-	Role        string     `json:"role"`
-	Managed     bool       `json:"managed"`
-	PID         int        `json:"pid,omitempty"`
-	State       string     `json:"state"`
-	StartedAt   *time.Time `json:"started_at,omitempty"`
-	Restarts    int        `json:"restarts"`
-	LastExit    string     `json:"last_exit,omitempty"`
-	LastOutput  string     `json:"last_output,omitempty"`
-	NextStartAt *time.Time `json:"next_start_at,omitempty"`
-	Command     []string   `json:"command,omitempty"`
-	Kind        string     `json:"kind,omitempty"` // the sidecar: "model", or "fake" for a test instance's stand-in
-	Mode        string     `json:"mode,omitempty"` // the station link: "continuous"
-	MemoryBytes *int64     `json:"memory_bytes,omitempty"`
+	Role           string     `json:"role"`
+	Managed        bool       `json:"managed"`
+	PID            int        `json:"pid,omitempty"`
+	State          string     `json:"state"`
+	StartedAt      *time.Time `json:"started_at,omitempty"`
+	Restarts       int        `json:"restarts"`
+	LastExit       string     `json:"last_exit,omitempty"`
+	LastOutput     string     `json:"last_output,omitempty"`
+	NextStartAt    *time.Time `json:"next_start_at,omitempty"`
+	Command        []string   `json:"command,omitempty"`
+	Kind           string     `json:"kind,omitempty"`            // the sidecar: "model", or "fake" for a test instance's stand-in
+	Mode           string     `json:"mode,omitempty"`            // the station link: "continuous"
+	FootprintBytes *int64     `json:"footprint_bytes,omitempty"` // macOS only
 }
 
 // ProcessInfo is what only main knows of the process.
@@ -219,13 +219,13 @@ func (h *Handler) describeProcess(d *HealthDetail) {
 			pids = append(pids, c.PID)
 		}
 	}
-	mem := processMemory(pids)
+	mem := processFootprint(pids)
 	if b, ok := mem[os.Getpid()]; ok {
-		p.MemoryBytes = &b
+		p.FootprintBytes = &b
 	}
 	for i := range d.Companions {
 		if b, ok := mem[d.Companions[i].PID]; ok && d.Companions[i].PID > 0 {
-			d.Companions[i].MemoryBytes = &b
+			d.Companions[i].FootprintBytes = &b
 		}
 	}
 	p.MemoryPressure = memoryPressure()

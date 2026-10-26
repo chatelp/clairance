@@ -63,10 +63,12 @@ func TestTheHealthDetailDescribesTheProcess(t *testing.T) {
 	if p.ADSBSource == nil || p.ADSBSource.Type != "tar1090" || p.ADSBSource.URL != s.tar1090.srv.URL+"/aircraft.json" {
 		t.Errorf("ADS-B source: %+v", p.ADSBSource)
 	}
-	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
-		if p.MemoryBytes == nil || *p.MemoryBytes < 1<<20 {
-			t.Errorf("memory: %v", p.MemoryBytes)
+	if runtime.GOOS == "darwin" {
+		if p.FootprintBytes == nil || *p.FootprintBytes < 1<<20 {
+			t.Errorf("footprint: %v", p.FootprintBytes)
 		}
+	} else if p.FootprintBytes != nil {
+		t.Errorf("a footprint off macOS: %v", *p.FootprintBytes)
 	}
 	// The tests run inside the repository.
 	if r := p.Repository; r == nil || r.Dir == "" {
@@ -88,8 +90,8 @@ func TestTheHealthDetailDescribesTheProcess(t *testing.T) {
 			c.StartedAt == nil || c.Restarts != 0 || len(c.Command) != 2 {
 			t.Errorf("the station link: %+v", c)
 		}
-		if runtime.GOOS == "linux" && (c.MemoryBytes == nil || *c.MemoryBytes == 0) {
-			t.Errorf("the link's memory: %v", c.MemoryBytes)
+		if runtime.GOOS == "darwin" && (c.FootprintBytes == nil || *c.FootprintBytes == 0) {
+			t.Errorf("the link's footprint: %v", c.FootprintBytes)
 		}
 	}
 	if _, ok := byRole["keep_awake"]; ok {

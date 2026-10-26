@@ -19,11 +19,11 @@ companions                                 array    required
 companions[]                               object   required
 companions[].command                       array    optional
 companions[].command[]                     string   required
+companions[].footprint_bytes               number   optional
 companions[].kind                          string   optional
 companions[].last_exit                     string   optional
 companions[].last_output                   string   optional
 companions[].managed                       boolean  required
-companions[].memory_bytes                  number   optional
 companions[].mode                          string   optional
 companions[].next_start_at                 time     optional
 companions[].pid                           number   optional
@@ -65,6 +65,7 @@ process.adsb_source.type                   string   required
 process.adsb_source.url                    string   optional
 process.config                             string   optional
 process.executable                         string   optional
+process.footprint_bytes                    number   optional
 process.instance                           string   optional
 process.listeners                          array    required
 process.listeners[]                        object   required
@@ -73,7 +74,6 @@ process.listeners[].error                  string   optional
 process.listeners[].ok                     boolean  required
 process.listeners[].primary                boolean  required
 process.listeners[].url                    string   required
-process.memory_bytes                       number   optional
 process.memory_pressure                    string   optional
 process.paths                              object   required
 process.paths.audio_archive                string   optional
