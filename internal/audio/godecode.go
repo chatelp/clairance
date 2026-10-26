@@ -40,7 +40,7 @@ var goHTTPClient = &http.Client{Transport: &http.Transport{
 // decodeHTTP reads the MP3 stream at url and writes it to w as 16-bit mono PCM
 // at rate, until the stream ends, fails, or ctx is done. It returns why it
 // stopped; the caller reconnects.
-func decodeHTTP(ctx context.Context, url string, rate int, w io.Writer, relay *mp3Relay, log *logger.Logger) error {
+func decodeHTTP(ctx context.Context, url string, rate int, w io.Writer, relay, ulaw *mp3Relay, log *logger.Logger) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -65,12 +65,13 @@ func decodeHTTP(ctx context.Context, url string, rate int, w io.Writer, relay *m
 	defer stall.Stop()
 	body.onRead = func() { stall.Reset(goStallAfter) }
 
-	return decodeMP3(body, rate, w, relay, log)
+	return decodeMP3(body, rate, w, relay, ulaw, log)
 }
 
 // decodeMP3 decodes a live MP3 stream from r to w, as decodeHTTP describes.
-// relay, when not nil, receives the stream's frames as read (mp3relay.go).
-func decodeMP3(r io.Reader, rate int, w io.Writer, relay *mp3Relay, log *logger.Logger) error {
+// relay, when not nil, receives the stream's frames as read (mp3relay.go);
+// ulaw, the decoded sound in mu-law at the stream's own rate (ulaw.go).
+func decodeMP3(r io.Reader, rate int, w io.Writer, relay, ulaw *mp3Relay, log *logger.Logger) error {
 	d, fr, err := mp3.NewLiveDecoder(r)
 	if err != nil {
 		return fmt.Errorf("not an MP3 stream: %w", err)
@@ -79,6 +80,9 @@ func decodeMP3(r io.Reader, rate int, w io.Writer, relay *mp3Relay, log *logger.
 	if relay != nil {
 		relay.setFormat(format.SampleRate, format.Channels)
 		fr.OnFrame = relay.frame
+	}
+	if ulaw != nil {
+		ulaw.setFormat(format.SampleRate, 1)
 	}
 	log.Info("Decoding the stream in Go",
 		Int("stream_rate", format.SampleRate), Int("channels", format.Channels), Int("rate", rate))
@@ -114,6 +118,9 @@ func decodeMP3(r io.Reader, rate int, w io.Writer, relay *mp3Relay, log *logger.
 				v += float64(buf.Data[c][i])
 			}
 			mono = append(mono, v/float64(len(buf.Data)))
+		}
+		if ulaw != nil {
+			ulaw.frame(ulawChunk(mono))
 		}
 		pcm = rs.process(mono, pcm[:0])
 		bytesOut = bytesOut[:0]
@@ -157,7 +164,7 @@ func (p *CentralAudioProcessor) startGoDecoder() error {
 	p.ffmpegCmd = nil
 	p.ffmpegStdout = pr
 	go func() {
-		err := decodeHTTP(ctx, p.audioURL, p.sampleRate, pw, p.mp3, p.logger)
+		err := decodeHTTP(ctx, p.audioURL, p.sampleRate, pw, p.mp3, p.ulaw, p.logger)
 		if ctx.Err() != nil {
 			err = ctx.Err()
 		}

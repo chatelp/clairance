@@ -77,3 +77,16 @@ func (s *Service) MP3Stream(id string) (io.ReadCloser, bool) {
 	// first frame came 5.5 s after a start on 26/10.
 	return sp.audioProcessor.MP3Reader(8 * time.Second)
 }
+
+// ULawStream is a listener to a frequency's decoded sound in mu-law, and its
+// rate, for a page that plays the sound itself (internal/audio, ulaw.go);
+// false when there is none, and the caller serves the WAV stream instead.
+func (s *Service) ULawStream(id string) (io.ReadCloser, int, bool) {
+	s.streamsMu.RLock()
+	sp := s.activeStreams[id]
+	s.streamsMu.RUnlock()
+	if sp == nil || sp.audioProcessor == nil {
+		return nil, 0, false
+	}
+	return sp.audioProcessor.ULawReader(8 * time.Second)
+}

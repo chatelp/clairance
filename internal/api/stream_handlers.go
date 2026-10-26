@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,9 +33,17 @@ func (h *Handler) StreamAudio(w http.ResponseWriter, r *http.Request) {
 	// The station's own MP3 when the page asks for it and the stream has it:
 	// what every browser plays, Safari included, at a twenty-fifth of the WAV's
 	// rate (docs-fr/35-plan.md, D2 bis). Otherwise the WAV stream, as before.
-	if r.URL.Query().Get("format") == "mp3" {
+	switch r.URL.Query().Get("format") {
+	case "mp3":
 		if mp3, ok := h.frequenciesService.MP3Stream(id); ok {
-			h.streamMP3(w, r, id, mp3)
+			h.streamRelayed(w, r, id, mp3, "audio/mpeg", 0)
+			return
+		}
+	case "ulaw":
+		// The decoded sound in mu-law, for a page that plays it itself
+		// through Web Audio (www/live-player.js; D2 ter).
+		if ulaw, rate, ok := h.frequenciesService.ULawStream(id); ok {
+			h.streamRelayed(w, r, id, ulaw, "audio/basic", rate)
 			return
 		}
 	}
@@ -199,11 +208,15 @@ func (h *Handler) StreamAudio(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// streamMP3 sends a frequency's MP3 frames until the browser leaves or the
-// stream stops, flushing each read so that the sound is not held back.
-func (h *Handler) streamMP3(w http.ResponseWriter, r *http.Request, id string, mp3 io.ReadCloser) {
+// streamRelayed sends a frequency's relayed sound (MP3 frames, or mu-law
+// with its rate in X-Sample-Rate) until the browser leaves or the stream
+// stops, flushing each read so that the sound is not held back.
+func (h *Handler) streamRelayed(w http.ResponseWriter, r *http.Request, id string, mp3 io.ReadCloser, contentType string, rate int) {
 	defer mp3.Close()
-	w.Header().Set("Content-Type", "audio/mpeg")
+	w.Header().Set("Content-Type", contentType)
+	if rate > 0 {
+		w.Header().Set("X-Sample-Rate", strconv.Itoa(rate))
+	}
 	w.Header().Set("Cache-Control", "no-cache, no-store")
 	if r.Method == http.MethodHead {
 		return
@@ -230,6 +243,6 @@ func (h *Handler) streamMP3(w http.ResponseWriter, r *http.Request, id string, m
 			break
 		}
 	}
-	h.logger.Info("MP3 stream ended", logger.String("id", id), logger.String("remote_addr", r.RemoteAddr),
+	h.logger.Info("Relayed stream ended", logger.String("id", id), logger.String("type", contentType), logger.String("remote_addr", r.RemoteAddr),
 		logger.Int("bytes", written), logger.String("duration", time.Since(start).Round(time.Second).String()))
 }

@@ -27,13 +27,18 @@ const mp3ClientFrames = 256
 
 type mp3Relay struct {
 	mu      sync.Mutex
+	keep    int // chunks kept for a new listener
 	burst   [][]byte
 	format  [2]int // sample rate and channels of the frames being relayed
 	clients map[*mp3Reader]struct{}
 }
 
-func newMP3Relay() *mp3Relay {
-	return &mp3Relay{clients: map[*mp3Reader]struct{}{}}
+func newMP3Relay() *mp3Relay { return newRelay(mp3BurstFrames) }
+
+// newRelay is a relay that gives a new listener its last keep chunks at once.
+// The MP3 relay keeps frames; the mu-law one (ulaw.go) keeps decoded sound.
+func newRelay(keep int) *mp3Relay {
+	return &mp3Relay{keep: keep, clients: map[*mp3Reader]struct{}{}}
 }
 
 // setFormat is said at each connection to the stream. Frames of another rate
@@ -59,8 +64,8 @@ func (m *mp3Relay) frame(raw []byte) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.burst = append(m.burst, raw)
-	if len(m.burst) > mp3BurstFrames {
-		m.burst = m.burst[len(m.burst)-mp3BurstFrames:]
+	if len(m.burst) > m.keep {
+		m.burst = m.burst[len(m.burst)-m.keep:]
 	}
 	for c := range m.clients {
 		select {

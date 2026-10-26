@@ -73,7 +73,11 @@ class AudioClient {
         console.log(`Preparing frequency: ${frequencyId}`);
         this.initAudioContext();
 
-        const audioElement = document.createElement('audio');
+        // The page plays the stream itself where it can (live-player.js): it
+        // starts at once and measures what it plays, in every browser. An
+        // <audio> element otherwise.
+        const live = window.LiveStreamPlayer && window.LiveStreamPlayer.supported() && this.audioContext;
+        const audioElement = live ? new window.LiveStreamPlayer(this.audioContext) : document.createElement('audio');
         // Streams are spread over the server's additional ports, a different
         // origin from the page: "anonymous" sends no cookie there, and with
         // sign-in required every stream was refused while the transcriptions,
@@ -87,7 +91,7 @@ class AudioClient {
             this.userSetVolumes[frequencyId] = kept === null ? this.defaultVolume : kept;
         }
 
-        const streamUrl = this._buildStreamUrl(frequency);
+        const streamUrl = this._buildStreamUrl(frequency, live ? 'ulaw' : 'mp3');
         if (!streamUrl) {
             console.error(`prepareFrequency: invalid stream URL for ${frequencyId}`);
             return;
@@ -218,7 +222,7 @@ class AudioClient {
         delete this.gainNodes[frequencyId];
 
         try {
-            const sourceNode = this.audioContext.createMediaElementSource(audioElement);
+            const sourceNode = audioElement.isLivePlayer ? audioElement.output : this.audioContext.createMediaElementSource(audioElement);
             this.sourceNodes[frequencyId] = sourceNode;
 
             const analyserNode = this.audioContext.createAnalyser();
@@ -397,6 +401,11 @@ class AudioClient {
     noteServerActivity(frequencyId, speaking, level) {
         const id = this._normalizeFrequencyId(frequencyId);
         if (!id) return;
+        // A frequency the page plays itself is measured on what it plays,
+        // in time with the voice; the server's word, seconds ahead of it, is
+        // for the others.
+        const el = this.audioElements[id]?.element;
+        if (el && el.isLivePlayer && !el.paused && el.readyState) return;
         this.serverActivity[id] = { speaking: !!speaking, at: Date.now() };
         if (!speaking) return;
         this.lastSignificantAudioTime[id] = Date.now();
@@ -530,7 +539,7 @@ class AudioClient {
      * @param {{stream_port?: number|string, stream_url?: string}} frequency
      * @returns {string|null}
      */
-    _buildStreamUrl(frequency) {
+    _buildStreamUrl(frequency, format = 'mp3') {
         const streamPath = typeof frequency?.stream_url === 'string' ? frequency.stream_url : '';
         if (!streamPath) {
             return null;
@@ -551,10 +560,10 @@ class AudioClient {
             return null;
         }
 
-        // The station's own MP3 where the server has it, the WAV stream
-        // otherwise: Safari, on the Mac as on the iPhone, does not play an
-        // endless WAV stream (26/10), and the MP3 is a twenty-fifth of the rate.
-        url.searchParams.set('format', 'mp3');
+        // The decoded sound in mu-law for the page's own player, the
+        // station's MP3 for an <audio> element; the WAV stream where the
+        // server has neither. Safari does not play an endless WAV stream (26/10).
+        url.searchParams.set('format', format);
 
         if (url.href.includes('CLIENT_ID')) {
             return url.href.replace('CLIENT_ID', encodeURIComponent(this.store.clientID));

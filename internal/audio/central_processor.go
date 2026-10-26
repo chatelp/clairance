@@ -73,6 +73,9 @@ type CentralAudioProcessor struct {
 	// mp3 relays the stream's own MP3 frames to browsers (mp3relay.go), fed
 	// by the Go decoder.
 	mp3 *mp3Relay
+	// ulaw relays the decoded sound in mu-law to pages that play it
+	// themselves (ulaw.go), fed by the Go decoder.
+	ulaw *mp3Relay
 
 	// activity says when the frequency carries sound (activity.go); nil
 	// until SetActivityCallback.
@@ -137,6 +140,7 @@ func NewCentralAudioProcessor(
 		inputOptions:             config.InputOptions,
 		goDecoder:                config.GoDecoder,
 		mp3:                      newMP3Relay(),
+		ulaw:                     newRelay(ulawBurstChunks),
 		multiReader:              multiReader,
 		ctx:                      procCtx,
 		cancel:                   procCancel,
@@ -218,6 +222,7 @@ func (p *CentralAudioProcessor) Stop() error {
 
 	p.stopFFmpeg()
 	p.mp3.close()
+	p.ulaw.close()
 
 	// Close multi-reader
 	p.multiReader.Close()

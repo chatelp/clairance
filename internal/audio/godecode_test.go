@@ -139,7 +139,7 @@ func TestTheResamplerKeepsATone(t *testing.T) {
 // within rounding.
 func TestDecodingTheStationsFormatMatchesFFmpeg(t *testing.T) {
 	var out bytes.Buffer
-	err := decodeMP3(bytes.NewReader(mp3Fixture(t, "station-8k-vbr")), 8000, &out, nil, quietLog(t))
+	err := decodeMP3(bytes.NewReader(mp3Fixture(t, "station-8k-vbr")), 8000, &out, nil, nil, quietLog(t))
 	if !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Fatalf("ended with %v, want the end of the stream", err)
 	}
@@ -182,7 +182,7 @@ func TestAStreamOverHTTP(t *testing.T) {
 	b := mp3Fixture(t, "station-8k-vbr")
 	srv, _ := slowServer(t, func(int) []byte { return b })
 	var out bytes.Buffer
-	err := decodeHTTP(context.Background(), srv.URL, 24000, &out, nil, quietLog(t))
+	err := decodeHTTP(context.Background(), srv.URL, 24000, &out, nil, nil, quietLog(t))
 	if !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Fatalf("ended with %v", err)
 	}
@@ -202,7 +202,7 @@ func TestWhatIsNotAStream(t *testing.T) {
 	}))
 	defer page.Close()
 	for url, want := range map[string]string{notFound.URL: "HTTP 404", page.URL: "not an MP3 stream", "http://127.0.0.1:1/x.mp3": "connect"} {
-		err := decodeHTTP(context.Background(), url, 16000, io.Discard, nil, quietLog(t))
+		err := decodeHTTP(context.Background(), url, 16000, io.Discard, nil, nil, quietLog(t))
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%s: %v, want %q", url, err, want)
 		}
@@ -222,7 +222,7 @@ func TestAStalledStreamIsCut(t *testing.T) {
 	}))
 	defer srv.Close()
 	start := time.Now()
-	err := decodeHTTP(context.Background(), srv.URL, 16000, io.Discard, nil, quietLog(t))
+	err := decodeHTTP(context.Background(), srv.URL, 16000, io.Discard, nil, nil, quietLog(t))
 	if err == nil {
 		t.Fatal("a stalled stream ended without an error")
 	}
@@ -340,7 +340,7 @@ func TestDecodeARecordingInGo(t *testing.T) {
 	}
 	defer f.Close()
 	var pcm bytes.Buffer
-	if err := decodeMP3(f, rate, &pcm, nil, quietLog(t)); !errors.Is(err, io.ErrUnexpectedEOF) {
+	if err := decodeMP3(f, rate, &pcm, nil, nil, quietLog(t)); !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Fatalf("ended with %v", err)
 	}
 	if err := os.WriteFile(out, pcm.Bytes(), 0o644); err != nil {

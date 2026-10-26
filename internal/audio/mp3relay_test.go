@@ -135,7 +135,7 @@ func TestTheRelayedMP3DecodesFromItsFirstByte(t *testing.T) {
 		}
 	}()
 	// At a stream's pace, in pieces, so that the listener joins early on.
-	if err := decodeMP3(&paced{b: b[777:]}, 8000, &pcm, m, quietLog(t)); !errors.Is(err, io.ErrUnexpectedEOF) {
+	if err := decodeMP3(&paced{b: b[777:]}, 8000, &pcm, m, nil, quietLog(t)); !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Fatalf("decoding: %v", err)
 	}
 	r := <-listener

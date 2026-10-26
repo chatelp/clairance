@@ -87,6 +87,13 @@ func TestTheStationsOwnMP3ForTheBrowser(t *testing.T) {
 	if len(head) < 4 || head[0] != 0xFF || head[1]&0xE0 != 0xE0 {
 		t.Errorf("format=mp3: starts %x, want a frame header", head)
 	}
+	ct, head = streamHead(t, s, "/api/v1/stream/station?id=page-3&format=ulaw")
+	if ct != "audio/basic" {
+		t.Errorf("format=ulaw: Content-Type %q, want audio/basic", ct)
+	}
+	if len(head) == 0 {
+		t.Error("format=ulaw: no sound")
+	}
 	if ct, _ := streamHead(t, s, "/api/v1/stream/station?id=page-2"); ct != "audio/wav" {
 		t.Errorf("no format: Content-Type %q, want audio/wav", ct)
 	}
