@@ -492,8 +492,13 @@ class AudioClient {
             return null;
         }
 
+        // No port from the server (a browser behind a proxy, which reaches
+        // only the address it serves): the stream comes from the page's own
+        // origin, whose port is empty on 443.
         const streamPort = frequency.stream_port || window.location.port;
-        const base = `${window.location.protocol}//${window.location.hostname}:${streamPort}`;
+        const base = streamPort
+            ? `${window.location.protocol}//${window.location.hostname}:${streamPort}`
+            : window.location.origin;
 
         let url;
         try {

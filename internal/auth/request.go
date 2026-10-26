@@ -88,6 +88,21 @@ func (t *TrustedProxies) Scheme(r *http.Request) string {
 	return "http"
 }
 
+// Forwarded says that a request came through a trusted proxy: the browser
+// is not talking to co-atc directly, and reaches only the address the proxy
+// serves -- not the other ports co-atc listens on.
+func (t *TrustedProxies) Forwarded(r *http.Request) bool {
+	if !t.trusts(r.RemoteAddr) {
+		return false
+	}
+	for _, h := range []string{"X-Forwarded-For", "X-Forwarded-Proto", "X-Forwarded-Host", "Forwarded"} {
+		if r.Header.Get(h) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 // ClientIP is the address to hold responsible for a request -- for rate limiting,
 // and for saying in a log who failed to sign in.
 func (t *TrustedProxies) ClientIP(r *http.Request) string {

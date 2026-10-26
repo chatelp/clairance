@@ -250,3 +250,39 @@ func TestSourcesFromOutside(t *testing.T) {
 		}
 	})
 }
+
+// Behind a trusted proxy the browser reaches only the address the proxy
+// serves: no stream port is offered, and the page asks for the stream on its
+// own origin. A browser talking to co-atc directly still gets the ports in
+// turn. (httptest.NewRequest comes from 192.0.2.1.)
+func TestNoStreamPortBehindATrustedProxy(t *testing.T) {
+	s := newStack(t, stackOptions{proxies: []string{"192.0.2.1"}})
+	s.signIn()
+	forwarded := func(r *http.Request) {
+		r.Header.Set("X-Forwarded-Proto", "https")
+		r.Header.Set("X-Forwarded-For", "203.0.113.7")
+	}
+
+	var page frequenciesPage
+	rec := s.do("GET", "/api/v1/frequencies", "", forwarded)
+	decode(t, rec, &page)
+	if len(page.Frequencies) == 0 {
+		t.Fatal("no frequency listed")
+	}
+	for _, f := range page.Frequencies {
+		if f.StreamPort != 0 {
+			t.Errorf("%s behind the proxy: stream_port %d, want none", f.ID, f.StreamPort)
+		}
+	}
+	var one frequencies.Frequency
+	decode(t, s.do("GET", "/api/v1/frequencies/mix", "", forwarded), &one)
+	if one.ID != "mix" || one.StreamPort != 0 {
+		t.Errorf("by id behind the proxy: %s, stream_port %d", one.ID, one.StreamPort)
+	}
+
+	// The same address without a forwarded header is a direct visit.
+	s.get("/api/v1/frequencies", &page)
+	if page.Frequencies[0].StreamPort == 0 {
+		t.Error("a direct visit lost its stream port")
+	}
+}
