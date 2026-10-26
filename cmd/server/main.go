@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 	"syscall"
 
 	"github.com/yegors/co-atc/internal/adsb"
@@ -22,12 +23,41 @@ import (
 //
 //	go build -ldflags "-X main.version=$(git describe --tags --always) -X main.commit=$(git rev-parse --short HEAD)" -o bin/co-atc ./cmd/server
 //
-// A plain go build leaves "dev" and "unknown". The settings panel and the
-// sign-in page show them.
+// A plain go build leaves "dev", and the commit Go itself records in the
+// binary (vcsCommit). The settings panel, the sign-in page and the launcher's
+// health show them.
 var (
 	version = "dev"
 	commit  = "unknown"
 )
+
+// vcsCommit is the commit a plain go build records in the binary, short, with
+// "-dirty" when the tree had changes; "" when there is none (a build outside
+// the repository, or with -buildvcs=false). On 26/10 the launcher wrote the
+// repository's commit for a binary ten days older: only the binary can say
+// what it was built from.
+func vcsCommit(info *debug.BuildInfo) string {
+	if info == nil {
+		return ""
+	}
+	var rev string
+	var dirty bool
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			rev = s.Value
+		case "vcs.modified":
+			dirty = s.Value == "true"
+		}
+	}
+	if len(rev) > 7 {
+		rev = rev[:7]
+	}
+	if rev != "" && dirty {
+		rev += "-dirty"
+	}
+	return rev
+}
 
 // main brings the server up in a fixed order, each step in startup.go and
 // serve.go, waits for a signal and takes it down. The order is the one the
@@ -38,6 +68,14 @@ func main() {
 	configPath := flag.String("config", "", "Path to configuration file (optional - will search in configs/ and root directory)")
 	addUser := flag.String("add-user", "", "Print a configuration block for a new account, reading the password without echoing it")
 	flag.Parse()
+
+	if commit == "unknown" {
+		if info, ok := debug.ReadBuildInfo(); ok {
+			if c := vcsCommit(info); c != "" {
+				commit = c
+			}
+		}
+	}
 
 	if *addUser != "" {
 		if err := printNewUser(*addUser); err != nil {
