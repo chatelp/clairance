@@ -132,7 +132,7 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
 
   <div class="strip" role="status">
     <div class="live"><span class="dot" aria-hidden="true"></span>Production en marche
-      <small>depuis 26/10 14:24 · décodage en Go, sans ffmpeg (essai de 24 h) · mémoire du sidecar bornée · ADS-B · 2 fréquences · transcrit</small></div>
+      <small>depuis 26/10 15:15 · décodage en Go, sans ffmpeg (essai de 24 h) · mémoire du sidecar bornée · ADS-B · 2 fréquences · transcrit</small></div>
     <div class="legend" aria-label="Légende">
       <span class="chip s-done">fait</span>
       <span class="chip s-doing">en cours</span>
@@ -185,13 +185,14 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
       <div class="bhead">
         <span class="letter">D</span>
         <h2>L'accès à distance d'un proche</h2>
-        <div class="meta"><span>Q62 · en parallèle de B1</span><span class="bar"><i style="width:43%"></i></span><span>3 / 7</span></div>
+        <div class="meta"><span>Q62 · en parallèle de B1</span><span class="bar"><i style="width:50%"></i></span><span>4 / 8</span></div>
       </div>
       <p class="goal">Un ami écoute ta production de chez lui, audio compris, par Internet derrière ton Traefik. Un usage des tests, pas une fonctionnalité. Rien n'est ouvert avant D3.</p>
       <ul class="steps">
         <li><span class="code">D1</span><span class="what"><b>Le passage par Traefik</b><small>route en place, nom direct (sans Cloudflare) ; barrière retirée, la connexion de Clairance protège ; WebSocket corrigé (wss)</small></span><span class="chip s-done">fait</span></li>
         <li><span class="code">D2</span><span class="what"><b>L'audio par la même adresse que la page</b><small>les ports 8001 à 8004 étaient injoignables de l'extérieur</small></span><span class="chip s-done">fait</span></li>
         <li><span class="code">D2+</span><span class="what"><b>Le son sur tous les navigateurs</b><small>le MP3 de la station au lieu du WAV ; 25 fois moins de débit ; « someone is speaking » et le bouton son corrigés pour Safari (14:24) ; reste le téléphone</small></span><span class="chip s-done">fait</span></li>
+        <li><span class="code">D2++</span><span class="what"><b>La page joue le son elle-même</b><small>μ-law par Web Audio : son immédiat (17 s avant), « someone is speaking » en phase avec la voix, bouton son partout ; en production depuis 15:15 ; reste ton essai, téléphone compris</small></span><span class="chip s-done">fait</span></li>
         <li><span class="code">D3</span><span class="what"><b>Le durcissement de ce qui devient public</b><small>fiche O lancée dans le cloud le 26/10 : chaque route sans connexion, limite des essais (adresse vue à travers Cloudflare), ce que voit un compte « viewer »</small></span><span class="chip s-doing">en cours</span></li>
         <li><span class="code">D4</span><span class="what"><b>Son compte et la trace</b><small>compte à son nom, audio ouvert, journal des connexions, comment couper</small></span><span class="chip s-todo">à faire</span></li>
         <li><span class="code">D5</span><span class="what"><b>La fiabilité vue de chez lui</b><small>chaque relance le déconnecte ; machine Traefik sur l'onduleur qui saute</small></span><span class="chip s-todo">à faire</span></li>
@@ -295,6 +296,7 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
         <li><b>Production en Go pendant 24 h</b>, depuis 13:09.</li>
         <li><b>Si goxiph est validé : ffmpeg abandonné</b>, SRT et carte son retirés.</li>
         <li><b>16 kHz au lieu de 24</b>, juste après l'essai.</li>
+        <li><b>La page joue le son elle-même</b>, en μ-law par Web Audio (Q63).</li>
         <li><b>La production portée à part du menu</b> (Q59, 24/10).</li>
       </ul>
     </div>
@@ -312,5 +314,5 @@ footer { color: var(--faint); font: 12px var(--font-mono); }
     </div>
   </section>
 
-  <footer>Mis à jour le 26/10/2026 à 14 h 25 · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
+  <footer>Mis à jour le 26/10/2026 à 15 h 20 · source : docs-fr/35-plan.md, 05-decisions.md (Q59 à Q62), 33-pilotage.md</footer>
 </div>

@@ -494,6 +494,12 @@ sur la carte.
 
 ## État
 
+- 26/10, 15:15 : **la page joue le son elle-même** (Q63, décidée par le propriétaire : C2). Mesuré avant : Chromium
+  attendait 17,4 s pour jouer le MP3 de la station, Safari le jouait sans Web Audio, les temps du navigateur sont faux
+  pour un MP3 à débit variable. Le serveur relaie le son décodé en μ-law (`?format=ulaw`) ; `www/live-player.js` le
+  joue par Web Audio avec 0,3 s de réserve, à la place de l'élément `<audio>`. Essai sur la station : son dans la
+  première seconde, analyseur en phase avec la voix. En production à 15:15:43. En route : un défaut du relais (une
+  avance plus grande que la file d'un auditeur bloquait le décodage), corrigé (16e5ed9).
 - 26/10, 14:24 : **« someone is speaking » mesuré par le serveur** (32d05e8). Dans Safari, le son passait mais le bouton
   son ne coupait rien et l'indicateur restait muet : Safari joue un flux en direct sans le faire passer par la chaîne
   Web Audio de la page. Le serveur mesure maintenant l'activité sur l'audio qu'il décode (ouverte sur 20 ms au-dessus

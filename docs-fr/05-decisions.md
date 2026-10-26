@@ -5265,6 +5265,26 @@ rien jusqu'au rechargement. **Vérifié** dans un navigateur sur une instance d'
 ports annexes en 200, son ouvert sur la tuile cliquée, source ajoutée en cours de route branchée
 sans rechargement. Sans cookie, le même flux répond 401 : c'était l'ancien comportement.
 
+### Q63 — Comment la page joue le son *(26/10 — **tranchée par le propriétaire : la page joue le son elle-même, en μ-law**)*
+
+**Le constat (26/10, mesuré)** : la page confiait chaque fréquence à un élément `<audio>`, et chaque navigateur
+traitait le flux en direct à sa façon. Un flux WAV sans fin : Safari (Mac et iPhone) ne le lit pas. Le MP3 de la
+station : Chromium attend **17,4 s** avant de le jouer (le flux est trop peu dense pour sa détection) ; Safari le joue
+**sans passer par Web Audio**, si bien que le bouton son ne coupait rien et que « someone is speaking » restait muet ;
+et les temps que donne le navigateur sont faux pour un MP3 à débit variable, si bien que l'activité mesurée par le
+serveur ne pouvait pas être remise en phase avec la voix (le propriétaire : « en avance, et parfois absent »).
+
+**Les voies** : (A) accepter l'écart ; (B) repérer les trames entre serveur et page ; (C) la page joue le son
+elle-même. **Décidé : C**, puis, pour le format, **C2** plutôt que C1 (le MP3 décodé dans la page, avec WebCodecs ou
+une bibliothèque WebAssembly sous LGPL) : le serveur envoie le son décodé en **G.711 μ-law** à la fréquence du flux
+(64 kb/s à 8 kHz, le codage du téléphone, fait pour la voix AM de la bande aviation), la page le décode avec une table
+et le joue par Web Audio avec 0,3 s de réserve.
+
+**Livré le 26/10** (4d15c1e, en production à 15:15:43) : `internal/audio/ulaw.go`, `?format=ulaw` ; `www/live-player.js`,
+qui prend la place de l'élément `<audio>` dans `audio-client.js` ; un navigateur sans corps de réponse lisible garde
+l'élément et le MP3. Mesuré sur la station par une instance d'essai : le son part dans la première seconde (17 s
+avant), l'analyseur suit la voix (environ 110 pendant la parole, 0 dans les silences), réserve de 0,3 à 1,8 s.
+
 ### Q62 — L'accès à distance pour un proche, et ce qu'il demande à la production *(26/10 — audio ouvert à l'ami ; **ouvert sur Internet derrière le Traefik du propriétaire** ; page d'abord)*
 
 **La demande du propriétaire** (26/10) : donner à un ami l'accès à sa production à distance, de préférence
