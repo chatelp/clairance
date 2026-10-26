@@ -5369,6 +5369,10 @@ l'audio de ffmpeg en fait basculer 22 et que le même audio transcrit deux fois 
 d'abord (97 % de textes identiques) était mal posé : Whisper bascule une transmission difficile sur douze à la moindre
 perturbation. **N5 lancé le 26/10 à 13:09:51** : 24 h de production en Go, jugées le 27/10 (doc 35).
 
+**Décidé par le propriétaire le 26/10, sous condition** : **si goxiph est validé à la fin de N5**, on abandonne
+ffmpeg ; les sources SRT et carte son sont retirées. Le PCM brut par UDP (GQRX, SDR++, rtl_fm), qui ne demande
+aucun décodage, est réécrit en Go, sauf avis contraire du propriétaire. Si N5 échoue, rien de cela n'est fait.
+
 **Restaient à trancher avant cela** : (1) décoder le MP3 en Go avec goxiph, intégré au dépôt à un commit figé
 (sa licence le permet), ffmpeg ne restant qu'en option pour les autres entrées (carte son, autres formats) ; ou
 embarquer un ffmpeg ; (2) retirer `-fflags nobuffer` dès maintenant ; (3) passer la production de 24 à 16 kHz,

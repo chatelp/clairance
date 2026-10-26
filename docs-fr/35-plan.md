@@ -92,9 +92,11 @@ camp meilleur que l'autre. Rapports : `runs/b1-decodage/{heure,controle-a,contro
 (hors du dépôt).
 | N5. La production en Go | 24 h de production avec `decoder = "go"` | aucune panne du décodeur ; reprise après chaque bascule de la station ; débit conforme ; transmissions par heure dans la plage des jours précédents ; le gardien sans alerte audio | **en cours depuis le 26/10 à 13:09:51** (accord du propriétaire ; binaire e8f500b, `decoder = "go"` dans la configuration, sauvegarde `runs/config.toml.avant-n5` ; station prévenue). Vérifié au départ : les deux flux décodés en Go, aucun processus ffmpeg, première transcription à 13:10:05. Jugé le 27/10 vers 13 h 10 sur le journal et la base : erreurs du décodeur, reconnexions et coupures pour silence, transmissions par heure face aux mêmes heures des jours précédents, alertes du gardien. Retour arrière : retirer la ligne et relancer |
 
-Après N5 : `go` par défaut, ffmpeg retiré du chemin des flux HTTP. **À décider alors** : les sources que goxiph ne
-lit pas (SRT, carte son, PCM brut par UDP, qui est simple à écrire en Go) — les retirer, ou garder ffmpeg en option
-pour elles seules.
+**Après N5, si goxiph est validé (décidé par le propriétaire le 26/10)** : ffmpeg est abandonné. B1 ter : le décodeur
+Go devient le seul ; les sources SRT et carte son sont retirées (configuration, exemple, documentation, tests) ; le PCM
+brut par UDP est réécrit en Go (lecture réseau et rééchantillonneur existant), sauf avis contraire du propriétaire ;
+`-fflags nobuffer`, `ffmpeg_path` et les réglages propres à ffmpeg disparaissent ; la recherche d'outils (`pkg/tool`)
+ne sert plus qu'à pdftotext. Si N5 échoue, rien de cela n'est fait.
 
 **Décidé le 26/10** : B3, co-atc lance lui-même ses compagnons (le propriétaire, « oui, Clairance fait tout »).
 
