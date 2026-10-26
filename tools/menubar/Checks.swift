@@ -24,6 +24,7 @@ struct Observation: Sendable {
     var now = Date()
     var production: Instance?
     var detail: HealthDetail?
+    var detailMissing = false          // the server answers 404 there: built before the route
     var secondsPerTransmission: Double?
     var station = StationRead()
     var sourceAnswersLauncher: Bool?   // the launcher's own read of production's ADS-B source, when co-atc reads nothing
@@ -101,6 +102,17 @@ func assess(_ o: Observation) -> (findings: [Finding], lines: [HealthLine], fact
         for name in ["ADS-B", "Audio", "Transcription"] { lines.append(HealthLine(light: .unknown, name: name, fact: "unknown")) }
         lines += localLines(o, &f, &facts)
         return (f, lines, facts)
+    }
+
+    // A co-atc built before /api/v1/health/detail answers 404 there: its audio,
+    // transcription and disks cannot be watched, which must show rather than
+    // pass for health (26/10: production had no ffmpeg, and nothing said so).
+    if o.detailMissing {
+        f.append(Finding(key: "unwatched", kind: "production",
+            cause: "Audio not watched: this co-atc is too old for the launcher",
+            notice: Notice(title: "Production not fully watched",
+                           body: "This co-atc has no health detail (/api/v1/health/detail): its audio, transcription and disks are not watched. A co-atc built from local has it.",
+                           click: .log)))
     }
 
     // The app production depends on, for its local network (measured on 24/10).
@@ -204,7 +216,8 @@ func assess(_ o: Observation) -> (findings: [Finding], lines: [HealthLine], fact
                                             level: .passive, click: .clairance) }))
     }
     if d == nil {
-        lines.append(HealthLine(light: .unknown, name: "Audio", fact: "unknown"))
+        lines.append(HealthLine(light: o.detailMissing ? .fault : .unknown, name: "Audio",
+                                fact: o.detailMissing ? "not watched: co-atc too old" : "unknown"))
     } else if freqs.isEmpty && o.station.mode != "chaine" {
         lines.append(HealthLine(light: .off, name: "Audio", fact: "nothing on air"))
     } else if freqs.isEmpty {

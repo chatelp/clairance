@@ -71,6 +71,18 @@ fi
 echo "built $app"
 
 if [ "$install" = "--install" ]; then
+	# Never while a carrier runs from the installed app: replacing the bundle under it
+	# took production's local network away at once, though the carrier ran on
+	# (26/10, 10:49). Carriers are read by their exact name and arguments.
+	for pid in $(pgrep -x clairance); do
+		args=$(ps -o args= -p "$pid")
+		case "$args" in
+		"$HOME/Applications/Clairance.app/Contents/MacOS/clairance --carry"*)
+			echo "not installed: a carrier runs from $HOME/Applications/Clairance.app (pid $pid);" >&2
+			echo "replacing the app now would take the local network from what it carries. Stop production first." >&2
+			exit 1 ;;
+		esac
+	done
 	mkdir -p "$HOME/Applications"
 	rm -rf "$HOME/Applications/Clairance.app"
 	cp -R "$app" "$HOME/Applications/"

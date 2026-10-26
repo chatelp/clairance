@@ -279,9 +279,7 @@ final class Guard {
         }
         guard var data = try? JSONSerialization.data(withJSONObject: line, options: [.sortedKeys]) else { return }
         data.append(0x0A)
-        if !FileManager.default.fileExists(atPath: journal) { FileManager.default.createFile(atPath: journal, contents: nil) }
-        guard let h = FileHandle(forWritingAtPath: journal) else { return }
-        h.seekToEndOfFile()
+        guard let h = appendingHandle(journal) else { return }
         h.write(data)
         try? h.close()
     }
