@@ -227,7 +227,10 @@ Optional, once:
 
 `configs/config.toml.example` is about 170 lines; a key left out takes its default
 (`internal/config/defaults.go`). At startup the server names, one line each, what it found
-in the file and does not read.
+in the file and does not read, and what it depends on and does not find: FFmpeg when a
+source needs it, `pdftotext`, the sidecar's program, script and models, room on the disks,
+a data directory it can write, the airport layout. Each line says what suffers; the server
+starts all the same, and `/api/v1/health/detail` lists them under `missing`.
 
 ## Reaching it from the Internet, behind a reverse proxy
 

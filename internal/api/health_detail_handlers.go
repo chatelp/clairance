@@ -13,6 +13,8 @@ import (
 
 	"github.com/yegors/co-atc/internal/auth"
 	"github.com/yegors/co-atc/internal/frequencies"
+	"github.com/yegors/co-atc/internal/startcheck"
+	"github.com/yegors/co-atc/pkg/disk"
 	"github.com/yegors/co-atc/pkg/logger"
 )
 
@@ -49,6 +51,11 @@ type HealthDetail struct {
 	Receiver     *receiverState                `json:"receiver"`
 	AudioArchive HealthArchive                 `json:"audio_archive"`
 	Databases    HealthDatabases               `json:"databases"`
+
+	// What the startup check found missing, with what suffers from each
+	// (internal/startcheck); empty when nothing is. Said at start: a program
+	// installed since is found when it is next run, and listed until a restart.
+	Missing []startcheck.Missing `json:"missing"`
 }
 
 type HealthADSB struct {
@@ -226,6 +233,10 @@ func (h *Handler) computeHealthDetail(r *http.Request) HealthDetail {
 	}
 
 	d.Receiver = h.receiverNow()
+	d.Missing = h.missing
+	if d.Missing == nil {
+		d.Missing = []startcheck.Missing{}
+	}
 
 	d.AudioArchive.Available = h.audioArchive.Available()
 	if h.config != nil {
@@ -235,7 +246,7 @@ func (h *Handler) computeHealthDetail(r *http.Request) HealthDetail {
 		d.AudioArchive.Bytes, d.AudioArchive.MeasuredAt = &bytes, utcOrNil(at)
 	}
 	if d.AudioArchive.Available {
-		if free, _, ok := diskSpace(h.audioArchive.Root()); ok {
+		if free, _, ok := disk.Space(h.audioArchive.Root()); ok {
 			d.AudioArchive.DiskFreeBytes = &free
 		}
 	}
@@ -255,7 +266,7 @@ func (h *Handler) computeHealthDetail(r *http.Request) HealthDetail {
 			}
 			d.Databases.DirBytes = &total
 		}
-		if free, _, ok := diskSpace(dir); ok {
+		if free, _, ok := disk.Space(dir); ok {
 			d.Databases.DiskFreeBytes = &free
 		}
 	}
@@ -269,4 +280,9 @@ func utcOrNil(t time.Time) *time.Time {
 	}
 	u := t.UTC()
 	return &u
+}
+
+// SetMissing records what the startup check found missing, for the launcher.
+func (h *Handler) SetMissing(missing []startcheck.Missing) {
+	h.missing = missing
 }

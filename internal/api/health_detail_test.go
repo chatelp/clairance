@@ -2,10 +2,13 @@ package api
 
 import (
 	"net/http"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/yegors/co-atc/internal/frequencies"
+	"github.com/yegors/co-atc/internal/startcheck"
 	"github.com/yegors/co-atc/pkg/tool"
 )
 
@@ -127,4 +130,25 @@ func TestTheHealthDetailCountsTheAudioThatArrives(t *testing.T) {
 		t.Errorf("a tone that transcribes nothing: %+v", f)
 	}
 	t.Logf("tone: %d bytes in the last minute, last at %v", f.BytesLast60s, f.LastByteAt)
+}
+
+// What the startup check found missing reaches the launcher as it was found;
+// nothing missing is an empty list, never null, so that "all there" and "not
+// told" differ.
+func TestTheHealthDetailListsWhatWasMissingAtStart(t *testing.T) {
+	s := newStack(t, stackOptions{})
+	rec := s.do("GET", "/api/v1/health/detail", "", fromLoopback("127.0.0.1:50123", "127.0.0.1:8000"))
+	if !strings.Contains(rec.Body.String(), `"missing":[]`) {
+		t.Errorf("nothing missing: %s, want \"missing\":[]", rec.Body.String())
+	}
+
+	s = newStack(t, stackOptions{})
+	want := []startcheck.Missing{{Kind: "tool", What: "ffmpeg", Path: "ffmpeg on the PATH", Effect: "no frequency will have audio",
+		Level: startcheck.LevelError, Hint: "install ffmpeg"}}
+	s.handler.SetMissing(want)
+	var d HealthDetail
+	decode(t, s.do("GET", "/api/v1/health/detail", "", fromLoopback("127.0.0.1:50123", "127.0.0.1:8000")), &d)
+	if !reflect.DeepEqual(d.Missing, want) {
+		t.Errorf("missing %+v, want %+v", d.Missing, want)
+	}
 }

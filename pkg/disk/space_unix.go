@@ -1,12 +1,14 @@
 //go:build !windows
 
-package api
+// Package disk reads the free space of the filesystem that holds a directory:
+// the settings panel, the launcher's health and the startup check all ask it.
+package disk
 
 import "syscall"
 
-// diskSpace returns the space left to this process and the size of the
+// Space returns the space left to this process and the size of the
 // filesystem that holds dir. ok is false when the filesystem cannot be read.
-func diskSpace(dir string) (free, total int64, ok bool) {
+func Space(dir string) (free, total int64, ok bool) {
 	var fs syscall.Statfs_t
 	if err := syscall.Statfs(dir, &fs); err != nil {
 		return 0, 0, false

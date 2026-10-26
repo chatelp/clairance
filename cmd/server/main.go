@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/yegors/co-atc/internal/aip"
 	"github.com/yegors/co-atc/internal/config"
+	"github.com/yegors/co-atc/internal/startcheck"
 	"github.com/yegors/co-atc/internal/transcription"
 	"github.com/yegors/co-atc/internal/transcription/phraseology"
 	"os"
@@ -119,11 +120,22 @@ func main() {
 	// Create ADS-B components
 	adsbClient := buildADSBClient(cfg, log)
 
+	// Values that can be changed while the server runs, from the settings
+	// panel: read before the startup check, which judges the databases' disk
+	// against the retention in force, and before the first retention pass.
+	runtimeSettings := config.NewRuntime(cfg, *configPath, log)
+
+	// What the server depends on, named before it relies on any of it: a
+	// sidecar that cannot start stops the server just below, and its cause is
+	// then the line above. Nothing missing stops the server here.
+	check := startcheck.Run(startcheck.Inputs{Config: cfg, DBRetentionGB: runtimeSettings.DBRetentionGB()})
+	check.Log(log)
+
 	sttSidecar := startSidecar(signalCtx, cfg, log)
 	defer sttSidecar.Stop()
 
 	// Create SQLite storage
-	runtimeSettings, store := openStorage(cfg, *configPath, log)
+	store := openStorage(cfg, runtimeSettings, log)
 	defer store.aircraft.Close()
 
 	// Create WebSocket server
@@ -159,6 +171,7 @@ func main() {
 	frequenciesService := startFrequencies(ctx, cfg, adsbService, refService, runtimeSettings, wsServer, store, sttSidecar, log)
 
 	router := buildRouter(cfg, adsbService, frequenciesService, weatherService, refService, wsServer, store, runtimeSettings, sttSidecar, log)
+	router.Handler().SetMissing(check.Missing)
 
 	// The list of official names around the station (internal/aip, Q55), made
 	// from the settings page, kept beside the databases with the pages it was

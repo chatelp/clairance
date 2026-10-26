@@ -154,6 +154,13 @@ func goDecodes(url string, inputOptions []string, channels int, format string) b
 	return isHTTP(url) && len(inputOptions) == 0 && channels == 1 && strings.EqualFold(format, "s16le")
 }
 
+// NeedsFFmpeg says whether a source is decoded by ffmpeg, with the decoder
+// configured (goDecoder: frequencies.decoder = "go"): what the startup check
+// asks before it looks for ffmpeg.
+func NeedsFFmpeg(goDecoder bool, url string, inputOptions []string, channels int, format string) bool {
+	return !goDecoder || !goDecodes(url, inputOptions, channels, format)
+}
+
 // startGoDecoder starts decoding in Go in place of ffmpeg: what it writes
 // arrives where ffmpeg's output did, so processFFmpegOutput and the
 // reconnection that follows a read error are unchanged.

@@ -16,6 +16,7 @@ import (
 	"github.com/yegors/co-atc/internal/reference"
 	"github.com/yegors/co-atc/internal/storage/sqlite"
 	"github.com/yegors/co-atc/internal/transcription"
+	"github.com/yegors/co-atc/pkg/disk"
 	"github.com/yegors/co-atc/pkg/logger"
 )
 
@@ -206,7 +207,7 @@ func (h *Handler) GetServerState(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	if free, total, ok := diskSpace(dir); ok {
+	if free, total, ok := disk.Space(dir); ok {
 		st.Storage.DiskFreeBytes = free
 		st.Storage.DiskTotalBytes = total
 	}

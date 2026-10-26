@@ -14,6 +14,7 @@ import (
 	"github.com/yegors/co-atc/internal/config"
 	"github.com/yegors/co-atc/internal/frequencies"
 	"github.com/yegors/co-atc/internal/reference"
+	"github.com/yegors/co-atc/internal/startcheck"
 	"github.com/yegors/co-atc/internal/storage/sqlite"
 	"github.com/yegors/co-atc/internal/transcription"
 	"github.com/yegors/co-atc/internal/weather"
@@ -37,6 +38,7 @@ type Handler struct {
 	status               statusCache                // the receiver as reported, the sidecar as last read
 	vitals               vitalsCache                // the sign-in page's figures, see vitals_handlers.go
 	healthDetail         healthDetailCache          // the launcher's health, see health_detail_handlers.go
+	missing              []startcheck.Missing       // what the startup check found missing; see SetMissing
 
 	// Who is asking. See internal/auth and auth_handlers.go.
 	auth *auth.Service
