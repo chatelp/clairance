@@ -62,7 +62,7 @@ moins de deux minutes.
 **Sortie** : sur ce Mac, la production tourne avec le PATH minimal de macOS, sans `whisper-lab`, sans
 `production.command`, et dit d'elle-même ce qui lui manque.
 
-**Ouvert** : B3, le principe d'un co-atc qui lance ses compagnons, attend l'accord du propriétaire.
+**Décidé le 26/10** : B3, co-atc lance lui-même ses compagnons (le propriétaire, « oui, Clairance fait tout »).
 
 ### C — Le contrat entre le lanceur et le serveur ; le lanceur, produit à part (Q61) *(fondation ; après B3)*
 
@@ -71,7 +71,7 @@ moins de deux minutes.
 | C1. Écrire le contrat (en anglais, versionné) : démarrer (`co-atc -config <fichier>`), arrêter (SIGTERM), prêt (`/api/v1/health`) ; la santé (`/api/v1/health/detail`) ; la description du processus (PID et enfants, ports, journal, données, version et commit du binaire) ; l'authentification par jeton et le rôle | principale |
 | C2. Le serveur expose ce qui manque, et un test de contrat échoue si une modification casse le lanceur | principale |
 | C3. Le lanceur cesse de lire `config.toml`, les journaux, `git`, `lsof` et les noms de processus : il démarre un programme et lit l'API | lanceur |
-| C4. Où vit le lanceur : un dossier `launcher/` de ce dépôt, ou un dépôt séparé | **décision du propriétaire, ouverte** |
+| C4. Où vit le lanceur | **décidé le 26/10 : dans ce dépôt, rangé à part**, sans dépendance aux fichiers du serveur |
 | C5. Les étapes 2 (tableau de bord) et 3 (poste de commande) du lanceur, sur le contrat | lanceur, design |
 
 **Sortie** : le lanceur pilote un co-atc installé ailleurs que dans ce dépôt ; le test de contrat est vert ; le
@@ -80,16 +80,18 @@ lanceur ne lit plus aucun fichier du serveur.
 ### D — L'accès à distance pour un proche (Q62) *(un usage de la période de tests, pas une fonctionnalité)*
 
 Décidé le 26/10 : un ami, nommé, accède à la production de chez lui, **audio compris**, le temps des tests
-restreints. Ce bloc rend cet accès **sûr et fiable** ; il ne vise pas un produit multi-utilisateurs.
+restreints, **par Internet, derrière le mandataire Traefik** qui tourne déjà sur une autre machine du réseau du
+propriétaire (certificats compris). Ce bloc rend cet accès **sûr et fiable** ; il ne vise pas un produit
+multi-utilisateurs. **Rien n'est ouvert avant D3.**
 
-| Étape | Contenu | Dépend de |
+| Étape | Contenu | Qui |
 |---|---|---|
-| D1. Le chemin | partage du Mac à l'ami par Tailscale, rien d'exposé sur Internet ; choix entre HTTP dans le tunnel chiffré et HTTPS par `tailscale serve` (cookie `Secure`, mandataire de confiance à déclarer, et la route de santé à revérifier) | Tailscale, côté propriétaire |
-| D2. Le compte | un compte `viewer` à son nom ; l'audio ouvert à ce compte (aujourd'hui `audio_replay` est global : `all` suffit tant qu'il n'y a que lui) | — |
-| D3. La relecture du rôle | ce que voit et fait un viewer : chaque route, le WebSocket, les flux, l'archive, les réglages, l'outil AIP ; un test par interdit | — |
-| D4. La trace | un journal des connexions (qui, quand, d'où) et la marche à suivre pour couper l'accès (révoquer le compte, retirer le partage) | — |
-| D5. La fiabilité vue de chez lui | les sessions vivent en mémoire, par choix : **chaque relance de la production le déconnecte** ; ce que voit sa page quand la production s'arrête ou redémarre ; la reprise des flux ; le débit montant des deux flux MP3 | D1 à D3 |
-| D6. Plus tard : le lanceur chez lui, en client distant | jetons par appareil, routes adaptées au viewer, signature Developer ID et notarisation (compte développeur Apple) | C |
+| D1. Le passage par le mandataire | une route Traefik vers le Mac, en HTTPS ; l'adresse du Mac fixée sur le réseau ; le mandataire déclaré dans `trusted_proxies` de co-atc (bonne adresse du client, HTTPS reconnu, cookie `Secure`) ; l'origine publique acceptée pour les requêtes et le WebSocket | propriétaire pour Traefik, principale pour co-atc |
+| D2. Les flux audio par la même adresse | aujourd'hui la page demande les flux sur les ports 8001 à 8004 ; derrière un mandataire unique, ils doivent passer par l'adresse de la page | principale |
+| D3. Le durcissement de ce qui devient public | relecture de chaque route ouverte sans session (`/health`, `/vitals`, `/auth/*`, `/setup/*`) ; la limite des essais de mot de passe, vérifiée derrière le mandataire ; ce que voit et fait un viewer, route par route, WebSocket, flux, archive, réglages, outil AIP, un test par interdit ; `/api/v1/health/detail` refusée depuis l'extérieur (déjà) ; une limite de débit côté Traefik | principale |
+| D4. Le compte et la trace | un compte `viewer` à son nom ; l'audio ouvert aux viewers (`audio_replay = "all"`, global, suffit tant qu'il est seul) ; un journal des connexions (qui, quand, d'où), et la marche à suivre pour couper l'accès | principale, propriétaire pour le mot de passe |
+| D5. La fiabilité vue de chez lui | les sessions vivent en mémoire, par choix : **chaque relance de la production le déconnecte** ; ce que voit sa page quand la production s'arrête ou redémarre ; la reprise des flux ; le débit montant des deux flux ; la machine du mandataire est sur l'onduleur qui saute (deux redémarrages le 19/10) : une sonde Uptime Kuma sur l'adresse publique | principale, propriétaire |
+| D6. Plus tard : le lanceur chez lui, en client distant | jetons par appareil, routes adaptées au viewer, signature Developer ID et notarisation (compte développeur Apple) | lanceur, après C |
 
 **Sortie** : l'ami utilise Clairance une semaine depuis chez lui ; aucun accès inattendu dans le journal ; une
 relance de la production ne le laisse pas sans explication.
@@ -124,8 +126,7 @@ B1 se mesure sur le Mac : il demande l'audio réel de la station, qui ne va jama
 ### H — Ce qui revient au propriétaire
 
 - relancer ou autoriser chaque relance de la production ;
-- décider C4 (où vit le lanceur) et le principe de B3 ;
-- le partage Tailscale à l'ami (D1) ;
+- la route Traefik vers le Mac et l'adresse fixe du Mac (D1), le mot de passe de l'ami (D4) ;
 - le compte développeur Apple, quand viendra D6 ;
 - la purge des anciens objets chez GitHub, et la description courte du dépôt.
 
@@ -133,7 +134,7 @@ B1 se mesure sur le Mac : il demande l'audio réel de la station, qui ne va jama
 
 | Période | Ce qui avance |
 |---|---|
-| **Du 26/10 au 1/11** | A jusqu’au bout (A3, A4, A5) ; B1, la mesure du décodage ; D1 à D4, pour que l'ami commence ; lancer les fiches cloud G1 puis G3 |
+| **Du 26/10 au 1/11** | A jusqu’au bout (A3, A4, A5) ; **en parallèle (décidé le 26/10)** B1, la mesure du décodage, et D1 à D4, pour que l'ami commence ; lancer les fiches cloud G1 puis G3 |
 | **Du 2 au 8/11** | B2 à B5 ; C1 et C2 (fiche G2) ; D5 sur une semaine d'usage réel |
 | **Ensuite** | C3 à C5 ; E ; puis F |
 
@@ -144,4 +145,5 @@ Les dates suivent le travail, pas l'inverse : une étape qui révèle un problè
 - B3 avant C3 : le lanceur ne peut démarrer « un seul programme » que si co-atc lance lui-même ses compagnons.
 - C avant D6 et avant les étapes 2 et 3 du lanceur : sinon on les referait.
 - B avant E3 : le guide décrit ce que B construit.
-- D1 à D4 ne dépendent de rien d'autre : l'ami peut commencer cette semaine.
+- D3 avant toute ouverture : rien n'est public tant que la relecture n'est pas faite.
+- D1 à D4 ne dépendent pas de B ni de C : l'ami peut commencer cette semaine.

@@ -5265,7 +5265,7 @@ rien jusqu'au rechargement. **Vérifié** dans un navigateur sur une instance d'
 ports annexes en 200, son ouvert sur la tuile cliquée, source ajoutée en cours de route branchée
 sans rechargement. Sans cookie, le même flux répond 401 : c'était l'ancien comportement.
 
-### Q62 — L'accès à distance pour un proche, et ce qu'il demande à la production *(26/10 — audio ouvert à l'ami, le temps des tests restreints ; chemin et vecteur ouverts)*
+### Q62 — L'accès à distance pour un proche, et ce qu'il demande à la production *(26/10 — audio ouvert à l'ami ; **ouvert sur Internet derrière le Traefik du propriétaire** ; page d'abord)*
 
 **La demande du propriétaire** (26/10) : donner à un ami l'accès à sa production à distance, de préférence
 par le lanceur installé sur le Mac de l'ami, avec une adresse de production distante ; d'où la gestion des
@@ -5295,7 +5295,16 @@ compte), pas sur la feuille de route. Le point légal de l'étude (la divulgatio
 tranchée ; la rediffusion d'audio réel exclue pour le produit) est noté ; le propriétaire décide en connaissance
 de cause, pour un cercle restreint et le temps des essais.
 
-### Q61 — Le lanceur, projet à part, et son contrat avec le serveur *(26/10 — ouverte, ordre accepté)*
+**Décidé par le propriétaire le 26/10 (questions posées en clair)** : l'accès passe **par Internet**, derrière le
+mandataire Traefik qui tourne déjà sur une autre machine de son réseau (il y sert d'autres services avec leurs
+certificats), et non par Tailscale. Conséquences, qui deviennent des étapes du plan (doc 35, bloc D) : déclarer ce
+mandataire dans `trusted_proxies` (pour lire la bonne adresse du client et le HTTPS) ; faire passer les flux audio
+par la même adresse que la page (aujourd'hui la page les demande sur les ports 8001 à 8004, injoignables derrière
+un mandataire unique) ; durcir ce qui devient public (connexion, limite des essais, routes ouvertes sans session,
+WebSocket) **avant** l'ouverture ; tracer les connexions. Limite connue : cette machine est sur un onduleur qui
+saute (deux redémarrages le 19/10) ; quand elle tombe, l'accès distant tombe avec elle.
+
+### Q61 — Le lanceur, projet à part, et son contrat avec le serveur *(26/10 — **dans ce dépôt, rangé à part** ; contrat à écrire)*
 
 **Le constat, relevé le 26/10** : le lanceur (2 825 lignes de Swift) lit `config.toml` lui-même (ports,
 base, journal, sidecar), connaît l'arborescence du dépôt (`runs/`, `bin/co-atc`, `production.command`),
@@ -5306,10 +5315,11 @@ interroge la station lui-même. Le faux « Production did not start » du 26/10 
 prêt, c'est `/api/v1/health` qui répond. Tout le reste passe par l'API locale en JSON, versionnée et documentée :
 `/api/v1/health/detail`, et une description du processus (PID et enfants, ports, journal, données, version et
 commit du binaire). Un test de contrat côté serveur. Le lanceur ne lit plus aucun fichier du serveur.
-L'accès distant (Q62) ajoute au contrat l'authentification par jeton et le rôle. **Ouvert** : un dossier
-`launcher/` dans ce dépôt, ou un dépôt séparé.
+L'accès distant (Q62) ajoute au contrat l'authentification par jeton et le rôle. **Décidé par le propriétaire le
+26/10** : le lanceur reste **dans ce dépôt, dans son propre dossier**, sans aucune dépendance aux fichiers du
+serveur ; un dépôt séparé plus tard si le besoin vient.
 
-### Q60 — Un serveur auto-contenu, qui ne dépend pas de ce qui manque sur la machine *(26/10 — ouverte ; ordre accepté, ffmpeg mesuré d'abord)*
+### Q60 — Un serveur auto-contenu, qui ne dépend pas de ce qui manque sur la machine *(26/10 — ffmpeg mesuré d'abord ; **le script de production absorbé par co-atc**)*
 
 **Le déclencheur** : le 26/10, la production lancée par le porteur n'avait pas d'audio, faute de trouver
 ffmpeg hors du PATH du shell (134e4fb corrige la recherche). **Le propriétaire** : le serveur doit être
@@ -5327,7 +5337,9 @@ en Go pur, ffmpeg restant une option pour les sources exotiques ; le sidecar dan
 verrouillé, créé par une commande d'installation, les modèles téléchargés au premier lancement ; pdftotext
 facultatif ; le script de production absorbé (co-atc lance ses compagnons configurés). **Décidé le 26/10** :
 **mesurer d'abord le décodage en Go** (équivalence de l'audio produit, coût processeur) avant de choisir
-entre ne plus dépendre de ffmpeg et en embarquer un. **Ouvert** : le script absorbé par co-atc.
+entre ne plus dépendre de ffmpeg et en embarquer un. **Décidé par le propriétaire le 26/10** : co-atc lance
+lui-même ce que lance aujourd'hui le script (la liaison avec la station, l'empêchement de veille), réglages dans
+la configuration ; `production.command` disparaît. Mené en parallèle de l'accès distant (Q62).
 
 ### Q59 — Qui porte la production quand le lanceur se ferme ? *(24/10 — **tranchée par le propriétaire le 24/10 : (b), séparer la production du menu**)*
 
