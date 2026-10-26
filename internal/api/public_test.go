@@ -537,3 +537,22 @@ func TestBehindTwoProxiesOneVisitorDoesNotLockOutTheOthers(t *testing.T) {
 		t.Errorf("another visitor through the same CDN: %d, want 200", rec.Code)
 	}
 }
+
+// Once set up, the first-run question, which anyone may ask, says neither
+// where the accounts are kept -- a path that names the owner's home -- nor
+// the bind address.
+func TestThroughTheProxyTheFirstRunQuestionSaysNoPath(t *testing.T) {
+	s := publicStack(t, stackOptions{})
+	rec := s.do("GET", "/api/v1/setup/status", "", throughTheProxy("203.0.113.9"))
+	var st map[string]any
+	decode(t, rec, &st)
+	if _, ok := st["file"]; ok {
+		t.Errorf("the accounts file is named to anyone: %v", st)
+	}
+	if _, ok := st["host"]; ok {
+		t.Errorf("the bind address is named to anyone: %v", st)
+	}
+	if st["needed"] != false {
+		t.Errorf("needed: %v", st)
+	}
+}
