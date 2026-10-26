@@ -1,30 +1,60 @@
 {
-  "fill" : {
-    "automatic-gradient" : "extended-srgb:0.11765,0.11765,0.11765,1.00000"
+  "fill": {
+    "automatic-gradient": "extended-srgb:0.29020,0.29020,0.30196,1.00000"
   },
-  "groups" : [
+  "groups": [
     {
-      "layers" : [
-        { "image-name" : "blip.svg", "name" : "blip" },
-        { "image-name" : "sweep.svg", "name" : "sweep" },
-        { "image-name" : "glow.svg", "name" : "glow", "glass" : false }
+      "layers": [
+        {
+          "image-name": "blip.svg",
+          "name": "blip"
+        },
+        {
+          "image-name": "sweep.svg",
+          "name": "sweep"
+        },
+        {
+          "image-name": "glow.svg",
+          "name": "glow",
+          "glass": false
+        }
       ],
-      "name" : "sweep",
-      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
-      "specular" : true,
-      "translucency" : { "enabled" : false, "value" : 0.5 }
+      "name": "sweep",
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      }
     },
     {
-      "layers" : [
-        { "image-name" : "ring.svg", "name" : "ring" }
+      "layers": [
+        {
+          "image-name": "ring.svg",
+          "name": "ring"
+        },
+        {
+          "image-name": "disc.svg",
+          "name": "screen",
+          "glass": false
+        }
       ],
-      "name" : "screen",
-      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
-      "specular" : true,
-      "translucency" : { "enabled" : false, "value" : 0.5 }
+      "name": "screen",
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      }
     }
   ],
-  "supported-platforms" : {
-    "squares" : "shared"
+  "supported-platforms": {
+    "squares": "shared"
   }
 }

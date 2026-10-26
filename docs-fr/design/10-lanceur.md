@@ -66,9 +66,14 @@ l'ombre d'une icône ; une icône dessinée sur l'ancien gabarit (`app-icon.svg`
 avec ses coins et son ombre) est réduite et posée dans un cadre. Le propriétaire l'a vue plus
 petite que ses voisines dans le Dock.
 
-- **Le fond** : la tuile sombre du favicon, `#1e1e1e` en dégradé automatique.
-- **Deux groupes de calques**, en SVG sur la grille de 1024. Derrière, l'écran (l'anneau et
-  l'anneau de distance, `#e0e0e0`) ; devant, la lueur (sans verre), le balayage et le plot (vert
+- **Le fond** : une tuile graphite, `#4a4a4d` en dégradé automatique, et l'écran du radar en disque
+  sombre (`#121212`) sous l'anneau, comme un écran serti dans son boîtier (26/10). La première tuile,
+  presque noire (`#1e1e1e`), avait la taille des voisines (196 px contre 197 pour Réglages système,
+  mesuré sur la capture du Dock agrandie) mais se fondait dans un Dock sombre : l'œil n'en voyait que
+  l'intérieur. Quatre fonds comparés à côté de Terminal et des Réglages système, sur un Dock sombre et
+  clair : celui-ci est le seul qui dessine son contour sur les deux.
+- **Deux groupes de calques**, en SVG sur la grille de 1024. Derrière, l'écran (le disque sombre,
+  sans verre, l'anneau et l'anneau de distance, `#e0e0e0`) ; devant, la lueur (sans verre), le balayage et le plot (vert
   `#4caf50`, le plot `#66c56a`), avec le reflet du verre. La profondeur vient du système, pas du
   dessin.
 - **L'échelle** : la grille de 64 du signe à 13,47, centrée. Le bord extérieur de l'anneau est à
