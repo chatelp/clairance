@@ -72,5 +72,8 @@ func (s *Service) MP3Stream(id string) (io.ReadCloser, bool) {
 	if sp == nil || sp.audioProcessor == nil {
 		return nil, false
 	}
-	return sp.audioProcessor.MP3Reader()
+	// A page opened just after a start waits for the first frames rather
+	// than falling back to WAV, which Safari does not play: the station's
+	// first frame came 5.5 s after a start on 26/10.
+	return sp.audioProcessor.MP3Reader(8 * time.Second)
 }

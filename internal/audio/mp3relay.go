@@ -3,6 +3,7 @@ package audio
 import (
 	"io"
 	"sync"
+	"time"
 )
 
 // The station's own MP3, relayed to browsers (docs-fr/35-plan.md, D2 bis).
@@ -141,9 +142,20 @@ func (c *mp3Reader) Close() error {
 // MP3Reader is a listener to the stream's own MP3, frame-aligned, while the
 // stream is decoded in Go and has given frames; false otherwise (the stream
 // goes through ffmpeg, or is not MP3), and the caller serves the WAV stream.
-func (p *CentralAudioProcessor) MP3Reader() (io.ReadCloser, bool) {
+// A stream decoded in Go that has not given its first frame yet -- a page
+// opened just after a start -- is waited for up to wait.
+func (p *CentralAudioProcessor) MP3Reader(wait time.Duration) (io.ReadCloser, bool) {
 	if p.mp3 == nil {
 		return nil, false
 	}
-	return p.mp3.reader()
+	deadline := time.Now().Add(wait)
+	for {
+		if r, ok := p.mp3.reader(); ok {
+			return r, true
+		}
+		if !p.goDecoder || !goDecodes(p.audioURL, p.inputOptions, p.channels, p.format) || time.Now().After(deadline) {
+			return nil, false
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
