@@ -14,7 +14,7 @@ trusted_proxies = []
 # server cannot know (a VPN address, a proxy that rewrites Host) is logged when refused; "*" is refused.
 # allowed_origins = []                      # e.g. ["http://100.101.102.103:8000"]
 audio_replay = "owner"                      # who listens to the streams and the archived clips: "owner", or "all" (viewers too)
-# static_dir = "www"                        # the page; a snapshot copy for an instance that must not see edits
+# static_dir = "www"                        # serve the page from this directory instead of the one built into the binary
 # tls_cert and tls_key serve HTTPS with no proxy at all; leave them out behind one.
 
 [auth]

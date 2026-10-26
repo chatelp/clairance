@@ -49,6 +49,7 @@ type Vitals struct {
 	UptimeSeconds int64  `json:"uptime_seconds"`
 	Version       string `json:"version,omitempty"`
 	Commit        string `json:"commit,omitempty"`
+	Page          string `json:"page"` // "embedded" or "directory"; never which directory, a path can name a user
 }
 
 // vitalsCache holds the last answer. now and compute are the clock and the
@@ -104,6 +105,7 @@ func (h *Handler) GetVitals(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) computeVitals() Vitals {
 	v := Vitals{UptimeSeconds: int64(time.Since(h.startedAt).Seconds())}
 	v.Version, v.Commit = h.build()
+	v.Page = PageOf(h.config).Source
 
 	if h.adsbService != nil {
 		v.MessagesPerSecond = int(math.Round(h.adsbService.MessageRate()))

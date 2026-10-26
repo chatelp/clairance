@@ -392,5 +392,11 @@ func buildRouter(cfg *config.Config, adsbService *adsb.Service, frequenciesServi
 	router := api.NewRouter(adsbService, frequenciesService, weatherService, refService, cfg, log, wsServer, store.transcriptions, store.clearances)
 	router.Handler().AttachRuntime(runtimeSettings, store.aircraft.GetDB(), sttSidecar)
 	router.Handler().SetBuild(version, commit)
+	// Which page the browser gets: the binary's own, or a directory's.
+	if page := api.PageOf(cfg); page.Source == "embedded" {
+		log.Info(fmt.Sprintf("Page: embedded (commit %s)", commit))
+	} else {
+		log.Info("Page: from "+page.Dir, logger.String("static_dir", cfg.Server.StaticDir))
+	}
 	return router
 }

@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-// atRepoRoot runs the test from the repository root, where Validate looks for
-// www/ and where the configuration's relative paths point.
+// atRepoRoot runs the test from the repository root, where the
+// configuration's relative paths point.
 func atRepoRoot(t *testing.T) {
 	t.Helper()
 	wd, err := os.Getwd()
@@ -447,5 +447,40 @@ func TestADuplicateKeyHasOneHomeAndTheOldOneIsStillRead(t *testing.T) {
 	want := "flight_phases.airport_range_nm (8) differs from station.airport_range_nm (5): both are kept as written, but the key belongs in [station] alone"
 	if len(cfg.Warnings) != 1 || cfg.Warnings[0] != want {
 		t.Errorf("warnings %q, want %q", cfg.Warnings, want)
+	}
+}
+
+// The page is built into the binary: a server started where there is no www/
+// is valid. A static_dir that names no directory is refused -- it would serve
+// a 404 for every file of the page.
+func TestThePageNeedsNoDirectoryUnlessOneIsNamed(t *testing.T) {
+	atRepoRoot(t)
+	cfg, err := Load(filepath.Join("configs", "config.toml.example"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wd, _ := os.Getwd()
+	elsewhere := t.TempDir()
+	if err := os.Chdir(elsewhere); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(wd)
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("no www/ beside the server, no static_dir: %v", err)
+	}
+	cfg.Server.StaticDir = filepath.Join(elsewhere, "missing")
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "static_dir") {
+		t.Errorf("static_dir naming nothing: %v, want a refusal naming static_dir", err)
+	}
+	if err := os.WriteFile(filepath.Join(elsewhere, "file"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg.Server.StaticDir = filepath.Join(elsewhere, "file")
+	if err := cfg.Validate(); err == nil {
+		t.Error("static_dir naming a file: accepted")
+	}
+	cfg.Server.StaticDir = elsewhere
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("static_dir naming a directory: %v", err)
 	}
 }

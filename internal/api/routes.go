@@ -192,13 +192,10 @@ func (r *Router) Routes() http.Handler {
 		})
 	})
 
-	// The page, from server.static_dir, or www/ next to the working directory.
-	staticDir := "www"
-	if r.config != nil && r.config.Server.StaticDir != "" {
-		staticDir = r.config.Server.StaticDir
-	}
-	staticHandler := NewStaticFileHandler(staticDir, r.logger)
-	router.Handle("/*", staticHandler)
+	// The page, built into the binary or from server.static_dir, and the
+	// station's own files under /data/.
+	page, _ := pageFiles(r.config)
+	router.Handle("/*", NewStaticFileHandler(page, stationFiles(r.config), r.logger))
 
 	return router
 }

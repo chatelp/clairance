@@ -39,6 +39,9 @@ type HealthDetail struct {
 	UptimeSeconds int64  `json:"uptime_s"`
 	Version       string `json:"version,omitempty"`
 	Commit        string `json:"commit,omitempty"`
+	// Where the page comes from: built in, with the binary's commit, or a
+	// directory (server.static_dir).
+	Page PageSource `json:"page"`
 
 	ADSB         *HealthADSB                   `json:"adsb,omitempty"`
 	Frequencies  []frequencies.FrequencyHealth `json:"frequencies"`
@@ -179,6 +182,10 @@ func forwardedByAProxy(r *http.Request) bool {
 func (h *Handler) computeHealthDetail(r *http.Request) HealthDetail {
 	d := HealthDetail{PID: os.Getpid(), UptimeSeconds: int64(time.Since(h.startedAt).Seconds())}
 	d.Version, d.Commit = h.build()
+	d.Page = PageOf(h.config)
+	if d.Page.Source == "embedded" {
+		d.Page.Commit = d.Commit
+	}
 
 	if h.adsbService != nil {
 		last, ok := h.adsbService.GetStatus()

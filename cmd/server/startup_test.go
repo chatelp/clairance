@@ -150,7 +150,7 @@ func runServer(t *testing.T, cfgPath string) *child {
 	}
 	cmd := exec.Command(self, "-test.run=^$")
 	// From the root of the repository, where the server is run: the
-	// configuration is checked against www/ there.
+	// reference files are read from assets/ there.
 	cmd.Dir = filepath.Join("..", "..")
 	cmd.Env = append(os.Environ(), runMainEnv+"="+cfgPath)
 	out := &syncBuffer{}

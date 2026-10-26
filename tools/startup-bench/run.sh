@@ -26,7 +26,7 @@ trap 'kill $fakepid 2>/dev/null || true; kill -9 $srvpid 2>/dev/null || true; rm
 fail() { echo "FAIL: $*" >&2; echo "log: $out/raw.log" >&2; exit 1; }
 
 (cd "$repo" && go build -o "$work/co-atc" ./cmd/server)
-ln -s "$repo/www" "$work/www"
+# No www/ beside it: the binary serves the page built into it.
 ln -s "$repo/assets" "$work/assets"
 
 # The example, pointed at the fakes, logging to stdout. In Python rather than
