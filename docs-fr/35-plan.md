@@ -165,7 +165,7 @@ avant d'être intégrées :
 
 4. **Vague 5, écrite le 26/10 au soir** (61 $ restants) : **P**, le compte invité (adresses de la maison masquées,
    flux bornés ; pour l'ami du 28/10) ; **Q**, la page dans le binaire et le bilan au démarrage (B2, B5) ; **R**, le
-   contrat du lanceur côté serveur (B3, C1, C2 ; remplace l'ancienne G2). En parallèle ; P d'abord.
+   contrat du lanceur côté serveur (B3, C1, C2 ; remplace l'ancienne G2). En parallèle ; **lancées toutes les trois par le propriétaire le 26/10 au soir**.
 
 B1 se mesure sur le Mac : il demande l'audio réel de la station, qui ne va jamais dans le cloud.
 
