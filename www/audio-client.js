@@ -45,6 +45,13 @@ class AudioClient {
      */
     initAudioContext() {
         if (!this.audioContext) {
+            // On an iPhone, Web Audio is "ambient" sound: the silent switch
+            // mutes it, where an <audio> element plays through. Declared as
+            // playback, it plays as a radio does (Safari 16.4+; 26/10, no
+            // sound on the owner's iPhone).
+            try {
+                if (navigator.audioSession) navigator.audioSession.type = 'playback';
+            } catch (e) { /* not this browser */ }
             try {
                 this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 console.log("AudioContext initialized.");
