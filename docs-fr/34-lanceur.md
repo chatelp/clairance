@@ -232,6 +232,7 @@ Deux porteurs essayés, sur la même instance d'essai (port 8013, ADS-B seul) :
 | **Porteur** : une autre instance de `Clairance.app`, ouverte par le système (`open -n`), qui lance le programme et part avec lui | le programme dépend du porteur, pas du menu (lu par `responsibility_get_pid_responsible_for_pid`) |
 | Le menu se ferme pendant que le porteur tourne | l'instance continue de lire la station : lecture ADS-B fraîche à chaque relevé, 2 min de suivi (19:31:51 → 19:34:00 UTC), puis 1 min dans la version intégrée |
 | L'application est remplacée sur le disque (mise à jour) pendant que le porteur tourne | même chose : aucune lecture manquée sur 2 min |
+| **Correction du 26/10** | **cette mesure était fausse** : la compilation étant déterministe, l'application avait été remplacée par un binaire identique, donc sans changer d'identité. Le 26/10 à 10:49, l'installation d'un binaire différent sous le porteur de la production lui a retiré le réseau local aussitôt (« no route to host » dès 10:49:39), alors qu'il continuait de tourner. D'où la garde de `build.sh --install`, qui refuse d'installer tant qu'un porteur tourne depuis l'application installée |
 | Arrêt | un SIGTERM au porteur arrête proprement ce qu'il porte ; quand ce qu'il porte s'arrête, le porteur part |
 | **Première connexion d'une compilation que macOS ne connaît pas encore** | **elle échoue** (« no route to host »), puis tout passe : vu trois fois (deux porteurs dont co-atc s'est arrêté au démarrage, puis la sonde : station jointe au 2ᵉ essai, 0,5 s après). La compilation est déterministe (même empreinte pour le même code), ce qui a d'abord masqué la règle. Le porteur interroge donc la station lui-même, jusqu'à 20 s, avant de lancer quoi que ce soit, et note dans le journal à quel essai elle a répondu |
 | Rouvrir Clairance pendant qu'un porteur tourne | macOS la croit déjà ouverte et ne fait que réveiller le porteur : le menu ne revenait pas. Corrigé : le porteur ouvre alors le menu s'il n'en trouve aucun, et la ligne de commande ouvre toujours une nouvelle instance. Revérifié : le menu revient |
@@ -243,6 +244,13 @@ l'agent ne lance pas (règle 5) : son premier démarrage par le nouveau lanceur 
 
 Corrigé au passage : chaque démarrage de la production vidait `runs/launcher.log` au lieu d'y
 ajouter (il ne restait que les lignes du 16/10 à 22 h 47).
+
+### Le 26/10 : la production démarrée par le lanceur, trois défauts et un incident
+
+- **Pas d'audio** : ouvert par le système, le porteur a le PATH de launchd (`/usr/bin:/bin:/usr/sbin:/sbin`), où co-atc ne trouvait pas ffmpeg. Corrigé dans le serveur par l'orchestrateur (134e4fb, `pkg/tool`), sur décision du propriétaire : la production ne dépend pas de ce qui la lance. Le banc ne l'avait pas vu, parce que j'ouvrais son lanceur depuis mon shell, qui lui passait mon PATH ; il s'ouvre désormais dans un environnement vierge, comme celui du propriétaire.
+- **Un faux « Production did not start »** sur une production qui transcrivait. Un passage du lanceur tombé pendant l'ouverture du porteur ne trouvait pas encore de script et concluait à l'échec, 0,2 s après le départ ; rien n'effaçait ensuite cet échec. Corrigé (d25fc08), puis revérifié sur le banc : démarrage, arrêt, redémarrage dans les 5 min, aucun faux échec.
+- **Le silence sur un co-atc trop ancien** : le binaire du 16/10 répondait 404 sur `/api/v1/health/detail`, et l'audio n'était pas surveillé, sans que rien ne le dise. C'est désormais un défaut (« Audio not watched »). Le commit lu est aussi celui du binaire, et non plus celui du dépôt.
+- **L'incident** : la réinstallation du lanceur pendant que la production tournait l'a rendue sourde de 10:49:38 jusqu'à sa relance (voir la correction ci-dessus).
 
 ### 1b, livrée le 25/10 (460bb8a) : le gardien, ses notifications, l'icône à six états
 
