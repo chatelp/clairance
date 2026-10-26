@@ -48,6 +48,7 @@ class AudioClient {
             try {
                 this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 console.log("AudioContext initialized.");
+                this._watchContext(this.audioContext);
             } catch (e) {
                 console.error("Web Audio API is not supported.", e);
             }
@@ -202,6 +203,36 @@ class AudioClient {
         } else {
             resumeContextAndPlay();
         }
+    }
+
+    /**
+     * Follow whether the page's sound actually runs. The page plays through
+     * this context (live-player.js), which a browser suspends until a gesture
+     * and an iPhone suspends again when the page goes to the background or a
+     * call comes: while frequencies are listened to, a stopped context says
+     * so ("Click anywhere to resume listening") and the next gesture resumes
+     * it, instead of a silence with no word; the tab's icon lights only while
+     * it runs (favicon-state.js, design review of 26/10).
+     */
+    _watchContext(context) {
+        const update = () => {
+            const running = context.state === 'running';
+            this.store.audioRunning = running;
+            if (running || !this.store.radiosStarted || !this.store.anyUnmuted) {
+                if (running) this.store.resumeListeningPending = false;
+                return;
+            }
+            this.store.resumeListeningPending = true;
+            const onGesture = () => {
+                document.removeEventListener('pointerdown', onGesture, true);
+                document.removeEventListener('keydown', onGesture, true);
+                context.resume().catch(() => {});
+            };
+            document.addEventListener('pointerdown', onGesture, true);
+            document.addEventListener('keydown', onGesture, true);
+        };
+        context.onstatechange = update;
+        update();
     }
 
     /**

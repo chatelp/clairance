@@ -27,6 +27,7 @@
         audioArchive: { available: false },
         clip: { id: null, state: 'idle', failed: {} },
         resumeListeningPending: false, // remembered listening waits for the page's first gesture
+        audioRunning: false, // the page's sound runs (audio-client.js, _watchContext)
         userSetVolumes: {}, // Initialize as empty object
         lastSignificantAudioTime: {}, // Stores timestamp for each freqId
         secondsSinceLastAudio: {},  // Stores formatted string for display (e.g., "5s")
