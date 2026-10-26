@@ -311,6 +311,8 @@ type TrajectoryTracker struct {
 	runwayMu       sync.RWMutex
 	runwayTrackers map[string]*RunwayInUseTracker
 	newRunways     func() *RunwayInUseTracker
+	runwayFile     string                        // where the evidence is kept across a restart, "" for nowhere
+	runwaySaved    map[string]RunwayTrackerState // read at start, for an airport not followed yet
 	stopCh         chan struct{}
 	wg             sync.WaitGroup
 }
@@ -378,6 +380,10 @@ func (tt *TrajectoryTracker) resetRunwayTrackers() {
 		}
 		rt := tt.newRunways()
 		rt.SetRunwayData(ref.Runways)
+		if st, ok := tt.runwaySaved[ref.Airport]; ok {
+			rt.Restore(st)
+			delete(tt.runwaySaved, ref.Airport)
+		}
 		next[ref.Airport] = rt
 	}
 	tt.runwayTrackers = next
@@ -395,6 +401,7 @@ func (tt *TrajectoryTracker) runwayTrackerFor(airport string) *RunwayInUseTracke
 func (tt *TrajectoryTracker) Stop() {
 	close(tt.stopCh)
 	tt.wg.Wait()
+	tt.saveRunways()
 	tt.logger.Info("Trajectory tracker stopped")
 }
 
@@ -550,6 +557,7 @@ func (tt *TrajectoryTracker) cleanupLoop() {
 		select {
 		case <-ticker.C:
 			tt.cleanup()
+			tt.saveRunways()
 		case <-tt.stopCh:
 			return
 		}

@@ -404,6 +404,14 @@ func (s *Service) Start(ctx context.Context) error {
 }
 
 // Stop stops the ADS-B service
+// KeepRunwaysIn has the runways in use kept in path across restarts
+// (runway_state.go).
+func (s *Service) KeepRunwaysIn(path string) {
+	if s.trajectoryTracker != nil {
+		s.trajectoryTracker.KeepRunwaysIn(path)
+	}
+}
+
 func (s *Service) Stop() {
 	s.logger.Info("Stopping ADS-B service")
 	close(s.stopCh)

@@ -50,10 +50,10 @@ func (t RunwayEventType) String() string {
 
 // RunwayEvent records a single piece of evidence that a runway end is in use.
 type RunwayEvent struct {
-	RunwayEnd string // "05-23/05" format (matches RunwayApproachInfo.RunwayID)
-	Type      RunwayEventType
-	Hex       string // Aircraft that generated this event
-	Timestamp time.Time
+	RunwayEnd string          `json:"runway_end"` // "05-23/05" format (matches RunwayApproachInfo.RunwayID)
+	Type      RunwayEventType `json:"type"`
+	Hex       string          `json:"hex"` // Aircraft that generated this event
+	Timestamp time.Time       `json:"timestamp"`
 }
 
 // RunwayScore holds the computed score and probability for a runway end.
@@ -381,6 +381,53 @@ func (rt *RunwayInUseTracker) Reset() {
 	rt.lastActiveEnd = ""
 	rt.lastChangeAt = time.Time{}
 	rt.everHadData = false
+}
+
+// RunwayTrackerState is what a tracker keeps across a restart of the server
+// (runway_state.go): its evidence, and the runway it last named with since
+// when.
+type RunwayTrackerState struct {
+	Events        []RunwayEvent `json:"events"`
+	LastActiveEnd string        `json:"last_active_end,omitempty"`
+	LastChangeAt  time.Time     `json:"last_change_at,omitempty"`
+}
+
+// State is the tracker's evidence, to be restored after a restart.
+func (rt *RunwayInUseTracker) State() RunwayTrackerState {
+	rt.mu.RLock()
+	defer rt.mu.RUnlock()
+	return RunwayTrackerState{
+		Events:        append([]RunwayEvent(nil), rt.events...),
+		LastActiveEnd: rt.lastActiveEnd,
+		LastChangeAt:  rt.lastChangeAt,
+	}
+}
+
+// Restore takes back the evidence a tracker had before a restart, as far as
+// it is still in the window, ahead of what has been seen since.
+func (rt *RunwayInUseTracker) Restore(st RunwayTrackerState) {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	now := time.Now().UTC()
+	var kept []RunwayEvent
+	for _, e := range st.Events {
+		if now.Sub(e.Timestamp) < rt.windowDuration {
+			kept = append(kept, e)
+		}
+	}
+	if len(kept) == 0 {
+		return
+	}
+	rt.events = append(kept, rt.events...)
+	if rt.lastActiveEnd == "" {
+		rt.lastActiveEnd = st.LastActiveEnd
+		rt.lastChangeAt = st.LastChangeAt
+	}
+	rt.recompute(now)
+	rt.logger.Info("Runway evidence restored",
+		logger.Int("events", len(kept)),
+		logger.String("scores", formatScores(rt.scores)),
+	)
 }
 
 func (rt *RunwayInUseTracker) SetRunwayData(runways RunwayData) {

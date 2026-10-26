@@ -133,6 +133,8 @@ func main() {
 	go wsServer.Run()
 
 	adsbService := buildADSBService(cfg, adsbClient, store, wsServer, log)
+	// The runways in use are learnt over an hour: kept across a restart.
+	adsbService.KeepRunwaysIn(filepath.Join(cfg.Storage.SQLiteBasePath, "runways-in-use.json"))
 
 	refService, refAirport, effectiveAirport := loadReference(cfg, runtimeSettings, adsbService, log)
 
