@@ -43,7 +43,7 @@ from fastapi.responses import JSONResponse
 
 sys.path.insert(0, __file__.rsplit("/", 1)[0])
 from config import Config, from_args  # noqa: E402
-from device import backend_name  # noqa: E402
+import engines  # noqa: E402
 from loops import cut_loops  # noqa: E402
 from lanes import FIRST, SECOND, PriorityWorker  # noqa: E402
 
@@ -53,7 +53,8 @@ log = logging.getLogger("stt")
 cfg = Config()
 app = FastAPI(title="Clairance STT sidecar")
 
-_models: dict[str, object] = {}
+# What turns audio into text (engines.py), chosen at startup (main).
+engine = None
 # What the models run on, as /health declares it: the GPU's name when MLX gives
 # it, else "mlx". Read once at startup, on the model thread (main).
 _backend = "mlx"
@@ -241,53 +242,6 @@ def decode_details(result: dict) -> list:
     return out
 
 
-def load(path: str):
-    if path not in _models:
-        t0 = time.time()
-        import mlx_whisper
-        keep_every_model()
-        # mlx-whisper resolves the model lazily on first transcribe; touching it
-        # here just makes the cost visible in the logs instead of in the first request.
-        _models[path] = mlx_whisper
-        log.info("model registered: %s (%.2fs)", path, time.time() - t0)
-    return _models[path]
-
-
-_kept_models: dict = {}
-
-
-def keep_every_model() -> None:
-    """One model kept in memory per path, instead of mlx_whisper's single place.
-
-    mlx_whisper keeps one model at a time (ModelHolder): each switch between the
-    English and the French reading built the model again, and the first decode
-    of a model just built pays its start-up. Measured by whisper-lab on 14/10
-    (latence-etapes, 200 + 50 transmissions of the 02-04/10 archive, compared in
-    pairs): the English reading took 4.58 s alternating against 0.90 s kept, the
-    French one 4.66 s against 0.99 s -- about 7.5 s more of the model's thread
-    for every transmission whose French gate opens. The cost is one model more
-    in memory, about 3 GB in fp16. The models are built where they are used, on
-    the model's thread (lanes.py): MLX ties them to the stream that made them.
-    The same way as the lab's bench, so that their figures stay comparable.
-    """
-    import sys
-    holder = sys.modules["mlx_whisper.transcribe"].ModelHolder
-    if getattr(holder, "_clairance_keeps_every_model", False):
-        return
-    from mlx_whisper.load_models import load_model
-
-    def get_model(cls, path, dtype):
-        key = (path, dtype)
-        if key not in _kept_models:
-            t0 = time.time()
-            _kept_models[key] = load_model(path, dtype=dtype)
-            log.info("model built: %s (%.2fs)", path, time.time() - t0)
-        return _kept_models[key]
-
-    holder.get_model = classmethod(get_model)
-    holder._clairance_keeps_every_model = True
-
-
 # One decode at a time, off the event loop. /transcribe is async, and a model
 # call made directly in it held the whole server for the length of the decode:
 # /health could not answer while a transmission was being transcribed. Measured
@@ -312,51 +266,24 @@ _decode_lock = threading.Lock()
 _MLX_STACK = 256 * 1024 * 1024
 # Two lanes on that one thread (lanes.py): the first reading of a transmission
 # before any detector pass or second reading still waiting (14/10).
-_mlx_thread = PriorityWorker(name="mlx", stack_size=_MLX_STACK)
+_model_thread = PriorityWorker(name="mlx", stack_size=_MLX_STACK)
 
 
-async def on_mlx(fn, *args, lane=FIRST, **kwargs):
-    return await asyncio.wrap_future(_mlx_thread.submit(functools.partial(fn, *args, **kwargs), lane))
+async def on_model(fn, *args, lane=FIRST, **kwargs):
+    return await asyncio.wrap_future(_model_thread.submit(functools.partial(fn, *args, **kwargs), lane))
 
 
-def decode(mlx_whisper, audio, **kwargs):
+def decode(model: str, audio, language: str, **options):
+    """One reading of the audio by a model, on the model thread (engines.py)."""
     with _decode_lock:
-        return mlx_whisper.transcribe(audio, **kwargs)
-
-
-_detector = None
-
-
-def detector():
-    """The language-detection model, loaded once. Unlike the transcription
-    models it is held here: detection calls the model directly, not
-    mlx_whisper.transcribe."""
-    global _detector
-    if _detector is None:
-        t0 = time.time()
-        import mlx.core as mx
-        from mlx_whisper.load_models import load_model
-        model = load_model(os.path.expanduser(cfg.fr_detector)
-                           if cfg.fr_detector.startswith(("/", "~", "./")) else cfg.fr_detector)
-        # Loaded now rather than at the first detection, which would add the
-        # load to that transmission's wait. Called on the model thread (on_mlx).
-        mx.eval(model.parameters())
-        _detector = model
-        log.info("language detector loaded: %s (%.2fs)", cfg.fr_detector, time.time() - t0)
-    return _detector
+        return engine.transcribe(model, audio, language, **options)
 
 
 def french_probability(audio: np.ndarray) -> float:
-    """Whisper's language detection on the first 30 s: the probability that the
-    transmission is French. Costs one encoder pass -- about 0.6 s with
-    large-v3-turbo on this machine -- and no decoding."""
-    import mlx.core as mx
-    from mlx_whisper.audio import N_FRAMES, N_SAMPLES, log_mel_spectrogram, pad_or_trim
+    """The detector's probability that the transmission is French (engines.py),
+    on the model thread."""
     with _decode_lock:
-        model = detector()
-        mel = log_mel_spectrogram(mx.array(audio), n_mels=model.dims.n_mels, padding=N_SAMPLES)
-        _, probs = model.detect_language(pad_or_trim(mel, N_FRAMES, axis=-2).astype(mx.float16))
-    return float(probs.get("fr", 0.0))
+        return engine.french_probability(cfg.fr_detector, audio)
 
 
 # --------------------------------------------------------------------------- routes
@@ -397,7 +324,7 @@ def health():
         "transcribed": _counters["transcribed"],
         # The model's queue now, by lane (lanes.py), and the second readings
         # asked for later and not fetched yet.
-        "queue": _mlx_thread.waiting(),
+        "queue": _model_thread.waiting(),
         "second_pending": sum(1 for v in _pending.values() if not v["done_at"]),
         "rejected_no_speech": _counters["rejected_no_speech"],
         "archiving": bool(cfg.save_audio) and _disk["ok"],
@@ -501,13 +428,8 @@ async def transcribe(
             "elapsed": round(time.time() - started, 3),
         }
 
-    mlx_whisper = load(model)
     prompt = cfg.initial_prompt_fr if language == "fr" else cfg.initial_prompt_en
-    kwargs = {"path_or_hf_repo": model, "language": language}
-    if prompt:
-        kwargs["initial_prompt"] = prompt
-
-    result = await on_mlx(decode, mlx_whisper, audio, **kwargs)
+    result = await on_model(decode, model, audio, language, initial_prompt=prompt)
     text = " ".join(result["text"].split())
     segments = [
         {"text": " ".join(s["text"].split()),
@@ -524,11 +446,11 @@ async def transcribe(
     if later and can_second:
         pending = new_pending()
         asyncio.get_running_loop().create_task(
-            second_later(pending, mlx_whisper, audio, text, x_frequency_id, keep))
+            second_later(pending, audio, text, x_frequency_id, keep))
         second, gate, p_fr = None, "", None
     else:
         pending = ""
-        second, gate, p_fr = (await second_reading(mlx_whisper, audio, text, x_frequency_id)
+        second, gate, p_fr = (await second_reading(audio, text, x_frequency_id)
                               if can_second else (None, "", None))
         keep(second, gate, p_fr)
     _counters["transcribed"] += 1
@@ -556,7 +478,7 @@ async def transcribe(
     }
 
 
-async def second_reading(mlx_whisper, audio, text: str, frequency_id: str):
+async def second_reading(audio, text: str, frequency_id: str):
     """The French gate and, when it opens, the second reading: (second, gate, p_fr).
 
     Second opinion. The two models fail on different recordings -- on French
@@ -575,7 +497,7 @@ async def second_reading(mlx_whisper, audio, text: str, frequency_id: str):
         # Only where no French word opened the gate: the detector costs an
         # encoder pass, and a French word already says what it would.
         try:
-            p_fr = await on_mlx(french_probability, audio, lane=SECOND)
+            p_fr = await on_model(french_probability, audio, lane=SECOND)
             if p_fr >= cfg.fr_threshold:
                 gate = "detector"
         except Exception as e:
@@ -587,8 +509,7 @@ async def second_reading(mlx_whisper, audio, text: str, frequency_id: str):
         try:
             t1 = time.time()
             fr_kwargs = {"temperature": 0.0} if cfg.fr_no_fallback else {}
-            r2 = await on_mlx(decode, mlx_whisper, audio, lane=SECOND,
-                              path_or_hf_repo=cfg.model_fr, language="fr", **fr_kwargs)
+            r2 = await on_model(decode, cfg.model_fr, audio, "fr", lane=SECOND, **fr_kwargs)
             raw_second = " ".join(r2["text"].split())
             text_second = cut_loops(raw_second) if cfg.fr_cut_loops else raw_second
             if text_second != raw_second:
@@ -653,9 +574,9 @@ def new_pending() -> str:
     return key
 
 
-async def second_later(key, mlx_whisper, audio, text, frequency_id, keep):
+async def second_later(key, audio, text, frequency_id, keep):
     try:
-        second, gate, p_fr = await second_reading(mlx_whisper, audio, text, frequency_id)
+        second, gate, p_fr = await second_reading(audio, text, frequency_id)
     except Exception as e:  # never left pending for ever
         log.warning("second reading lost: %s", e)
         second, gate, p_fr = None, "", None
@@ -733,23 +654,24 @@ def watch_parent(interval: float = 5.0) -> None:
 
 
 def main() -> None:
-    global cfg, _backend
+    global cfg, engine, _backend
     cfg = from_args()
     logging.basicConfig(level=cfg.log_level.upper(),
                         format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    engine = engines.pick()
     # On the model thread: MLX ties what it creates to the thread that created it.
-    _backend = _mlx_thread.submit(backend_name).result()
+    _backend = _model_thread.submit(engine.backend).result()
     log.info("Backend: %s", _backend)
     log.info("English model: %s", cfg.model_en)
     log.info("French model: %s", cfg.model_fr or "(none — French will be refused)")
     if cfg.fr_detector:
         log.info("Language detector: %s, second opinion above p(fr) %.2f", cfg.fr_detector, cfg.fr_threshold)
     if cfg.preload:
-        load(cfg.model_en)
+        _model_thread.submit(functools.partial(engine.load, cfg.model_en)).result()
         if cfg.model_fr:
-            load(cfg.model_fr)
+            _model_thread.submit(functools.partial(engine.load, cfg.model_fr)).result()
         if cfg.fr_detector and cfg.second_opinion and cfg.model_fr:
-            _mlx_thread.submit(detector).result()
+            _model_thread.submit(functools.partial(engine.detector, cfg.fr_detector)).result()
     if cfg.exit_with_parent:
         watch_parent()
 
