@@ -165,6 +165,9 @@ func (r *Router) Routes() http.Handler {
 			// Local-only or sign-in, switched from the same panel. In this group so
 			// that turning sign-in off takes a session whenever it is on.
 			router.Put("/access", r.handler.PutAccess)
+			// Who signed in, who was refused, from where: the owner's only
+			// (ownerRoutes, auth_handlers.go).
+			router.Get("/signins", r.handler.GetSignIns)
 			// The list of official names around the station (Q55): its state, and
 			// making it again, which reaches the SIA's site.
 			router.Get("/aip-names", r.handler.GetAIPNames)

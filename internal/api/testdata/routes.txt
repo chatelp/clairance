@@ -22,6 +22,7 @@ GET /api/v1/procedure-routes (*Handler).GetProcedureRoutes locked
 GET /api/v1/runways (*Handler).GetRunways locked
 GET /api/v1/server (*Handler).GetServerState locked
 GET /api/v1/setup/status (*Handler).GetSetupStatus open
+GET /api/v1/signins (*Handler).GetSignIns locked
 GET /api/v1/station (*Handler).GetStationConfig locked
 GET /api/v1/status (*Handler).GetStatus locked
 GET /api/v1/stream/{id} (*Handler).StreamAudio locked

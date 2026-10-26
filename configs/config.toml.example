@@ -21,10 +21,11 @@ audio_replay = "owner"                      # who listens to the streams and the
 enabled = false                             # off on purpose: nobody cloning this may be locked out of their own receiver
 # When host is not 127.0.0.1 the first visit asks for an account; or co-atc -add-user <name>
 # prints a [[auth.users]] block (name, Argon2id password_hash) to paste here. A session lives
-# 720 h unused; 8 wrong passwords per address per 15 min. Restarting ends every session.
+# 720 h unused; 8 wrong passwords per address (an IPv6 /64) per 15 min. Restarting ends every session.
 # An account is an owner unless it says role = "viewer" (here or in users.json): a viewer reads
 # the map, the aircraft and the transcriptions, changes nothing, and is given the audio only
-# when [server] audio_replay = "all".
+# when [server] audio_replay = "all". Every sign-in, refused or not, is traced in signins.jsonl
+# beside the accounts (two files of 1 MB at most); the owner reads the last ones at /api/v1/signins.
 
 [station]
 latitude = 43.6777                          # the receiver, decimal degrees (example: Toronto Pearson)

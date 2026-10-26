@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -31,6 +32,7 @@ type Service struct {
 	store   *Store
 	proxies *TrustedProxies
 	limiter *Limiter
+	trace   *Trace
 
 	// What enabled is decided from, kept because the choice can now change
 	// while the server runs; see resolve.
@@ -46,6 +48,13 @@ var ErrLocalNotAllowed = errors.New("this server can be reached from other machi
 
 // ErrNoAccount refuses sign-in being required when there is nobody to sign in as.
 var ErrNoAccount = errors.New("no account exists yet: create one")
+
+// Why SignIn refuses. The caller tells the client neither: a wrong name and a
+// wrong password are one error, and the limit is said only in the trace.
+var (
+	ErrTooManyAttempts    = errors.New("too many attempts")
+	ErrInvalidCredentials = errors.New("invalid credentials")
+)
 
 // Config is what the service needs from the configuration file.
 type Config struct {
@@ -118,6 +127,7 @@ func NewService(cfg Config) (*Service, error) {
 		store:         NewStore(cfg.SessionTTL),
 		proxies:       proxies,
 		limiter:       NewLimiter(max, window),
+		trace:         NewTrace(tracePath(cfg.UserFile)),
 		configEnabled: cfg.Enabled,
 		localAllowed:  cfg.Loopback && len(cfg.TrustedProxies) == 0,
 	}
@@ -175,6 +185,25 @@ func (s *Service) Enabled() bool {
 
 func (s *Service) Sessions() *Store         { return s.store }
 func (s *Service) Proxies() *TrustedProxies { return s.proxies }
+func (s *Service) Trace() *Trace            { return s.trace }
+
+// HasAccount says whether a name is an account's. For the trace, after a
+// sign-in has been answered -- never to decide how to answer one.
+func (s *Service) HasAccount(name string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	_, ok := s.users[strings.TrimSpace(name)]
+	return ok
+}
+
+// tracePath is where the sign-in trace is kept: beside the accounts file,
+// and nowhere -- in memory only -- without one.
+func tracePath(f *UserFile) string {
+	if f == nil || f.Path() == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(f.Path()), TraceFile)
+}
 
 // SignIn checks a password and issues a session.
 //
@@ -184,7 +213,7 @@ func (s *Service) Proxies() *TrustedProxies { return s.proxies }
 func (s *Service) SignIn(r *http.Request, name, password string) (*Session, error) {
 	key := limitKey(s.proxies.ClientIP(r))
 	if !s.limiter.Allow(key) {
-		return nil, fmt.Errorf("too many attempts")
+		return nil, ErrTooManyAttempts
 	}
 
 	s.mu.RLock()
@@ -194,10 +223,10 @@ func (s *Service) SignIn(r *http.Request, name, password string) (*Session, erro
 		// Verify against a throwaway hash so an unknown name costs the same time as
 		// a known one.
 		VerifyPassword(password, decoyHash)
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, ErrInvalidCredentials
 	}
 	if !VerifyPassword(password, hash) {
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, ErrInvalidCredentials
 	}
 
 	s.limiter.Succeeded(key)
