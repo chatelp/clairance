@@ -43,7 +43,7 @@ from fastapi.responses import JSONResponse
 
 sys.path.insert(0, __file__.rsplit("/", 1)[0])
 from config import Config, from_args  # noqa: E402
-from device import backend_name  # noqa: E402
+from device import backend_name, limit_cache, memory  # noqa: E402
 from loops import cut_loops  # noqa: E402
 from lanes import FIRST, SECOND, PriorityWorker  # noqa: E402
 
@@ -398,6 +398,10 @@ def health():
         # The model's queue now, by lane (lanes.py), and the second readings
         # asked for later and not fetched yet.
         "queue": _mlx_thread.waiting(),
+        # MLX's memory (active, cache, peak, in MB) and the cache's bound: the
+        # sidecar's footprint, which grew unbounded until 26/10.
+        "memory": memory(),
+        "mlx_cache_limit_gb": cfg.mlx_cache_limit_gb,
         "second_pending": sum(1 for v in _pending.values() if not v["done_at"]),
         "rejected_no_speech": _counters["rejected_no_speech"],
         "archiving": bool(cfg.save_audio) and _disk["ok"],
@@ -740,6 +744,8 @@ def main() -> None:
     # On the model thread: MLX ties what it creates to the thread that created it.
     _backend = _mlx_thread.submit(backend_name).result()
     log.info("Backend: %s", _backend)
+    bound = _mlx_thread.submit(limit_cache, cfg.mlx_cache_limit_gb).result()
+    log.info("MLX cache: %s", f"bounded to {bound >> 20} MB" if bound else "unbounded")
     log.info("English model: %s", cfg.model_en)
     log.info("French model: %s", cfg.model_fr or "(none — French will be refused)")
     if cfg.fr_detector:

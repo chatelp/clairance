@@ -85,6 +85,9 @@ class Config:
     # fills the disk takes the database down with it, and the database is the
     # thing that cannot be rebuilt from anything else.
     save_audio_min_free_gb: float = 8.0
+    # MLX's buffer cache, bounded (device.limit_cache): unbounded, it took the
+    # sidecar from 8 to 16 GB in 25 minutes on 26/10. 0 leaves it unbounded.
+    mlx_cache_limit_gb: float = 1.0
 
     # Stop when the process that started this one goes away.
     #
@@ -131,6 +134,8 @@ def from_args(argv: list[str] | None = None) -> Config:
                    help="keep every transmission's audio and a manifest line, rejected ones included")
     p.add_argument("--save-audio-min-free-gb", type=float, default=d.save_audio_min_free_gb,
                    help="stop archiving below this much free disk space (default 8)")
+    p.add_argument("--mlx-cache-limit-gb", type=float, default=d.mlx_cache_limit_gb,
+                   help="bound MLX's cache of freed buffers, in GB (default 1; 0 for no bound)")
     p.add_argument("--no-exit-with-parent", dest="exit_with_parent", action="store_false",
                    help="keep running after the process that started this one goes away")
     a = p.parse_args(argv)
@@ -142,4 +147,5 @@ def from_args(argv: list[str] | None = None) -> Config:
                   fr_cut_loops=a.fr_cut_loops,
                   save_audio=a.save_audio,
                   save_audio_min_free_gb=a.save_audio_min_free_gb,
+                  mlx_cache_limit_gb=a.mlx_cache_limit_gb,
                   exit_with_parent=a.exit_with_parent)
