@@ -222,3 +222,17 @@ language and models used (`langue`, `modele`, `modele_second`) and `at`:
 
 Archiving stops, and transcription goes on, when free space falls below
 `--save-audio-min-free-gb`.
+
+## Tests
+
+`python -m pytest sidecar/` runs them all; all but one need no model, only
+numpy. `test_contract.py` checks the HTTP contract against the real
+sidecar, every key co-atc reads included, and runs the Go client against it; it
+needs a multilingual model the engine reads and ffmpeg with its `flite` filter:
+
+```bash
+SIDECAR_TEST_MODEL=models/whisper-small-ct2 .venv/bin/python -m unittest -v sidecar/test_contract.py
+```
+
+`bench.py` times a running sidecar on one transmission and reads its memory: the
+same protocol on the processor and on a GPU.
