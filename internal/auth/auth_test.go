@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"encoding/base64"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -400,5 +402,33 @@ func TestTheBrowserIsTheFirstUntrustedAddressFromTheRight(t *testing.T) {
 		if got := p.ClientIP(r); got != c.want {
 			t.Errorf("X-Forwarded-For %q: %q, want %q", c.lines, got, c.want)
 		}
+	}
+}
+
+// An unknown name costs what a wrong password does because both verify an
+// Argon2id hash of the same parameters: the decoy's are HashPassword's.
+// Raising the cost without the decoy would make an unknown name answer
+// faster, and the form would tell which names exist (measured on 26/10 with
+// the decoy as it is: 115 ms median for an unknown name, 116-120 ms for a
+// wrong password, 21 tries each).
+func TestTheDecoyHashCostsWhatARealOneDoes(t *testing.T) {
+	real, err := HashPassword("a password of some length")
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := func(h string) string {
+		parts := strings.Split(h, "$")
+		if len(parts) != 6 {
+			t.Fatalf("not a PHC hash: %q", h)
+		}
+		salt, err1 := base64.RawStdEncoding.DecodeString(parts[4])
+		key, err2 := base64.RawStdEncoding.DecodeString(parts[5])
+		if err1 != nil || err2 != nil {
+			t.Fatalf("undecodable hash %q", h)
+		}
+		return fmt.Sprintf("%s %s %s salt %d key %d", parts[1], parts[2], parts[3], len(salt), len(key))
+	}
+	if d, r := params(decoyHash), params(real); d != r {
+		t.Errorf("the decoy is %s, a real hash %s", d, r)
 	}
 }
