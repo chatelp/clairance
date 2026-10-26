@@ -2,7 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
+	"net"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -53,19 +57,38 @@ func (h *Handler) PostLogin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// The client is told only that it failed. Which of the name or the password
 		// was wrong, and whether the account exists at all, stay unsaid: a login
-		// form that distinguishes them is a way to enumerate accounts.
+		// form that distinguishes them is a way to enumerate accounts. The trace
+		// says it, to the owner; and names the account only when there is one --
+		// a password typed in the name field is not written down.
+		ev := h.signInEvent(r, auth.EventRefused)
+		if h.auth.HasAccount(req.Name) {
+			ev.User, ev.Reason = strings.TrimSpace(req.Name), auth.ReasonWrongPassword
+		} else {
+			ev.Reason = auth.ReasonUnknownName
+		}
+		if errors.Is(err, auth.ErrTooManyAttempts) {
+			ev.Reason = auth.ReasonTooManyAttempts
+		}
+		h.trace(ev)
 		h.logger.Warn("Failed sign-in",
-			logger.String("name", req.Name),
-			logger.String("from", h.auth.Proxies().ClientIP(r)))
+			logger.String("user", ev.User),
+			logger.String("reason", ev.Reason),
+			logger.String("from", ev.From),
+			logger.String("agent", ev.Agent))
 		time.Sleep(250 * time.Millisecond)
 		WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
 		return
 	}
 
 	h.auth.SetCookie(w, r, sess)
+	ev := h.signInEvent(r, auth.EventSignedIn)
+	ev.User = sess.User
+	h.trace(ev)
 	h.logger.Info("Signed in",
 		logger.String("user", sess.User),
-		logger.String("from", h.auth.Proxies().ClientIP(r)))
+		logger.String("from", ev.From),
+		logger.String("via", ev.Via),
+		logger.String("agent", ev.Agent))
 	WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"authenticated": true, "user": sess.User, "expires_at": sess.ExpiresAt,
 	})
@@ -75,10 +98,45 @@ func (h *Handler) PostLogin(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) PostLogout(w http.ResponseWriter, r *http.Request) {
 	if sess, ok := h.auth.SessionFrom(r); ok {
 		h.auth.Sessions().Revoke(sess.Token)
-		h.logger.Info("Signed out", logger.String("user", sess.User))
+		ev := h.signInEvent(r, auth.EventSignedOut)
+		ev.User = sess.User
+		h.trace(ev)
+		h.logger.Info("Signed out", logger.String("user", sess.User), logger.String("from", ev.From))
 	}
 	h.auth.ClearCookie(w, r)
 	WriteJSON(w, http.StatusOK, map[string]interface{}{"authenticated": false})
+}
+
+// signInEvent is the part of a trace event the request says: who, from
+// where, through which proxy, with which browser.
+func (h *Handler) signInEvent(r *http.Request, event string) auth.SignInEvent {
+	ev := auth.SignInEvent{Event: event, From: h.auth.Proxies().ClientIP(r), Agent: r.UserAgent()}
+	if h.auth.Proxies().Forwarded(r) {
+		if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+			ev.Via = host
+		}
+	}
+	return ev
+}
+
+// trace records an event; a trace that cannot be written is said in the log,
+// and the event is kept in memory all the same.
+func (h *Handler) trace(ev auth.SignInEvent) {
+	if err := h.auth.Trace().Record(ev); err != nil {
+		h.logger.Warn("Could not write the sign-in trace", logger.Error(err))
+	}
+}
+
+// GetSignIns is the sign-in trace, the newest first: the last 100, or
+// ?limit= up to the 500 held. The owner's only, like the settings (see
+// ownerRoutes): who signed in from where is not a viewer's to read.
+func (h *Handler) GetSignIns(w http.ResponseWriter, r *http.Request) {
+	n := 100
+	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 {
+		n = v
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	WriteJSON(w, http.StatusOK, map[string]any{"signins": h.auth.Trace().Recent(n)})
 }
 
 // ViewerGuard keeps a viewer account to reading, behind the sign-in lock: GET
@@ -112,6 +170,12 @@ var audioRoutes = map[string]bool{
 	"/api/v1/transcriptions/{id}/audio": true,
 }
 
+// ownerRoutes are routes that only read and are the owner's all the same:
+// the sign-in trace says who came in, from where, with what.
+var ownerRoutes = map[string]bool{
+	"/api/v1/signins": true,
+}
+
 // viewerMay says whether a viewer may make this request. The route is read
 // from chi's routing, already done when a group's middleware runs, rather
 // than from the path, so that a path spelled another way cannot slip past.
@@ -122,6 +186,9 @@ func viewerMay(r *http.Request, audio bool) bool {
 	pattern := ""
 	if rctx := chi.RouteContext(r.Context()); rctx != nil {
 		pattern = rctx.RoutePattern()
+	}
+	if ownerRoutes[pattern] {
+		return false
 	}
 	return audio || !audioRoutes[pattern]
 }

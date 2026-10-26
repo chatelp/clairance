@@ -42,6 +42,13 @@ const (
 	pingPeriod = pongWait / 2
 )
 
+// maxMessageBytes bounds one message from a client. gorilla reads a whole
+// message into memory and sets no bound of its own: a signed-in client
+// could send gigabytes in one. The page sends one kind, a bulk request of
+// about 80 bytes (www/store/feed.js); a larger message closes the
+// connection (1009, message too big).
+const maxMessageBytes = 64 << 10
+
 // Message represents a WebSocket message
 type Message struct {
 	Type string                 `json:"type"`
@@ -353,6 +360,7 @@ func (c *Client) readPump() {
 		c.conn.Close()
 	}()
 
+	c.conn.SetReadLimit(maxMessageBytes)
 	// Browsers answer pings by themselves, even in a background tab.
 	_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error {

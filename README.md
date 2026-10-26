@@ -224,6 +224,94 @@ Optional, once:
 (`internal/config/defaults.go`). At startup the server names, one line each, what it found
 in the file and does not read.
 
+## Reaching it from the Internet, behind a reverse proxy
+
+Clairance does not serve HTTPS to the Internet itself: put a reverse proxy in front of it
+that terminates TLS and forwards in plain HTTP on your network. On the server, declare that
+proxy and nothing else, and require sign-in:
+
+```toml
+[server]
+host = "0.0.0.0"                    # the proxy runs on another machine: listen on the network
+trusted_proxies = ["192.0.2.10"]    # the proxy's address as this server sees it, and only it
+audio_replay = "owner"              # "all" to let viewer accounts hear the streams and clips
+```
+
+With the proxy declared, the server reads the browser's address and scheme from its
+`X-Forwarded-For` and `X-Forwarded-Proto` (from it alone), marks the session cookie `Secure`,
+points the page's audio at the page's own address rather than at ports 8001–8004, refuses
+the first-run page to whatever comes through it, keeps `/api/v1/health/detail` to the owner,
+and refuses to run without sign-in. Give a guest an account of their own:
+`co-atc -add-user <name>`, answer `viewer` when it asks the role, and paste the block it
+prints into the configuration. A viewer reads, changes nothing, and hears nothing unless
+`audio_replay = "all"`.
+
+An example for Traefik v3 (file provider; the names and addresses are placeholders, the
+`192.0.2.x` ones from the documentation range):
+
+```yaml
+# Static configuration: the HTTPS entry point.
+entryPoints:
+  websecure:
+    address: ":443"
+    # No forwardedHeaders.insecure: Traefik then drops the X-Forwarded-* a client sends
+    # and writes its own, which is what trusted_proxies believes.
+    transport:
+      respondingTimeouts:
+        readTimeout: 60s   # the default: reading a request, not the length of the answer
+        writeTimeout: 0s   # the default; any other value cuts every audio stream at that age
+        idleTimeout: 180s
+```
+
+```yaml
+# Dynamic configuration.
+http:
+  routers:
+    clairance:
+      rule: Host(`clairance.example.org`)
+      entryPoints: [websecure]
+      service: clairance
+      middlewares: [clairance-headers]
+      tls:
+        certResolver: letsencrypt        # the resolver your Traefik already uses
+    clairance-login:                     # a longer rule, so it wins for the sign-in alone
+      rule: Host(`clairance.example.org`) && Path(`/api/v1/auth/login`)
+      entryPoints: [websecure]
+      service: clairance
+      middlewares: [clairance-headers, clairance-login-limit]
+      tls:
+        certResolver: letsencrypt
+  middlewares:
+    clairance-login-limit:
+      rateLimit:                         # per client address; the server adds its own limit
+        average: 10                      # (8 wrong passwords per address, or IPv6 /64,
+        period: 1m                       # per 15 minutes)
+        burst: 5
+    clairance-headers:
+      headers:
+        stsSeconds: 31536000
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: same-origin
+        customResponseHeaders:
+          X-Robots-Tag: "noindex, nofollow"
+  services:
+    clairance:
+      loadBalancer:
+        # passHostHeader stays true (the default): the page's origin is then the Host the
+        # server receives, and its WebSocket is accepted. If you turn it off, add
+        # "https://clairance.example.org" to [server] allowed_origins.
+        servers:
+          - url: "http://192.0.2.20:8000"  # the machine running Clairance, on its first port
+```
+
+Do not compress in the proxy (the server already compresses text, never the audio), and
+do not forward ports 8001–8004: through the proxy, everything goes through the first port.
+To see who signed in, and who was refused, open `/api/v1/signins` signed in as the owner
+(the file is `signins.jsonl` beside the accounts). To cut someone off, remove their account
+from `configs/users.json` (or `[[auth.users]]`) and restart: sessions live in memory, so a
+restart ends every one of them.
+
 ## How it works
 
 ```mermaid

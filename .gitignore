@@ -85,6 +85,8 @@ __pycache__/
 
 # Accounts created by the first-run page. Password hashes, never published.
 configs/users.json
+# The sign-in trace kept beside them: who signed in, from which address.
+configs/signins.jsonl*
 
 # Aeronautical charts (SIA VAC and eAIP charts), kept next to the code for
 # reference. Never published: they are the SIA's, and they expire each cycle.

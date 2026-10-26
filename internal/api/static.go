@@ -33,6 +33,15 @@ func NewStaticFileHandler(staticDir string, logger *logger.Logger) *StaticFileHa
 
 // ServeHTTP serves static files dynamically
 func (h *StaticFileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// The page is read, never written: every other method used to be answered
+	// with the file, TRACE and CONNECT included. OPTIONS does not get here --
+	// the CORS middleware answers it.
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	// Clean the path to prevent directory traversal attacks
 	path := filepath.Clean(r.URL.Path)
 
@@ -44,6 +53,16 @@ func (h *StaticFileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// If path is empty, serve index.html
 	if path == "" {
 		path = "index.html"
+	}
+
+	// No hidden file or directory: what the page needs has no leading dot,
+	// and what has one is not the page -- a .DS_Store that Finder leaves in a
+	// copied directory lists its files, a .git would hand out its history.
+	for _, seg := range strings.Split(filepath.ToSlash(path), "/") {
+		if strings.HasPrefix(seg, ".") {
+			http.NotFound(w, r)
+			return
+		}
 	}
 
 	// Construct full file path

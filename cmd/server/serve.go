@@ -50,13 +50,7 @@ func serve(cfg *config.Config, router *api.Router, log *logger.Logger) []*http.S
 	// Start a server for each configured port
 	for _, port := range allPorts {
 		addr := fmt.Sprintf("%s:%d", cfg.Server.Host, port)
-		server := &http.Server{
-			Addr:         addr,
-			Handler:      router.Routes(), // All servers use the same main router
-			ReadTimeout:  time.Duration(cfg.Server.ReadTimeoutSecs) * time.Second,
-			WriteTimeout: time.Duration(cfg.Server.WriteTimeoutSecs) * time.Second,
-			IdleTimeout:  time.Duration(cfg.Server.IdleTimeoutSecs) * time.Second,
-		}
+		server := httpServer(cfg, addr, router.Routes()) // All servers use the same main router
 		servers = append(servers, server)
 
 		go func(s *http.Server) {
@@ -79,6 +73,30 @@ func serve(cfg *config.Config, router *api.Router, log *logger.Logger) []*http.S
 		}(server)
 	}
 	return servers
+}
+
+// readHeaderTimeout bounds how long a client may take to send a request's
+// headers. Without it, and with read_timeout_seconds at its default of 0, a
+// client that trickles its headers a byte at a time held a connection and a
+// goroutine for as long as it liked -- on a server reached from the
+// Internet, the cheapest way to exhaust it. Ten seconds is ages for a
+// header; it says nothing about how long the answer may last, so the audio
+// streams and the WebSocket are untouched (measured on 26/10: a stream of
+// 2 s through a server with ReadHeaderTimeout, or ReadTimeout, of 0.5 s
+// arrives whole; WriteTimeout is what cuts one). A variable for the test.
+var readHeaderTimeout = 10 * time.Second
+
+// httpServer is one listener: the configured timeouts, and the header
+// timeout, which is not configurable.
+func httpServer(cfg *config.Config, addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: readHeaderTimeout,
+		ReadTimeout:       time.Duration(cfg.Server.ReadTimeoutSecs) * time.Second,
+		WriteTimeout:      time.Duration(cfg.Server.WriteTimeoutSecs) * time.Second,
+		IdleTimeout:       time.Duration(cfg.Server.IdleTimeoutSecs) * time.Second,
+	}
 }
 
 // shutdown stops the background services, then the HTTP servers, in that

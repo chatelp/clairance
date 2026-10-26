@@ -142,10 +142,8 @@ func (h *Handler) mayReadHealthDetail(r *http.Request) bool {
 // of someone who is not here; it says so in X-Forwarded-For or Forwarded, and
 // sends the name it was reached by.
 func fromThisMachine(r *http.Request) bool {
-	for _, hdr := range []string{"X-Forwarded-For", "Forwarded", "X-Real-IP", "X-Forwarded-Host"} {
-		if r.Header.Get(hdr) != "" {
-			return false
-		}
+	if forwardedByAProxy(r) {
+		return false
 	}
 	remote, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
@@ -161,6 +159,18 @@ func fromThisMachine(r *http.Request) bool {
 	}
 	host = strings.TrimSuffix(strings.TrimPrefix(host, "["), "]")
 	return isLoopback(strings.ToLower(host))
+}
+
+// forwardedByAProxy says that a request carries a header only a proxy adds,
+// declared in trusted_proxies or not: whoever made it spoke to the proxy, not
+// to this server, and may be anywhere the proxy serves.
+func forwardedByAProxy(r *http.Request) bool {
+	for _, hdr := range []string{"X-Forwarded-For", "Forwarded", "X-Real-IP", "X-Forwarded-Host"} {
+		if r.Header.Get(hdr) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // computeHealthDetail gathers the figures. Every source is optional: a
