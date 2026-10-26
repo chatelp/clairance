@@ -133,3 +133,53 @@ func TestThePageIsReadAndNeverWritten(t *testing.T) {
 		}
 	}
 }
+
+// Nothing outside the page's directory, and nothing hidden in it: a path
+// that climbs out, spelled plainly or encoded, and a file or directory whose
+// name starts with a dot are not served.
+func TestThePageServesNeitherWhatIsAboveItNorWhatIsHidden(t *testing.T) {
+	log, err := logger.New(logger.Config{Level: "error", Format: "console"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	pages := filepath.Join(root, "www")
+	for name, content := range map[string]string{
+		"outside.txt":            "secret above the page",
+		"www/index.html":         "<title>page</title>",
+		"www/.DS_Store":          "secret finder listing",
+		"www/.git/config":        "secret repository",
+		"www/map/.hidden.js":     "secret hidden script",
+		"www/map/layer.js":       "visible()",
+		"www/.well-known/x.json": "secret dot directory",
+	} {
+		path := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg := &config.Config{ConfigPath: filepath.Join(t.TempDir(), "config.toml")}
+	cfg.Server.Host = "127.0.0.1"
+	cfg.Server.StaticDir = pages
+	routes := NewRouter(nil, nil, nil, nil, cfg, log, nil, sqlite.NewTranscriptionStorage(nil, log), nil).Routes()
+
+	get := func(target string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		routes.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, target, nil))
+		return rec
+	}
+	for _, target := range []string{"/", "/index.html", "/map/layer.js"} {
+		if rec := get(target); rec.Code != http.StatusOK {
+			t.Errorf("GET %s: %d, want 200", target, rec.Code)
+		}
+	}
+	for _, target := range []string{"/../outside.txt", "/%2e%2e/outside.txt", "/..%2foutside.txt", "/map/../../outside.txt",
+		"/.DS_Store", "/.git/config", "/.git/", "/map/.hidden.js", "/.well-known/x.json", "/map/%2ehidden.js"} {
+		if rec := get(target); rec.Code == http.StatusOK || strings.Contains(rec.Body.String(), "secret") {
+			t.Errorf("GET %s: %d %q, want it refused", target, rec.Code, rec.Body.String())
+		}
+	}
+}

@@ -55,6 +55,16 @@ func (h *StaticFileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		path = "index.html"
 	}
 
+	// No hidden file or directory: what the page needs has no leading dot,
+	// and what has one is not the page -- a .DS_Store that Finder leaves in a
+	// copied directory lists its files, a .git would hand out its history.
+	for _, seg := range strings.Split(filepath.ToSlash(path), "/") {
+		if strings.HasPrefix(seg, ".") {
+			http.NotFound(w, r)
+			return
+		}
+	}
+
 	// Construct full file path
 	fullPath := filepath.Join(h.staticDir, path)
 
