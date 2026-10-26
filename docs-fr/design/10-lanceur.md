@@ -227,6 +227,48 @@ Dans le détail d'une instance, les deux lignes nouvelles de l'étape 1a :
   fermée : `Depends on: no app · no local network` ;
 - `Stops at 18:00 (in 2 h 10 min)`, ou `Was to stop at 18:00 (2 h ago)`.
 
+## Les autorisations
+
+Le porteur devient une application à part (A3, 26/10), que macOS nomme dans Réglages Système ›
+Confidentialité et sécurité › Réseau local. Le propriétaire veut que les autorisations soient
+demandées au premier lancement, puis signalées tant qu'il en manque une.
+
+**Le nom affiché.** « Clairance Carrier » dit un mot de l'intérieur du code. Celui qui active
+l'autorisation lit une liste d'applications : **« Clairance Server »** dit ce que c'est, le serveur
+de Clairance (production et instances d'essai). À garder « Carrier » si changer le nom affiché
+(`CFBundleName`, `CFBundleDisplayName`) fait redemander l'autorisation : l'identifiant du paquet ne
+doit pas changer. Les textes ci-dessous disent « Clairance Server » ; ils prennent l'autre nom s'il
+reste.
+
+**Le menu** : une ligne par autorisation manquante, sous l'état, chacune suivie de son bouton. Même
+forme que les lignes de santé, le sujet puis le fait :
+
+```
+▲ Clairance Server · local network not allowed
+Open Local Network Settings…
+▲ Clairance · notifications not allowed
+Open Notification Settings…
+```
+
+Le bouton ouvre le bon panneau des Réglages Système. Deux autorisations du même panneau manquantes
+(le serveur et le lanceur, réseau local) : deux lignes, un seul bouton.
+
+**L'icône** ne change pas pour une autorisation manquante : à l'arrêt, rien n'est en défaut. Une
+production qui tourne sans le réseau local est sourde, et ses contrôles la mettent déjà en Fault.
+
+**La notification**, une fois, quand l'autorisation du serveur vient à manquer, et sa fin quand elle
+revient :
+
+| | Titre | Corps | Clic, bouton | Son |
+|---|---|---|---|---|
+| manque | Clairance Server has no local network | Production started now would not hear the station. Allow Clairance Server in System Settings › Privacy & Security › Local Network. | les réglages ; Open Local Network Settings… | — |
+| revient | Clairance Server has the local network again | — | — | — |
+
+Pour le lanceur sans notifications, pas de notification, évidemment : la ligne du menu suffit.
+
+**Un démarrage manqué** pour cette raison donne la cause, sur deux lignes au plus : `Clairance
+Server has no local network: allow it in System Settings`, avec le bouton du panneau.
+
 ## Quitter le lanceur
 
 Le lanceur est l'application responsable de ce qu'il démarre : s'il se ferme, la production
