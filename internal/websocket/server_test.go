@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -129,5 +130,35 @@ func TestAClientDroppedForAFullQueueSaysWhy(t *testing.T) {
 	c.leave("a write failed")
 	if !strings.Contains(c.reason, "queue was full") {
 		t.Fatalf("a later reason replaced the first: %q", c.reason)
+	}
+}
+
+// A client's message is bounded: one larger than maxMessageBytes closes its
+// connection with 1009 instead of being read into memory whole, and the
+// server goes on serving the others.
+func TestAMessageTooLargeClosesThatClientOnly(t *testing.T) {
+	s, url := newTestServer(t)
+	big := dial(t, url)
+	other := dial(t, url)
+	waitForClients(t, s, 2)
+
+	huge := `{"type":"aircraft_bulk_request","data":{"filters":{"x":"` + strings.Repeat("a", 4<<20) + `"}}}`
+	_ = big.WriteMessage(websocket.TextMessage, []byte(huge))
+	_ = big.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var closeErr *websocket.CloseError
+	for {
+		if _, _, err := big.ReadMessage(); err != nil {
+			if !errors.As(err, &closeErr) || closeErr.Code != websocket.CloseMessageTooBig {
+				t.Errorf("after a 4 MB message: %v, want a close with 1009", err)
+			}
+			break
+		}
+	}
+	waitForClients(t, s, 1)
+
+	s.Broadcast(&Message{Type: "probe", Data: map[string]interface{}{}})
+	_ = other.SetReadDeadline(time.Now().Add(5 * time.Second))
+	if _, _, err := other.ReadMessage(); err != nil {
+		t.Errorf("the other client: %v", err)
 	}
 }
