@@ -69,6 +69,10 @@ type CentralAudioProcessor struct {
 	// goCancel stops the one running.
 	goDecoder bool
 	goCancel  context.CancelFunc
+
+	// mp3 relays the stream's own MP3 frames to browsers (mp3relay.go), fed
+	// by the Go decoder.
+	mp3 *mp3Relay
 }
 
 // CentralProcessorConfig contains configuration for the central audio processor
@@ -128,6 +132,7 @@ func NewCentralAudioProcessor(
 		noFFmpegReconnect:        config.NoFFmpegReconnect,
 		inputOptions:             config.InputOptions,
 		goDecoder:                config.GoDecoder,
+		mp3:                      newMP3Relay(),
 		multiReader:              multiReader,
 		ctx:                      procCtx,
 		cancel:                   procCancel,
@@ -208,6 +213,7 @@ func (p *CentralAudioProcessor) Stop() error {
 	p.cancel()
 
 	p.stopFFmpeg()
+	p.mp3.close()
 
 	// Close multi-reader
 	p.multiReader.Close()

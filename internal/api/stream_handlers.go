@@ -29,6 +29,16 @@ func (h *Handler) StreamAudio(w http.ResponseWriter, r *http.Request) {
 
 	clientRemoteAddr := r.RemoteAddr
 
+	// The station's own MP3 when the page asks for it and the stream has it:
+	// what every browser plays, Safari included, at a twenty-fifth of the WAV's
+	// rate (docs-fr/35-plan.md, D2 bis). Otherwise the WAV stream, as before.
+	if r.URL.Query().Get("format") == "mp3" {
+		if mp3, ok := h.frequenciesService.MP3Stream(id); ok {
+			h.streamMP3(w, r, id, mp3)
+			return
+		}
+	}
+
 	// Set binary streaming headers
 	w.Header().Set("Content-Type", "audio/wav")
 	w.Header().Set("Cache-Control", "no-cache, no-store")
@@ -187,4 +197,39 @@ func (h *Handler) StreamAudio(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+// streamMP3 sends a frequency's MP3 frames until the browser leaves or the
+// stream stops, flushing each read so that the sound is not held back.
+func (h *Handler) streamMP3(w http.ResponseWriter, r *http.Request, id string, mp3 io.ReadCloser) {
+	defer mp3.Close()
+	w.Header().Set("Content-Type", "audio/mpeg")
+	w.Header().Set("Cache-Control", "no-cache, no-store")
+	if r.Method == http.MethodHead {
+		return
+	}
+	go func() {
+		<-r.Context().Done()
+		mp3.Close() // ends the copy below when the browser leaves
+	}()
+	flusher, _ := w.(http.Flusher)
+	buf := make([]byte, 4096)
+	start, written := time.Now(), 0
+	for {
+		n, err := mp3.Read(buf)
+		if n > 0 {
+			if _, werr := w.Write(buf[:n]); werr != nil {
+				break
+			}
+			written += n
+			if flusher != nil {
+				flusher.Flush()
+			}
+		}
+		if err != nil {
+			break
+		}
+	}
+	h.logger.Info("MP3 stream ended", logger.String("id", id), logger.String("remote_addr", r.RemoteAddr),
+		logger.Int("bytes", written), logger.String("duration", time.Since(start).Round(time.Second).String()))
 }

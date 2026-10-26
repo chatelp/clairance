@@ -19,7 +19,8 @@ after the tests below pass again.
   Upstream's `Scanner` reads its whole input before the first frame, which a
   radio stream with no end never lets it finish. `FrameReader` reads one frame
   at a time, syncs on a corroborated header, resyncs after damage, and says
-  `ErrFormatChanged` when frames of another kind follow.
+  `ErrFormatChanged` when frames of another kind follow. `OnFrame` hands each
+  whole frame on as read, for relaying the stream's own MP3 to browsers.
 - `mp3/decode.go`: four lines, each marked `Clairance:` -- the `live` field,
   the frame source in `Next`, and `Duration` and `Tags` on a decoder without a
   file.

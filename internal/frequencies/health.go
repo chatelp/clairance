@@ -1,6 +1,9 @@
 package frequencies
 
-import "time"
+import (
+	"io"
+	"time"
+)
 
 // FrequencyHealth is one frequency as the launcher's health reads it
 // (/api/v1/health/detail, docs-fr/34): whether audio arrives, and whether it
@@ -56,4 +59,18 @@ func utcOrNil(t time.Time) *time.Time {
 	}
 	u := t.UTC()
 	return &u
+}
+
+// MP3Stream is a listener to a frequency's own MP3 stream, relayed frame by
+// frame while it is decoded in Go (internal/audio, mp3relay.go); false when
+// there is none -- the source goes through ffmpeg, is not MP3, or has not
+// started -- and the caller serves the WAV stream instead.
+func (s *Service) MP3Stream(id string) (io.ReadCloser, bool) {
+	s.streamsMu.RLock()
+	sp := s.activeStreams[id]
+	s.streamsMu.RUnlock()
+	if sp == nil || sp.audioProcessor == nil {
+		return nil, false
+	}
+	return sp.audioProcessor.MP3Reader()
 }

@@ -42,6 +42,11 @@ type FrameReader struct {
 	// how many times sync was lost after the first.
 	Skipped int64
 	Resyncs int
+
+	// OnFrame, when set, receives each whole frame as read, header included,
+	// before it is decoded: a relay of the stream's own MP3, frame-aligned.
+	// The slice is the caller's to keep.
+	OnFrame func(raw []byte)
 }
 
 // NewFrameReader reads frames from r.
@@ -87,6 +92,9 @@ func (f *FrameReader) Next() (Frame, error) {
 		buf := make([]byte, h.FrameSize())
 		if n, err := io.ReadFull(f.r, buf); err != nil {
 			return Frame{}, eof(err, n > 0)
+		}
+		if f.OnFrame != nil {
+			f.OnFrame(buf)
 		}
 		return Frame{Header: h, Data: buf[HeaderSize+h.CRCSize():]}, nil
 	}

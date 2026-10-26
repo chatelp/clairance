@@ -507,6 +507,11 @@ class AudioClient {
             return null;
         }
 
+        // The station's own MP3 where the server has it, the WAV stream
+        // otherwise: Safari, on the Mac as on the iPhone, does not play an
+        // endless WAV stream (26/10), and the MP3 is a twenty-fifth of the rate.
+        url.searchParams.set('format', 'mp3');
+
         if (url.href.includes('CLIENT_ID')) {
             return url.href.replace('CLIENT_ID', encodeURIComponent(this.store.clientID));
         }

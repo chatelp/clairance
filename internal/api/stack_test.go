@@ -140,6 +140,7 @@ type stackOptions struct {
 	noAccount bool     // local-only, nothing to sign in as
 	viewer    bool     // a second account, viewerUser, with the viewer role
 	tone      bool     // a configured frequency carrying audio; needs ffmpeg
+	goMP3     bool     // a frequency serving MP3 over HTTP, decoded in Go (no ffmpeg)
 	sidecar   string   // health URL of a transcription sidecar; none when empty
 	idle      bool     // started without transcription, as main does when nothing asks for it
 }
@@ -200,6 +201,14 @@ func newStack(t *testing.T, o stackOptions) *stack {
 	cfg.Frequencies.Sources = []config.FrequencyConfig{
 		{ID: "mix", Name: "Configured mix", Airport: "LFPG", FrequencyMHz: 125.825, URL: gone.URL + "/aero.mp3", Order: 2},
 	}
+	if o.goMP3 {
+		reconnect := false
+		cfg.Frequencies.Decoder = "go"
+		cfg.Frequencies.Sources = append(cfg.Frequencies.Sources, config.FrequencyConfig{
+			ID: "station", Name: "Station", FrequencyMHz: 124.35, URL: mp3Server(t) + "/aero-124350.mp3", Order: 3,
+			FFmpegReconnect: &reconnect,
+		})
+	}
 	if o.tone {
 		reconnect := false
 		cfg.Frequencies.Sources = append(cfg.Frequencies.Sources, config.FrequencyConfig{
@@ -255,7 +264,7 @@ func newStack(t *testing.T, o stackOptions) *stack {
 			freqs.SetTranscriptionGate(sidecar.Ensure)
 		}
 	}
-	if o.tone {
+	if o.tone || o.goMP3 {
 		if err := freqs.Start(ctx); err != nil {
 			t.Fatal(err)
 		}
