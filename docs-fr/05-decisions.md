@@ -5433,7 +5433,7 @@ dans le doc 35 (B1 bis) ; décodeur intégré (a62e9c2) et branché derrière `f
 découpées aux mêmes bornes ; 17 textes différents sur 237, quand un bruit inaudible d'un pas d'arrondi ajouté à
 l'audio de ffmpeg en fait basculer 22 et que le même audio transcrit deux fois n'en change aucun. Le critère écrit
 d'abord (97 % de textes identiques) était mal posé : Whisper bascule une transmission difficile sur douze à la moindre
-perturbation. **N5 lancé le 26/10 à 13:09:51** : 24 h de production en Go, jugées le 27/10 (doc 35). **N5 passé le 27/10 à 13:17** : aucune panne du décodeur, débit conforme, transmissions par heure au niveau de ffmpeg, Icecast sans décrochage (détail dans le doc 35). La condition ci-dessous est remplie.
+perturbation. **N5 lancé le 26/10 à 13:09:51** : 24 h de production en Go, jugées le 27/10 (doc 35). **N5 passé le 27/10 à 13:17** : aucune panne du décodeur, débit conforme, transmissions par heure au niveau de ffmpeg, Icecast sans décrochage (détail dans le doc 35). La condition ci-dessous est remplie. **Appliqué le 27/10 à 14:01** (relance 3, 749d489) : ffmpeg retiré, production à 16 kHz.
 
 **Décidé par le propriétaire le 26/10, sous condition** : **si goxiph est validé à la fin de N5**, on abandonne
 ffmpeg ; les sources SRT et carte son sont retirées. Le PCM brut par UDP (GQRX, SDR++, rtl_fm), qui ne demande
