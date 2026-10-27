@@ -494,6 +494,15 @@ sur la carte.
 
 ## État
 
+- 27/10, 12:00 : **« someone is speaking » s'affiche fréquences coupées** (98f675a), constat du propriétaire : rien
+  au chargement avec tout coupé, alors que le texte défilait ; affiché après avoir écouté puis coupé. Cause, mesurée
+  dans Chrome sans fenêtre (instance d'essai, trois MP3 en boucle) : la page recevait bien `frequency_activity` du
+  serveur (93 messages en quelques secondes) mais le client WebSocket ne transmettait que les types d'une liste à lui,
+  où celui-ci manquait depuis le 26/10 (Q63). Écouter puis couper laissait le lecteur jouer à volume nul : la mesure
+  locale de la page prenait le relais, d'où l'illusion. Le client transmet désormais tout type qu'un écouteur peut
+  demander (`clearance_issued`, autre oublié, ne fait qu'une ligne de console). Vérifié : sans clic, tout coupé, les
+  trois lignes « now · … » affichées ; un test fait passer chaque type du serveur (échoue sans le correctif sur
+  ces deux types). En production à la relance 2.
 - 27/10, 11:20 : **les flux des ports annexes reçoivent le cookie** (ebfd2ce, demandé par le propriétaire après le
   constat de la fiche S). Connexion exigée et sans mandataire, les flux répartis sur les ports annexes sont une autre
   origine : le lecteur de la page (Q63, 26/10) les demandait avec `credentials: 'same-origin'`, sans cookie, d'où des

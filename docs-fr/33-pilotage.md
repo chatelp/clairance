@@ -129,7 +129,8 @@ temps (A3, nouveau co-atc, bascule audio), une cause par relance. La page intég
 **27/10 au matin** : fiche S intégrée et vérifiée sur le Mac : les sessions survivent à une relance ; l'ami ne
 retapera plus son mot de passe à chaque mise à jour. Elle part avec la relance 2. Au passage, une panique rare à
 l'arrêt corrigée. Puis, à la demande du propriétaire, les flux des ports annexes reçoivent le cookie (ebfd2ce),
-vérifié dans Chrome ; même relance.
+vérifié dans Chrome ; même relance. Et « someone is speaking » fréquences coupées (98f675a) : la mesure du
+serveur arrivait mais était jetée par la page.
 **Fin du 26/10** : plus de relance aujourd'hui sauf panne (propriétaire). Faits l'après-midi : la page joue le son
 elle-même (Q63), Safari compris depuis 16:45 (reprise au clic, rééchantillonnage dans la page) et l'iPhone
 depuis 17:20 ; la couche des
