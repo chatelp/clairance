@@ -52,7 +52,7 @@ func TestGarbageHashRefused(t *testing.T) {
 
 func TestSessionLifecycle(t *testing.T) {
 	s := NewStore(time.Hour)
-	sess, err := s.Create("pierre")
+	sess, err := s.Create("pierre", RoleOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestSessionLifecycle(t *testing.T) {
 
 func TestExpiredSessionRefused(t *testing.T) {
 	s := NewStore(time.Millisecond)
-	sess, _ := s.Create("pierre")
+	sess, _ := s.Create("pierre", RoleOwner)
 	time.Sleep(5 * time.Millisecond)
 	if _, ok := s.Lookup(sess.Token); ok {
 		t.Error("an expired session is still valid")

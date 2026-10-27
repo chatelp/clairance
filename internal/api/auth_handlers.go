@@ -108,6 +108,13 @@ func retryAfterSeconds(d time.Duration) int {
 	return max(1, int((d+time.Second-1)/time.Second))
 }
 
+// SaveSessions writes the sessions' last expiries, for the server's stop:
+// sign-ins and sign-outs are already on disk, the sliding expiry is written
+// once a minute at most.
+func (h *Handler) SaveSessions() error {
+	return h.auth.Sessions().Save()
+}
+
 // PostLogout ends the session that made the request.
 func (h *Handler) PostLogout(w http.ResponseWriter, r *http.Request) {
 	if sess, ok := h.auth.SessionFrom(r); ok {

@@ -19,7 +19,11 @@ class WebSocketClient {
         this.autoReconnect = false;
         this.reconnectAttempts = 0;
         this.baseReconnectDelay = 1000;
-        this.maxReconnectDelay = 30000;
+        // 5 s, not 30: the wait grows while the server is away, so a restart
+        // was seen up to the last wait late -- the map frozen and the banner up
+        // 17 s after a 15 s restart, 29 s after a 30 s one, the sound already
+        // back (fiche S, 26/10). One refused connection every 5 s costs nothing.
+        this.maxReconnectDelay = 5000;
         this.reconnectJitterFactor = 0.25;
         this.connectTimeoutMs = 10000;
         this.intentionalClose = false;

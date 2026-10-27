@@ -25,7 +25,7 @@ func TestARoleIsOwnerOrViewerAndNothingElse(t *testing.T) {
 // requestAs is a request carrying a fresh session of the named account.
 func requestAs(t *testing.T, s *Service, name string) *http.Request {
 	t.Helper()
-	sess, err := s.Sessions().Create(name)
+	sess, err := s.Sessions().Create(name, s.roles[name])
 	if err != nil {
 		t.Fatal(err)
 	}
