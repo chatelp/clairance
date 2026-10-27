@@ -4952,7 +4952,7 @@ Ce qui est décidé :
 flux comptés à l'écriture, `GET /api/v1/usage` réservé au propriétaire (401 sans session, 403 pour
 un viewer), partie « Usage » sous « Accounts ». Vérifié dans Chrome sur l'instance d'essai : un
 compte viewer d'essai vu « page open 11 s · listening to essai1, essai2 », puis sa semaine comptée.
-En production à la prochaine relance, pas avant.
+**En production depuis le 27/10 à 20:13** (relance 6, abb28b9).
 
 ### D83 — Les comptes se gèrent depuis la page, par le propriétaire *(27/10)*
 
