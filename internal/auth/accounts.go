@@ -53,8 +53,8 @@ func (s *Service) Accounts() []Account {
 	stats := s.store.byUser()
 	last := map[string]SignInEvent{}
 	for _, ev := range s.trace.Recent(traceKept) {
-		if ev.Event == EventSignedIn && ev.User != "" {
-			last[ev.User] = ev // Recent is oldest first: the last one wins
+		if _, seen := last[ev.User]; ev.Event == EventSignedIn && ev.User != "" && !seen {
+			last[ev.User] = ev // Recent is newest first: the first one is the last sign-in
 		}
 	}
 

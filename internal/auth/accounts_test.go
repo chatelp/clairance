@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The last owner is never removed: nobody would be left to manage the others.
@@ -68,5 +69,26 @@ func TestAccountsChangedFromThePanelOutliveARestart(t *testing.T) {
 	again.mu.RUnlock()
 	if !VerifyPassword("another long one", hash) {
 		t.Error("the new password was not kept")
+	}
+}
+
+// The last sign-in listed is the latest, not the first the trace holds.
+func TestTheLastSignInListedIsTheLatest(t *testing.T) {
+	dir := t.TempDir()
+	writeUsers(t, dir, `{"name":"pierre","password_hash":"`+decoyHash+`"}`)
+	s := startIn(t, dir, false)
+	old, recent := time.Now().Add(-6*time.Hour), time.Now().Add(-time.Minute)
+	for _, ev := range []SignInEvent{
+		{At: old, Event: EventSignedIn, User: "pierre", From: "192.0.2.1"},
+		{At: recent, Event: EventSignedIn, User: "pierre", From: "192.0.2.2"},
+		{At: time.Now(), Event: EventRefused, User: "pierre", From: "192.0.2.3"},
+	} {
+		if err := s.Trace().Record(ev); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a := s.Accounts()[0]
+	if a.LastSignIn == nil || a.LastSignIn.From != "192.0.2.2" {
+		t.Errorf("last sign-in %+v, want the one from 192.0.2.2", a.LastSignIn)
 	}
 }
