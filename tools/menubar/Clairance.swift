@@ -55,6 +55,13 @@ struct LauncherConfig: Decodable {
 let builtRepo = "@REPO@"
 
 let launcherBundleID = "dev.clairance.launcher"
+/// The carrier, the same program as an app of its own (build.sh, A3), and the
+/// name System Settings lists it under (design 10).
+let carrierBundleID = "dev.clairance.carrier"
+let carrierName = "Clairance Server"
+/// Replaced by build.sh with when and from which commit the app was built: each
+/// build differs, and names the folder of its carrier's copy.
+let buildStamp = "@BUILD@"
 let planningMarker = "(menu bar launcher)"
 
 func loadLauncherConfig() -> LauncherConfig {
@@ -423,6 +430,10 @@ final class Production: ObservableObject {
     @Published var health: [HealthLine] = []
     @Published var offerRestartFromClairance = false
     @Published var down: Down?
+    // The permissions it lacks (Permissions.swift).
+    @Published var permissions: [Permission] = []
+    var permissionsCheckedAt: Date?
+    var checkingPermissions = false
 
     let cfg: LauncherConfig
     let repo: String
@@ -467,6 +478,8 @@ final class Production: ObservableObject {
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
                 self.notifier.setUp()
+                try? await Task.sleep(nanoseconds: 8_000_000_000)
+                await self.checkPermissions()
             }
             notifier.handle = { [weak self] action, click, target in self?.answer(action, click, target) }
             guardian.post = { [weak self] key, thread, n in self?.notifier.post(key, thread: thread, n) }
@@ -532,6 +545,7 @@ final class Production: ObservableObject {
         o.archiveVolume = prod?.archiveVolume
         o.dataDir = prod?.database ?? repo
         o.silenceLimit = cfg.silence_minutes.map { $0 * 60 } ?? silenceLimit(at: o.now)
+        o.permissions = permissions
         // The launcher reads production's ADS-B source itself only when co-atc reads nothing,
         // to say whether the station or co-atc's local network is at fault.
         if let p = prod, let src = p.adsbSource,
@@ -547,6 +561,7 @@ final class Production: ObservableObject {
         let (findings, lines, facts) = assess(o)
         health = lines
         if serving { guardian.update(findings + assessOthers(o), facts: facts) }
+        if serving, permissionsCheckedAt != nil, permissionsDue() { Task { await checkPermissions() } }
         updateSign(findings)
     }
 
@@ -688,6 +703,11 @@ final class Production: ObservableObject {
     // silence would have hidden.
     private func failedStartCause(_ s: Starting) -> String {
         let station = "The station does not answer: co-atc stopped at its ADS-B check"
+        // The station answering the launcher and not the carrier: the carrier lacks the local network.
+        if s.stationSilent != nil && observation.station.answered {
+            Task { await checkPermissions() }
+            return "\(carrierName) has no local network: allow it in System Settings"
+        }
         if s.stationSilent != nil { return station }
         if let line = s.coatcLines.last(where: { $0.contains("ADS-B source validation failed") }) {
             let error = jsonField(line, "error") ?? ""
@@ -807,18 +827,46 @@ final class Production: ObservableObject {
         }
     }
 
+    /// The carrier app a start opens: a copy of this build's Helpers/Clairance
+    /// Carrier.app, kept per build in the support folder, which no install
+    /// replaces. Replacing the app under a running carrier took production's
+    /// local network away at once (26/10, 10:49); a carrier now runs from a copy
+    /// nothing touches while it lives (A3).
+    func carrierCopy() -> String? {
+        let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/\(carrierName).app").path
+        guard Bundle.main.bundleURL.pathExtension == "app", FileManager.default.fileExists(atPath: helper) else { return nil }
+        let root = (supportDir as NSString).appendingPathComponent("carriers")
+        // Named after the carrier on disk, which an install may have changed under a launcher still open.
+        let version = (NSDictionary(contentsOfFile: helper + "/Contents/Info.plist")?["CFBundleVersion"] as? String) ?? buildStamp
+        let dir = (root as NSString).appendingPathComponent(version)
+        let copy = (dir as NSString).appendingPathComponent("\(carrierName).app")
+        if !FileManager.default.fileExists(atPath: copy) {
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            guard run("/usr/bin/ditto", [helper, copy]).status == 0 else { return nil }
+        }
+        // An older build's copy goes once nothing runs from it: a carrier is known
+        // by its exact executable, never by a pattern.
+        let inUse = Set(Proc.all { $0 == "clairance" }.compactMap { p -> String? in
+            guard let exe = p.args.first, exe.hasPrefix(root + "/") else { return nil }
+            return exe.dropFirst(root.count + 1).split(separator: "/").first.map(String.init)
+        })
+        for d in (try? FileManager.default.contentsOfDirectory(atPath: root)) ?? [] where d != version && !inUse.contains(d) {
+            try? FileManager.default.removeItem(atPath: (root as NSString).appendingPathComponent(d))
+        }
+        return copy
+    }
+
     /// Opens a carrier that runs the command, from the checkout, its output
     /// appended to the log; returns the command's PID once the carrier has
     /// started it. The carrier first waits for the station to answer it.
     private func carry(_ command: [String], log: String) async -> Int32? {
-        let bundle = Bundle.main.bundleURL
-        guard bundle.pathExtension == "app" else { return nil }
+        guard let carrier = carrierCopy() else { return nil }
         let pidfile = (supportDir as NSString).appendingPathComponent("carried-\(UUID().uuidString).pid")
         defer { unlink(pidfile) }
         var args = ["-n", "-g"]
         // A test bench's carrier answers to the bench's launcher, not the owner's.
         if let dir = ProcessInfo.processInfo.environment["CLAIRANCE_SUPPORT_DIR"] { args += ["--env", "CLAIRANCE_SUPPORT_DIR=" + dir] }
-        args += [bundle.path, "--args", "--carry", "--cwd", repo, "--log", log, "--pidfile", pidfile]
+        args += [carrier, "--args", "--carry", "--cwd", repo, "--log", log, "--pidfile", pidfile]
         if let probe = cfg.station_status_url { args += ["--probe", probe] }
         guard run("/usr/bin/open", args + ["--"] + command).status == 0 else { return nil }
         for _ in 0..<120 { // 30 s, the carrier's wait for the station included
@@ -945,8 +993,8 @@ final class Production: ObservableObject {
             // What the menu says on top, for the command line.
             let notices = notifier.allowed.map { $0 ? "notifications allowed" : "notifications not allowed by macOS" + (notifier.refusal.isEmpty ? "" : ": " + notifier.refusal) } ?? "notifications not answered yet"
             // The launcher's own lines: it follows durations a single read cannot know.
-            let lines = health.isEmpty ? [] : ["", "health:"] + health.map { "  " + $0.text }
-            reply(.end(true, (["launcher running, pid \(getpid()), \(notices)"] + header + lines).joined(separator: "\n")))
+            let lines = permissions.map(\.line) + (health.isEmpty ? [] : ["", "health:"] + health.map { "  " + $0.text })
+            reply(.end(true, (["launcher running, pid \(getpid()), build \(buildStamp), \(notices)"] + header + lines).joined(separator: "\n")))
         case "start":
             await startForCommandLine(reply)
         case "stop":
@@ -1151,6 +1199,7 @@ final class Production: ObservableObject {
         case .log: openLog()
         case .restart: restart()
         case .finder: run("/usr/bin/open", ["/Volumes"])
+        case .settings: if let u = URL(string: localNetworkSettings) { NSWorkspace.shared.open(u) }
         case .stop:
             if let i = instances.first(where: { $0.pid == pid && $0.proc.start == start }) { stopInstance(i) }
             else if let h = orphans.first(where: { $0.pid == pid && $0.proc.start == start }) { stopHelper(h) }
@@ -1161,6 +1210,7 @@ final class Production: ObservableObject {
             case .clairance: if let p = production, p.answers, let u = p.url { open(u) }
             case .finder(let path): NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: path)
             case .activityMonitor: run("/usr/bin/open", ["-a", "Activity Monitor"])
+            case .settings(let pane): if let u = URL(string: pane) { NSWorkspace.shared.open(u) }
             }
         }
     }
@@ -1272,8 +1322,6 @@ enum Entry {
         // Started as an app, so that macOS knows it as Clairance.
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
-        let delegate = CarrierDelegate()
-        app.delegate = delegate
         app.finishLaunching()
         // Twice on 24/10, the first connection to the station from a build of
         // the launcher macOS had not seen yet failed ("no route to host"), and
@@ -1305,21 +1353,6 @@ enum Entry {
         term.resume()
         app.run()
         exit(0)
-    }
-
-    // While a carrier runs, macOS takes Clairance for open: a double-click,
-    // Spotlight or `open` only brings the carrier forward, and the menu would
-    // never come back (measured on 24/10). The carrier opens it then, unless
-    // a launcher already answers.
-    final class CarrierDelegate: NSObject, NSApplicationDelegate {
-        func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-            if let fd = connectControl() {
-                close(fd)
-            } else {
-                run("/usr/bin/open", ["-n", "-g", Bundle.main.bundleURL.path])
-            }
-            return false
-        }
     }
 
     /// Whether an address answers at all, within half a second.
@@ -1364,8 +1397,8 @@ enum Entry {
             return nil
         }
         print("opening the launcher (\(bundle.path))")
-        // A new instance: while a carrier runs, macOS takes Clairance for open
-        // and would only bring that carrier forward.
+        // A new instance: a carrier of a build before A3 ran from Clairance.app
+        // itself, and macOS would only have brought it forward.
         run("/usr/bin/open", ["-n", "-g", bundle.path])
         for _ in 0..<60 {
             Thread.sleep(forTimeInterval: 0.25)
@@ -1563,6 +1596,15 @@ struct ClairanceLauncher: App {
     var body: some Scene {
         MenuBarExtra {
             ForEach(Array(p.header.enumerated()), id: \.offset) { Text($0.element).monospacedDigit() }
+            ForEach(p.permissions, id: \.self) { Text($0.line) }
+            ForEach(Array(Set(p.permissions.map(\.settings))).sorted(), id: \.self) { pane in
+                Button(pane == notificationSettings ? "Open Notification Settings…" : "Open Local Network Settings…") {
+                    if let u = URL(string: pane) { NSWorkspace.shared.open(u) }
+                }
+            }
+            if case .didNotStart(_, let cause, _) = p.down, cause.hasPrefix(carrierName + " has no local network") {
+                Button("Open Local Network Settings…") { if let u = URL(string: localNetworkSettings) { NSWorkspace.shared.open(u) } }
+            }
             if p.offerRestartFromClairance {
                 Button("Restart from Clairance") { p.restart() }.disabled(p.busy)
             }

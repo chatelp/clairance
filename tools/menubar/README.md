@@ -91,18 +91,20 @@ instances run the same way. Measured on 24/10:
 - a SIGTERM to the carrier stops what it carries, and the carrier leaves when
   what it carries stops.
 
-But the app must not be replaced on disk while a carrier runs from it: on
-26/10 an install of a new build took production's local network away at once,
-though the carrier ran on (an earlier test had replaced the app with an
-identical build, which the deterministic compiler had made). `build.sh
---install` refuses while one runs: stop production, install, start it again.
+An app must not be replaced on disk while a carrier runs from it: on 26/10 an
+install of a new build under production's carrier took its local network away
+at once, though the carrier ran on (an earlier test had replaced the app with
+an identical build, which the deterministic compiler had made). Hence the
+carrier's own copy; and `build.sh --install` still refuses while a carrier of
+an older build runs from the installed app itself.
 
-While a carrier runs, macOS takes Clairance for open: opening it again (a
-double-click, Spotlight, `open`) reaches the carrier, which then opens the
-menu. The launcher itself, run from a terminal, has the system open it again
-and leaves. A process that still depends on the menu, or on another app, is
-shown as such in its details ("Depends on:"), and quitting the menu asks first
-while something depends on it.
+The carrier is an app of its own, "Clairance Server" (dev.clairance.carrier),
+built inside Clairance.app; each start opens a copy of it kept per build in
+`~/Library/Application Support/Clairance/carriers/`, which no install replaces,
+and an older build's copy goes once nothing runs from it. The launcher itself,
+run from a terminal, has the system open it again and leaves. A process that
+still depends on the menu, or on another app, is shown as such in its details
+("Depends on:"), and quitting the menu asks first while something depends on it.
 
 ## The guard
 
