@@ -194,7 +194,8 @@ var audioRoutes = map[string]bool{
 // ownerRoutes are routes that only read and are the owner's all the same:
 // the sign-in trace says who came in, from where, with what.
 var ownerRoutes = map[string]bool{
-	"/api/v1/signins": true,
+	"/api/v1/signins":  true,
+	"/api/v1/accounts": true,
 }
 
 // viewerMay says whether a viewer may make this request. The route is read

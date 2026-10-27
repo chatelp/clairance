@@ -45,6 +45,9 @@ type Handler struct {
 
 	// Who is asking. See internal/auth and auth_handlers.go.
 	auth *auth.Service
+	// The audio streams each account has open, for the owner to end
+	// (accounts_handlers.go).
+	live liveStreams
 	// The key of the station link co-atc started; see link_token.go.
 	linkToken string
 

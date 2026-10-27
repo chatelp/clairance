@@ -85,6 +85,10 @@ type Client struct {
 	// What this client is sent of each message; nil, everything. See
 	// HandleConnectionFiltered.
 	filter func(*Message) *Message
+
+	// The account it was opened by, "" without sign-in: what CloseTagged
+	// closes when the owner cuts that account off.
+	tag string
 }
 
 // leave records the first reason the client goes; later ones are consequences.
@@ -257,6 +261,13 @@ func (s *Server) HandleConnection(w http.ResponseWriter, r *http.Request) {
 // message to send -- a copy where it changes something, since every client is
 // handed the same message -- or nil to send nothing.
 func (s *Server) HandleConnectionFiltered(w http.ResponseWriter, r *http.Request, filter func(*Message) *Message) {
+	s.HandleConnectionTagged(w, r, filter, "")
+}
+
+// HandleConnectionTagged is HandleConnectionFiltered for a client opened by a
+// signed-in account, named by tag, so that it can be closed when the owner
+// cuts that account off (CloseTagged).
+func (s *Server) HandleConnectionTagged(w http.ResponseWriter, r *http.Request, filter func(*Message) *Message, tag string) {
 	s.logger.Info("Handling new WebSocket connection request",
 		String("remote_addr", r.RemoteAddr),
 		String("user_agent", r.UserAgent()))
@@ -283,6 +294,7 @@ func (s *Server) HandleConnectionFiltered(w http.ResponseWriter, r *http.Request
 		agent:     r.UserAgent(),
 		since:     time.Now(),
 		filter:    filter,
+		tag:       tag,
 	}
 
 	// Register client
@@ -291,6 +303,28 @@ func (s *Server) HandleConnectionFiltered(w http.ResponseWriter, r *http.Request
 	// Start client goroutines
 	go client.readPump()
 	go client.writePump()
+}
+
+// CloseTagged closes every client opened by the account tag, and says how
+// many. Each leaves as any closed connection does: its read fails, and the
+// server lets it go.
+func (s *Server) CloseTagged(tag string) int {
+	if tag == "" {
+		return 0
+	}
+	s.mu.RLock()
+	var found []*Client
+	for c := range s.clients {
+		if c.tag == tag {
+			found = append(found, c)
+		}
+	}
+	s.mu.RUnlock()
+	for _, c := range found {
+		c.leave("access cut by the owner")
+		c.Close()
+	}
+	return len(found)
 }
 
 // logLeft writes why a client went, once, when the server lets it go.

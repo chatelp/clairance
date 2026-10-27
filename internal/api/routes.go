@@ -174,6 +174,13 @@ func (r *Router) Routes() http.Handler {
 			// Who signed in, who was refused, from where: the owner's only
 			// (ownerRoutes, auth_handlers.go).
 			router.Get("/signins", r.handler.GetSignIns)
+			// The accounts, managed by the owner while the server runs (D83):
+			// reading is in ownerRoutes, writing a viewer never may.
+			router.Get("/accounts", r.handler.GetAccounts)
+			router.Post("/accounts", r.handler.PostAccount)
+			router.Delete("/accounts/{name}", r.handler.DeleteAccount)
+			router.Put("/accounts/{name}/password", r.handler.PutAccountPassword)
+			router.Post("/accounts/{name}/cut", r.handler.PostAccountCut)
 			// The list of official names around the station (Q55): its state, and
 			// making it again, which reaches the SIA's site.
 			router.Get("/aip-names", r.handler.GetAIPNames)

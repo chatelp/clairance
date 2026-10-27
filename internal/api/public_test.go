@@ -85,6 +85,9 @@ func example(t *testing.T, s *stack, method, route string, clip int64) (path, bo
 		"/*":                                         "/",
 		"/api/v1/aircraft/{id}":                      "/api/v1/aircraft/" + hexCruise,
 		"/api/v1/aircraft/{id}/tracks":               "/api/v1/aircraft/" + hexCruise + "/tracks",
+		"/api/v1/accounts/{name}":                    "/api/v1/accounts/nobody",
+		"/api/v1/accounts/{name}/cut":                "/api/v1/accounts/nobody/cut",
+		"/api/v1/accounts/{name}/password":           "/api/v1/accounts/nobody/password",
 		"/api/v1/airports/{ident}":                   "/api/v1/airports/LFPG",
 		"/api/v1/frequencies/{id}":                   "/api/v1/frequencies/mix",
 		"/api/v1/frequencies/{id}/label":             "/api/v1/frequencies/mix/label",
@@ -106,10 +109,14 @@ func example(t *testing.T, s *stack, method, route string, clip int64) (path, bo
 		"PUT /api/v1/frequencies/{id}/label": `{"label":"CDG approaches"}`,
 		"PUT /api/v1/sources/{id}":           `{"name":"Added","url":"` + s.gone + `/added.mp3"}`,
 		"PUT /api/v1/server/settings":        `{}`,
-		"PUT /api/v1/access":                 `{}`,
-		"PUT /api/v1/receiver":               `{"state":"on_air"}`,
-		"POST /api/v1/auth/login":            `{"name":"` + testUser + `","password":"not the password"}`,
-		"POST /api/v1/setup":                 `{"mode":"account","username":"intruder","password":"0123456789abc"}`,
+		// An account nobody is: what is measured is who gets past the guards,
+		// and the owner's own request changes nothing.
+		"POST /api/v1/accounts":                `{"name":"x","password":"short","role":"viewer"}`,
+		"PUT /api/v1/accounts/{name}/password": `{"password":"long enough here"}`,
+		"PUT /api/v1/access":                   `{}`,
+		"PUT /api/v1/receiver":                 `{"state":"on_air"}`,
+		"POST /api/v1/auth/login":              `{"name":"` + testUser + `","password":"not the password"}`,
+		"POST /api/v1/setup":                   `{"mode":"account","username":"intruder","password":"0123456789abc"}`,
 	}
 	path, ok := paths[route]
 	if !ok {

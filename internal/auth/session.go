@@ -21,6 +21,7 @@ type Session struct {
 	Role      string // the account's role when the session was issued
 	CreatedAt time.Time
 	ExpiresAt time.Time
+	LastSeen  time.Time // its last request, for the owner's panel
 
 	// CookieAt is when the browser was last given the cookie with its expiry.
 	// In memory only: a session read back has none, and is given it again on
@@ -104,6 +105,7 @@ func (s *Store) Create(user, role string) (*Session, error) {
 		Role:      role,
 		CreatedAt: now,
 		ExpiresAt: now.Add(s.ttl),
+		LastSeen:  now,
 		CookieAt:  now, // the sign-in sets it
 	}
 	s.sessions[tokenHash(sess.Token)] = sess
@@ -139,6 +141,7 @@ func (s *Store) Lookup(token string) (*Session, bool) {
 		return nil, false
 	}
 	sess.Token = token // a session read back from disk learns it here
+	sess.LastSeen = now
 	sess.ExpiresAt = now.Add(s.ttl)
 	if sess.ExpiresAt.After(end) {
 		sess.ExpiresAt = end
@@ -205,6 +208,51 @@ func (s *Store) RevokeUser(user string) int {
 	return n
 }
 
+// RevokeUserExcept ends every session of one user but the one presenting
+// keep: a password changed by its own account signs out its other browsers,
+// not the one that changed it.
+func (s *Store) RevokeUserExcept(user, keep string) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	kept := ""
+	if keep != "" {
+		kept = tokenHash(keep)
+	}
+	n := 0
+	for key, sess := range s.sessions {
+		if sess.User == user && key != kept {
+			delete(s.sessions, key)
+			n++
+		}
+	}
+	if n > 0 {
+		s.saveLocked(s.now())
+	}
+	return n
+}
+
+type userSessions struct {
+	n        int
+	lastSeen time.Time
+}
+
+// byUser counts the sessions in force per user, with the last request of any.
+func (s *Store) byUser() map[string]userSessions {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pruneLocked(s.now())
+	out := map[string]userSessions{}
+	for _, sess := range s.sessions {
+		u := out[sess.User]
+		u.n++
+		if sess.LastSeen.After(u.lastSeen) {
+			u.lastSeen = sess.LastSeen
+		}
+		out[sess.User] = u
+	}
+	return out
+}
+
 // RevokeAll ends every session, for when sign-in stops meaning anything.
 func (s *Store) RevokeAll() int {
 	s.mu.Lock()
@@ -239,6 +287,7 @@ type sessionRecord struct {
 	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 	ExpiresAt time.Time `json:"expires_at"`
+	LastSeen  time.Time `json:"last_seen,omitzero"`
 }
 
 type sessionFile struct {
@@ -276,7 +325,7 @@ func (s *Store) open(path string, keep func(user, role string) bool) {
 			s.dropped++
 			continue
 		}
-		s.sessions[r.Hash] = &Session{User: r.User, Role: r.Role, CreatedAt: r.CreatedAt, ExpiresAt: r.ExpiresAt}
+		s.sessions[r.Hash] = &Session{User: r.User, Role: r.Role, CreatedAt: r.CreatedAt, ExpiresAt: r.ExpiresAt, LastSeen: r.LastSeen}
 		s.restored++
 	}
 	if s.dropped > 0 {
@@ -313,7 +362,7 @@ func (s *Store) saveLocked(now time.Time) error {
 	f := sessionFile{Sessions: make([]sessionRecord, 0, len(s.sessions))}
 	for key, sess := range s.sessions {
 		f.Sessions = append(f.Sessions, sessionRecord{Hash: key, User: sess.User, Role: sess.Role,
-			CreatedAt: sess.CreatedAt.UTC(), ExpiresAt: sess.ExpiresAt.UTC()})
+			CreatedAt: sess.CreatedAt.UTC(), ExpiresAt: sess.ExpiresAt.UTC(), LastSeen: sess.LastSeen.UTC()})
 	}
 	s.savedAt = now // tried: a disk that refuses is tried again in a minute, not on every request
 	b, err := json.MarshalIndent(f, "", "  ")

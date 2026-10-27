@@ -31,6 +31,13 @@ const (
 	EventRefused   = "refused"
 	EventSignedOut = "signed_out"
 
+	// What the owner did to an account from the panel (D83), User being that
+	// account and By the owner.
+	EventAccountCreated  = "account_created"
+	EventAccountRemoved  = "account_removed"
+	EventPasswordChanged = "password_changed"
+	EventAccessCut       = "access_cut"
+
 	ReasonWrongPassword   = "wrong_password"
 	ReasonUnknownName     = "unknown_name"
 	ReasonTooManyAttempts = "too_many_attempts"
@@ -48,6 +55,7 @@ type SignInEvent struct {
 	From   string    `json:"from"`          // the client, as the trusted proxy gives it
 	Via    string    `json:"via,omitempty"` // the proxy it came through, when it did
 	Agent  string    `json:"agent,omitempty"`
+	By     string    `json:"by,omitempty"` // the account that did it, for the owner's own changes
 }
 
 // Trace is the sign-in trace. A zero path keeps it in memory only.

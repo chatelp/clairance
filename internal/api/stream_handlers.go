@@ -30,6 +30,10 @@ func (h *Handler) StreamAudio(w http.ResponseWriter, r *http.Request) {
 
 	clientRemoteAddr := r.RemoteAddr
 
+	// A stream the owner can end by cutting its account off (D83).
+	r, done := h.cuttable(r)
+	defer done()
+
 	// A guest holds two streams of a frequency at most, in any format
 	// (guest.go); a HEAD opens none.
 	if r.Method != http.MethodHead {
