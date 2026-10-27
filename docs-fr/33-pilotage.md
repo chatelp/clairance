@@ -132,6 +132,7 @@ l'arrêt corrigée. Puis, à la demande du propriétaire, les flux des ports ann
 vérifié dans Chrome ; même relance. Et « someone is speaking » fréquences coupées (98f675a) : la mesure du
 serveur arrivait mais était jetée par la page ; correctif de page seulement, en ligne dès la relance 1 (chaque démarrage recopie `www/`).
 **27/10, 13:17 : N5 passé**, goxiph validé (journal, base, lanceur et relevé Icecast de la station) : ffmpeg sera abandonné à la relance 3 avec `b1-ter` et le passage à 16 kHz, comme décidé le 26/10.
+**27/10, 13:50 : relance 1 faite**, A3 en production (le porteur sur sa propre copie), même co-atc ; la page du jour (98f675a) part avec. Restent la relance 2 (nouveau co-atc) et la relance 3 (`b1-ter`, 16 kHz).
 **Fin du 26/10** : plus de relance aujourd'hui sauf panne (propriétaire). Faits l'après-midi : la page joue le son
 elle-même (Q63), Safari compris depuis 16:45 (reprise au clic, rééchantillonnage dans la page) et l'iPhone
 depuis 17:20 ; la couche des
