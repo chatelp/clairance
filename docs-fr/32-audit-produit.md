@@ -494,6 +494,17 @@ sur la carte.
 
 ## État
 
+- 27/10, 11:20 : **les flux des ports annexes reçoivent le cookie** (ebfd2ce, demandé par le propriétaire après le
+  constat de la fiche S). Connexion exigée et sans mandataire, les flux répartis sur les ports annexes sont une autre
+  origine : le lecteur de la page (Q63, 26/10) les demandait avec `credentials: 'same-origin'`, sans cookie, d'où des
+  401. Désormais `include` ; la réponse CORS autorisait déjà la page avec cookie. Second défaut du même genre : une
+  autre origine ne lit pas `X-Sample-Rate` sans `Access-Control-Expose-Headers`, et le lecteur retombait sur 8 kHz,
+  faux une fois les flux à 16 kHz (relance 3) ; l'en-tête est maintenant exposé, et le test du flux le vérifie.
+  **Vérifié dans Chrome sans fenêtre** contre le vrai binaire (instance d'essai, trois sources MP3 en boucle, décodeur
+  Go, `trusted_proxies` déclaré donc connexion exigée) : `same-origin` → 401 sur 8023 et 8024, `include` → 200 ;
+  la vraie page, « Listen to all » : trois flux à 200 ; `X-Sample-Rate` lu sur les ports annexes avec le correctif,
+  `null` sans. Derrière Traefik rien ne change (un seul port). En production à la relance 2 (la page est recopiée au
+  démarrage).
 - 27/10, 09:55 : **fiche S relue et fusionnée** (d84435e ; en production à la relance 2 du jour). Les sessions
   survivent à une relance : `configs/sessions.json` à côté des comptes, l'empreinte SHA-256 du jeton seulement, 0600,
   ignoré par git ; connexion, déconnexion et révocation écrites aussitôt, l'expiration glissante au plus une fois par
