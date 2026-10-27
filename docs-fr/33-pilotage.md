@@ -135,6 +135,7 @@ serveur arrivait mais était jetée par la page ; correctif de page seulement, e
 **27/10, 13:50 : relance 1 faite**, A3 en production (le porteur sur sa propre copie), même co-atc ; la page du jour (98f675a) part avec. Restent la relance 2 (nouveau co-atc) et la relance 3 (`b1-ter`, 16 kHz).
 **27/10, 13:53 : relance 2 faite**, le nouveau co-atc (84db233) en production, essayé d'abord sur 8020 ; les connexions survivent désormais aux relances. Reste la relance 3 (`b1-ter`, 16 kHz, ffmpeg retiré).
 **27/10, 14:01 : relance 3 faite**, ffmpeg retiré, production à 16 kHz (749d489) ; la connexion du propriétaire a survécu à la relance (fiche S). Les trois relances du jour sont faites. Suite : le compte de l'ami le 28/10. « someone is speaking » fréquences coupées confirmé par le propriétaire en production.
+**27/10, 15:00 : A4 et A5 clos** : aucune fausse alerte en 26 h 50 ; Q57 tient (réserve : la sortie à 15 NM en configuration ouest, 70 %) ; mouvement des avions mieux que la référence ; mémoire du sidecar bornée. Le bloc A est fini.
 **Fin du 26/10** : plus de relance aujourd'hui sauf panne (propriétaire). Faits l'après-midi : la page joue le son
 elle-même (Q63), Safari compris depuis 16:45 (reprise au clic, rééchantillonnage dans la page) et l'iPhone
 depuis 17:20 ; la couche des

@@ -5493,6 +5493,8 @@ source validation failed »). Pas encore vérifié : le démarrage de la vraie p
 
 ### Q57 — La piste et la sortie probables sur le cartouche de l'avion *(16/10 — **décidée par le propriétaire le 16/10, en production à 17 h 06**)*
 
+> **Remesurée le 27/10** (A5, plan 35), sur les 26-27/10, tout en configuration ouest : la piste tient (93,8 % juste à 15 NM, 99,7 % à 10 NM à LFPG ; 100 % à LFPO) ; la sortie tient à 20 et 30 NM (90 et 98 %) mais **à 15 NM, 70 % seulement en ouest** (le 85 % ci-dessous était dopé par la configuration est). Fichiers : `runs/mesures/q57/*/2026-10-27/`.
+
 > **Décision du propriétaire, 16/10** : « oui, construis cette forme directement et on bascule en
 > prod direct », sur la forme de la session design (MapLabel, AircraftStory, MapControls,
 > design-suite a0b8201) ; avec un ajout : les sorties possibles d'un départ montrées sur la carte,
