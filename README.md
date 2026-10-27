@@ -260,9 +260,9 @@ flowchart LR
   proxy["Your reverse proxy<br/>HTTPS, its certificate"]
   subgraph server["Clairance, its first port"]
     direction TB
-    signin["Sign-in<br/>Argon2id · 8 wrong passwords per address per 15 min"]
-    role["Role<br/>admin: everything · viewer: reads, hears if audio_replay = all"]
-    files[("Beside the accounts<br/>users.json · sessions.json<br/>signins.jsonl · usage.jsonl")]
+    signin["Sign-in<br/>Argon2id, 8 tries / 15 min"]
+    role["Role<br/>admin or viewer"]
+    files[("users.json · sessions.json<br/>signins.jsonl · usage.jsonl")]
     signin --> role
     role -.-> files
   end

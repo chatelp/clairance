@@ -15,9 +15,9 @@ flowchart LR
   proxy["Mandataire Traefik du propriétaire<br/>HTTPS, certificat<br/><i>autre machine du réseau</i>"]
   subgraph mac["Mac mini · co-atc, port 8000"]
     direction TB
-    signin["Connexion<br/>Argon2id · 8 essais faux par adresse / 15 min"]
-    role["Rôle<br/>admin : tout · viewer : lit, entend si audio_replay = all"]
-    files[("À côté des comptes<br/>users.json · sessions.json<br/>signins.jsonl · usage.jsonl")]
+    signin["Connexion<br/>Argon2id, 8 essais / 15 min"]
+    role["Rôle<br/>admin ou viewer"]
+    files[("users.json · sessions.json<br/>signins.jsonl · usage.jsonl")]
     signin --> role
     role -.-> files
   end
