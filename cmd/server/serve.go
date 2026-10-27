@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sort"
 	"sync"
 	"time"
 
@@ -111,9 +112,16 @@ var readHeaderTimeout = 10 * time.Second
 // httpServer is one listener: the configured timeouts, and the header
 // timeout, which is not configurable.
 func httpServer(cfg *config.Config, addr string, handler http.Handler) *http.Server {
+	return answeringServer(cfg, addr, handler, requests)
+}
+
+// answeringServer is httpServer with the requests it answers held in a: their
+// contexts end when a stops them, and a can name the ones still running.
+func answeringServer(cfg *config.Config, addr string, handler http.Handler, a *answering) *http.Server {
 	return &http.Server{
 		Addr:              addr,
-		Handler:           handler,
+		Handler:           a.wrap(handler),
+		BaseContext:       func(net.Listener) context.Context { return a.ctx },
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       time.Duration(cfg.Server.ReadTimeoutSecs) * time.Second,
 		WriteTimeout:      time.Duration(cfg.Server.WriteTimeoutSecs) * time.Second,
@@ -157,6 +165,23 @@ func shutdown(log *logger.Logger, stationLink *companion.Process, weatherService
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second) // Increased timeout slightly for multiple servers
 	defer shutdownCancel()
 
+	// What is still being answered is told to end, rather than waited for:
+	// an answer that never ends by itself held the stop for its 10 s on
+	// 27/10 (15:37 and 20:13). Whatever still holds it after a second is
+	// named, so that the next slow stop says what it was.
+	requests.stop()
+	named := make(chan struct{})
+	go func() {
+		select {
+		case <-named:
+		case <-time.After(time.Second):
+			for _, a := range requests.still() {
+				log.Warn("Still answering while the server stops", logger.String("request", a))
+			}
+		}
+	}()
+	defer close(named)
+
 	var wg sync.WaitGroup
 	for _, s := range servers {
 		wg.Add(1)
@@ -187,4 +212,64 @@ func isLoopbackHost(host string) bool {
 		return true
 	}
 	return false
+}
+
+// requests is what the servers are answering; see answering.
+var requests = newAnswering()
+
+// answering holds the requests being answered: a context they all derive
+// from, ended when the server stops, and what each is, for the log.
+type answering struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+	mu     sync.Mutex
+	next   uint64
+	open   map[uint64]answer
+}
+
+type answer struct {
+	method, path, from string
+	since              time.Time
+}
+
+func newAnswering() *answering {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &answering{ctx: ctx, cancel: cancel, open: map[uint64]answer{}}
+}
+
+func (a *answering) wrap(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		a.mu.Lock()
+		a.next++
+		id := a.next
+		a.open[id] = answer{method: r.Method, path: r.URL.Path, from: r.RemoteAddr, since: time.Now()}
+		a.mu.Unlock()
+		defer func() {
+			a.mu.Lock()
+			delete(a.open, id)
+			a.mu.Unlock()
+		}()
+		h.ServeHTTP(w, r)
+	})
+}
+
+// stop ends the context of every request being answered, and of any that
+// still comes in.
+func (a *answering) stop() { a.cancel() }
+
+// still names what is being answered, the oldest first: method, path, client
+// and how long. A WebSocket, handed over to its own goroutines, is not one.
+func (a *answering) still() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	open := make([]answer, 0, len(a.open))
+	for _, x := range a.open {
+		open = append(open, x)
+	}
+	sort.Slice(open, func(i, j int) bool { return open[i].since.Before(open[j].since) })
+	out := make([]string, len(open))
+	for i, x := range open {
+		out[i] = fmt.Sprintf("%s %s from %s, for %s", x.method, x.path, x.from, time.Since(x.since).Round(time.Second))
+	}
+	return out
 }
