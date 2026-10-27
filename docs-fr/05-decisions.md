@@ -4925,6 +4925,35 @@ système de design : la séquence d'arrivée calculée dans le store pour tous l
 (la PAR la relit), les gabarits français des consignes, puis la migration elle-même
 (`04-migration.md`).
 
+### D83 — Les comptes se gèrent depuis la page, par le propriétaire *(27/10)*
+
+> **Décision du propriétaire, 27/10**, à la relecture des constats de la fiche O : « ok pour 1 et 2,
+> je propose qu'on fasse dès à présent le tableau de gestion de compte accessible pour mon compte
+> (chatelp) qui doit être admin ».
+
+Ce qui est décidé :
+
+- **La session** (constat 1 de la fiche O) : le cookie suit la session glissante, renouvelé au plus
+  une fois par jour, et un **plafond absolu de 90 jours** après la connexion, au-delà duquel on se
+  reconnecte quoi qu'il arrive. La durée glissante reste 30 jours (décidé le 26/10).
+- **Couper l'accès sans relance** (constat 2 de la fiche O) : ses sessions sont révoquées, et son
+  WebSocket et ses flux encore ouverts sont fermés aussitôt.
+- **Un panneau « Accounts »** dans la section Account des réglages, visible du seul propriétaire
+  (le rôle `owner`, « admin » dans les mots du propriétaire ; `chatelp` l'est déjà : un compte sans
+  rôle écrit est propriétaire). Il liste les comptes (nom, rôle, création, sessions ouvertes,
+  dernière activité, dernière connexion d'après la trace de la fiche O) et permet de créer un
+  compte (le propriétaire tape le mot de passe, 10 caractères au moins), d'en changer le mot de
+  passe, de couper son accès, de le retirer. Garde-fous : on ne se retire ni ne se coupe soi-même,
+  on ne retire pas le dernier propriétaire, un compte écrit à la main dans `config.toml` est montré
+  mais ne se modifie pas depuis la page (le programme ne réécrit jamais ce fichier).
+- **Correctif contribuable** : une session dont le compte n'existe plus, ou n'a plus le rôle avec
+  lequel elle a été ouverte, est refusée (elle valait propriétaire faute de rôle connu).
+
+Conséquence pour le compte de l'ami (D4, plan 35) : il pourra être créé depuis la page plutôt que par
+`co-atc -add-user`. En production à la prochaine relance, pas avant.
+
+**Fait le 27/10** (1ea56f6, 81d86a3, e7f5e6f, 550ab52, 079ea4e), vérifié dans Chrome sur l'instance d'essai.
+
 ### D82 — L'archive audio de production plafonnée à 60 Go, le ciel témoin mis à l'abri *(16/10)*
 
 Le propriétaire voyait son disque se remplir. Mesuré le 16/10 : sur le Mac, Clairance occupe
