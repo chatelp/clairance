@@ -263,3 +263,86 @@ func TestASessionExpiredWhileStoppedIsDropped(t *testing.T) {
 		t.Error("a session expired while the server was stopped is accepted")
 	}
 }
+
+// The expiry slides, but not past ninety days from the sign-in (D83): a
+// session in daily use ends then, and its expiry never promises more.
+func TestASessionEndsNinetyDaysAfterItsSignIn(t *testing.T) {
+	st := NewStore(30 * 24 * time.Hour)
+	now := time.Date(2026, 10, 27, 12, 0, 0, 0, time.UTC)
+	st.now = func() time.Time { return now }
+	sess, err := st.Create("guest", RoleViewer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	end := now.Add(90 * 24 * time.Hour)
+	for day := 1; day < 90; day++ {
+		now = now.Add(24 * time.Hour)
+		got, ok := st.Lookup(sess.Token)
+		if !ok {
+			t.Fatalf("day %d: a session in daily use ended", day)
+		}
+		if got.ExpiresAt.After(end) {
+			t.Fatalf("day %d: expiry %v past the cap %v", day, got.ExpiresAt, end)
+		}
+	}
+	now = end
+	if _, ok := st.Lookup(sess.Token); ok {
+		t.Error("ninety days after its sign-in, the session is still honoured")
+	}
+}
+
+// The browser is given the cookie again with the slid expiry, once a day: it
+// used to keep the sign-in's, and a guest in daily use was signed out on the
+// thirtieth day while the server still held the session.
+func TestTheCookieFollowsTheSlidingExpiry(t *testing.T) {
+	dir := t.TempDir()
+	writeUsers(t, dir, `{"name":"guest","password_hash":"`+decoyHash+`","role":"viewer"}`)
+	s := startIn(t, dir, false)
+	now := time.Now()
+	s.store.now = func() time.Time { return now }
+	r := requestAs(t, s, "guest")
+	locked := s.Require(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	cookieAfter := func() *http.Cookie {
+		w := httptest.NewRecorder()
+		locked.ServeHTTP(w, r)
+		if w.Code != http.StatusOK {
+			t.Fatalf("request: %d", w.Code)
+		}
+		for _, c := range w.Result().Cookies() {
+			if c.Name == CookieName {
+				return c
+			}
+		}
+		return nil
+	}
+
+	if c := cookieAfter(); c != nil {
+		t.Errorf("right after the sign-in, the cookie is set again: %v", c)
+	}
+	now = now.Add(23 * time.Hour)
+	if c := cookieAfter(); c != nil {
+		t.Errorf("23 h after the sign-in: cookie set again")
+	}
+	now = now.Add(2 * time.Hour)
+	c := cookieAfter()
+	if c == nil {
+		t.Fatal("25 h after the sign-in: no cookie with the slid expiry")
+	}
+	if want := now.Add(30 * 24 * time.Hour); c.Expires.Sub(want).Abs() > time.Second {
+		t.Errorf("cookie expires %v, want %v", c.Expires, want)
+	}
+	if c := cookieAfter(); c != nil {
+		t.Errorf("set again on the next request: once a day is enough")
+	}
+	up := r.Clone(r.Context())
+	up.Header.Set("Upgrade", "websocket")
+	now = now.Add(25 * time.Hour)
+	w := httptest.NewRecorder()
+	locked.ServeHTTP(w, up)
+	if len(w.Result().Cookies()) != 0 {
+		t.Error("a WebSocket upgrade spent the renewal")
+	}
+	if cookieAfter() == nil {
+		t.Error("the next plain request after the upgrade got no cookie")
+	}
+}

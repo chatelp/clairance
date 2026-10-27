@@ -21,6 +21,11 @@ type Session struct {
 	Role      string // the account's role when the session was issued
 	CreatedAt time.Time
 	ExpiresAt time.Time
+
+	// CookieAt is when the browser was last given the cookie with its expiry.
+	// In memory only: a session read back has none, and is given it again on
+	// its first request.
+	CookieAt time.Time
 }
 
 // SessionFile is where the sessions are kept, beside the accounts file.
@@ -32,6 +37,18 @@ const SessionFile = "sessions.json"
 // request for a date that changes by seconds. At most a minute of sliding is
 // lost to a crash, on an expiry of thirty days. The stop writes the rest.
 const sessionSaveEvery = time.Minute
+
+// sessionMaxAge bounds a session from its sign-in, however much it is used:
+// the expiry slides, so a stolen token in steady use would otherwise never
+// end. Ninety days, decided by the owner on 27/10 (D83). A configured lifetime
+// longer than this is the cap instead.
+const sessionMaxAge = 90 * 24 * time.Hour
+
+// cookieRenewEvery is how often a session in use gives its browser the cookie
+// again with the slid expiry. The cookie used to keep the expiry of the
+// sign-in, so a guest in daily use was signed out on the thirtieth day while
+// the server still held the session.
+const cookieRenewEvery = 24 * time.Hour
 
 // Store keeps the sessions in force.
 //
@@ -87,6 +104,7 @@ func (s *Store) Create(user, role string) (*Session, error) {
 		Role:      role,
 		CreatedAt: now,
 		ExpiresAt: now.Add(s.ttl),
+		CookieAt:  now, // the sign-in sets it
 	}
 	s.sessions[tokenHash(sess.Token)] = sess
 	s.pruneLocked(now)
@@ -114,19 +132,48 @@ func (s *Store) Lookup(token string) (*Session, bool) {
 	if !ok {
 		return nil, false
 	}
-	if now.After(sess.ExpiresAt) {
+	end := sess.CreatedAt.Add(s.maxAge())
+	if now.After(sess.ExpiresAt) || !now.Before(end) {
 		delete(s.sessions, key)
 		s.dirty = true
 		return nil, false
 	}
 	sess.Token = token // a session read back from disk learns it here
 	sess.ExpiresAt = now.Add(s.ttl)
+	if sess.ExpiresAt.After(end) {
+		sess.ExpiresAt = end
+	}
 	s.dirty = true
 	if now.Sub(s.savedAt) >= sessionSaveEvery {
 		s.saveLocked(now)
 	}
 	cp := *sess
 	return &cp, true
+}
+
+// maxAge is the longest a session lives from its sign-in.
+func (s *Store) maxAge() time.Duration {
+	if s.ttl > sessionMaxAge {
+		return s.ttl
+	}
+	return sessionMaxAge
+}
+
+// CookieDue says the browser presenting token should be given the cookie
+// again, and records that it is: once a day at most per session.
+func (s *Store) CookieDue(token string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sess, ok := s.sessions[tokenHash(token)]
+	if !ok {
+		return false
+	}
+	now := s.now()
+	if now.Sub(sess.CookieAt) < cookieRenewEvery {
+		return false
+	}
+	sess.CookieAt = now
+	return true
 }
 
 // Revoke ends one session. Written at once: a sign-out that a restart undid

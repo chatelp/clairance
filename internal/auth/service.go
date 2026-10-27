@@ -323,11 +323,18 @@ func (s *Service) Require(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if _, ok := s.SessionFrom(r); !ok {
+		sess, ok := s.SessionFrom(r)
+		if !ok {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(`{"error":"authentication required"}`))
 			return
+		}
+		// The cookie follows the slid expiry, once a day. Not on a WebSocket
+		// upgrade: its answer is written by the upgrader, without this header,
+		// and the renewal would be spent for a day.
+		if r.Header.Get("Upgrade") == "" && s.store.CookieDue(sess.Token) {
+			s.SetCookie(w, r, sess)
 		}
 		next.ServeHTTP(w, r)
 	})
