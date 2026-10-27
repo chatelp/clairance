@@ -4925,6 +4925,35 @@ système de design : la séquence d'arrivée calculée dans le store pour tous l
 (la PAR la relit), les gabarits français des consignes, puis la migration elle-même
 (`04-migration.md`).
 
+### D84 — Un suivi d'usage par compte, pour le propriétaire *(27/10)*
+
+> **Décision du propriétaire, 27/10**, après la première écoute de l'invité : « il y a moyen de
+> renforcer le suivi d'usage coté backend ? […] avec stats et autre quand on est admin dans
+> l'interface web ? », puis « ok pour 30 jours et actif par défaut, vas-y ».
+
+Le constat : le serveur savait qui s'était connecté (trace de la fiche O) et la dernière requête de
+chaque compte, mais pas ce que chacun avait fait ; un flux son de 32 min relayé par le mandataire le
+27/10 à 17:31 ne pouvait être attribué ni au propriétaire ni à l'invité.
+
+Ce qui est décidé :
+
+- **Un journal d'usage par compte**, `usage.jsonl` à côté des comptes : chaque page ouverte
+  (WebSocket : ouverture, fin, et pourquoi — fermée, perdue, accès coupé, serveur arrêté), chaque
+  flux son (fréquence, début, durée, octets, pourquoi il a fini), chaque extrait réécouté. Aucune
+  adresse en plus de celles que garde déjà la trace des connexions.
+- **30 jours gardés**, effacés au-delà ; **actif par défaut**, réglable par `[auth] usage_days`
+  (0 le coupe) ; rien n'est noté quand la connexion est désactivée, puisqu'il n'y a pas de compte.
+- **Une partie « Usage » dans les réglages, du seul propriétaire** : qui est là en ce moment et ce
+  qu'il écoute ; par compte, sur 7 jours, le temps connecté, le temps d'écoute par fréquence, les
+  réécoutes, la dernière visite, une barre par jour ; les interruptions vues par chaque compte
+  (page ou son coupés par un arrêt du serveur ou perdus, et le délai de reprise).
+
+**Fait le 27/10** (4e0705f, 80c80f9, 0476353) : `internal/usage`, crochet de présence du WebSocket,
+flux comptés à l'écriture, `GET /api/v1/usage` réservé au propriétaire (401 sans session, 403 pour
+un viewer), partie « Usage » sous « Accounts ». Vérifié dans Chrome sur l'instance d'essai : un
+compte viewer d'essai vu « page open 11 s · listening to essai1, essai2 », puis sa semaine comptée.
+En production à la prochaine relance, pas avant.
+
 ### D83 — Les comptes se gèrent depuis la page, par le propriétaire *(27/10)*
 
 > **Décision du propriétaire, 27/10**, à la relecture des constats de la fiche O : « ok pour 1 et 2,
