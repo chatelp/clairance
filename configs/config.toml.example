@@ -29,6 +29,10 @@ enabled = false                             # off on purpose: nobody cloning thi
 # when [server] audio_replay = "all", two streams of a frequency at most; it is not told the
 # streams' addresses nor the server's paths. Every sign-in, refused or not, is traced in signins.jsonl
 # beside the accounts (two files of 1 MB at most); the owner reads the last ones at /api/v1/signins.
+# What each account did -- the pages it had open, the frequencies it listened to, the clips it
+# played again, and how each ended -- is kept in usage.jsonl beside the accounts, for the owner
+# alone (Settings > Account > Usage, /api/v1/usage). No address is written there.
+# usage_days = 30                           # days of it kept; 0 keeps none
 
 [station]
 latitude = 43.6777                          # the receiver, decimal degrees (example: Toronto Pearson)

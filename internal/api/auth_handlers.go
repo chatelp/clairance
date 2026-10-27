@@ -196,6 +196,7 @@ var audioRoutes = map[string]bool{
 var ownerRoutes = map[string]bool{
 	"/api/v1/signins":  true,
 	"/api/v1/accounts": true,
+	"/api/v1/usage":    true, // what each account did (D84)
 }
 
 // viewerMay says whether a viewer may make this request. The route is read

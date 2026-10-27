@@ -250,6 +250,9 @@ func main() {
 	<-signalCtx.Done()
 
 	lifecycle.Say(lifecycle.Stopping, nil)
+	// What the accounts still have open ends with the stop, in the owner's
+	// usage journal, before the shutdown closes it (D84).
+	router.Handler().Stopping()
 	shutdown(log, stationLink, weatherService, frequenciesService, sttSidecar, adsbService, cancel, servers, keepAwake)
 	// After the HTTP servers: no request moves an expiry any more.
 	if err := router.Handler().SaveSessions(); err != nil {

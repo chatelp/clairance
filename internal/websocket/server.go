@@ -89,6 +89,9 @@ type Client struct {
 	// The account it was opened by, "" without sign-in: what CloseTagged
 	// closes when the owner cuts that account off.
 	tag string
+
+	// Told why the client went, for a tagged client when a Presence is set.
+	gone func(reason string)
 }
 
 // leave records the first reason the client goes; later ones are consequences.
@@ -119,6 +122,21 @@ type Server struct {
 	originCheck atomic.Pointer[func(*http.Request) bool]
 	refusedMu   sync.Mutex
 	refused     map[string]bool // origins already logged
+
+	presence atomic.Pointer[Presence]
+}
+
+// Presence is told of each client opened by a signed-in account, by its tag,
+// and returns what is told why it went: the owner's usage journal (D84).
+type Presence func(tag string) (gone func(reason string))
+
+// SetPresence sets who is told of the accounts' clients; nil, nobody.
+func (s *Server) SetPresence(p Presence) {
+	if p == nil {
+		s.presence.Store(nil)
+		return
+	}
+	s.presence.Store(&p)
 }
 
 // NewServer creates a new WebSocket server
@@ -212,6 +230,12 @@ func (s *Server) Run() {
 				// Then close the channel
 				close(client.send)
 				s.logLeft(client)
+				if client.gone != nil {
+					client.mu.Lock()
+					reason := client.reason
+					client.mu.Unlock()
+					client.gone(reason)
+				}
 			}
 			clientCount := len(s.clients)
 			s.mu.Unlock()
@@ -295,6 +319,9 @@ func (s *Server) HandleConnectionTagged(w http.ResponseWriter, r *http.Request, 
 		since:     time.Now(),
 		filter:    filter,
 		tag:       tag,
+	}
+	if p := s.presence.Load(); p != nil && tag != "" {
+		client.gone = (*p)(tag)
 	}
 
 	// Register client

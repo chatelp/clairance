@@ -51,6 +51,7 @@ type AuthConfig struct {
 	SessionTTLHours   int          `toml:"session_ttl_hours"` // how long a session lives without use
 	MaxAttempts       int          `toml:"max_attempts"`      // wrong passwords allowed per address, per window
 	AttemptWindowMins int          `toml:"attempt_window_minutes"`
+	UsageDays         int          `toml:"usage_days"` // days of each account's usage kept for the owner (D84); 0 keeps none
 	Users             []UserConfig `toml:"users"`
 }
 
@@ -727,6 +728,9 @@ func (c *Config) Validate() error {
 		if _, err := auth.NormalizeRole(u.Role); err != nil {
 			return fmt.Errorf("auth.users %q: %w", u.Name, err)
 		}
+	}
+	if c.Auth.UsageDays < 0 {
+		return fmt.Errorf("invalid auth.usage_days: %d (must be >= 0; 0 keeps no usage)", c.Auth.UsageDays)
 	}
 	if c.Transcription.AudioArchiveMaxGB < 0 {
 		return fmt.Errorf("invalid transcription.audio_archive_max_gb: %v (must be >= 0; 0 keeps everything)", c.Transcription.AudioArchiveMaxGB)

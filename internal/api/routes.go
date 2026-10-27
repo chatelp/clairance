@@ -171,9 +171,10 @@ func (r *Router) Routes() http.Handler {
 			// Local-only or sign-in, switched from the same panel. In this group so
 			// that turning sign-in off takes a session whenever it is on.
 			router.Put("/access", r.handler.PutAccess)
-			// Who signed in, who was refused, from where: the owner's only
-			// (ownerRoutes, auth_handlers.go).
+			// Who signed in, who was refused, from where, and what each account
+			// did once in (D84): the owner's only (ownerRoutes, auth_handlers.go).
 			router.Get("/signins", r.handler.GetSignIns)
+			router.Get("/usage", r.handler.GetUsage)
 			// The accounts, managed by the owner while the server runs (D83):
 			// reading is in ownerRoutes, writing a viewer never may.
 			router.Get("/accounts", r.handler.GetAccounts)

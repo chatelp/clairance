@@ -18,6 +18,7 @@ import (
 	"github.com/yegors/co-atc/internal/startcheck"
 	"github.com/yegors/co-atc/internal/storage/sqlite"
 	"github.com/yegors/co-atc/internal/transcription"
+	"github.com/yegors/co-atc/internal/usage"
 	"github.com/yegors/co-atc/internal/weather"
 	"github.com/yegors/co-atc/internal/websocket"
 	"github.com/yegors/co-atc/pkg/logger"
@@ -48,6 +49,9 @@ type Handler struct {
 	// The audio streams each account has open, for the owner to end
 	// (accounts_handlers.go).
 	live liveStreams
+	// What each account did, for the owner (usage_handlers.go, D84); nil
+	// with auth.usage_days = 0.
+	usage *usage.Journal
 	// The key of the station link co-atc started; see link_token.go.
 	linkToken string
 
@@ -124,8 +128,14 @@ func NewHandler(adsbService *adsb.Service, frequenciesService *frequencies.Servi
 			"can reach it and sign-in stays on (%s)", why, authService.AccountsFile()))
 	}
 
+	usageJournal := openUsage(authService, config.Auth.UsageDays)
+	if wsServer != nil {
+		wsServer.SetPresence(pagePresence(usageJournal))
+	}
+
 	return &Handler{
 		auth:                 authService,
+		usage:                usageJournal,
 		valueStorage:         valueStorage,
 		startedAt:            time.Now(),
 		dbSampleAt:           time.Now(),

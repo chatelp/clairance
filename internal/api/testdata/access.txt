@@ -35,6 +35,7 @@ GET     /api/v1/transcriptions/frequency/{id}        401 200 200 200
 GET     /api/v1/transcriptions/speaker/{type}        401 200 200 200
 GET     /api/v1/transcriptions/time-range            401 200 200 200
 GET     /api/v1/transcriptions/{id}/audio            401 403 404 404
+GET     /api/v1/usage                                401 403 403 200
 GET     /api/v1/vitals                               200 200 200 200
 GET     /api/v1/ws                                   401 400 400 400
 GET     /api/v1/wx                                   401 200 200 200

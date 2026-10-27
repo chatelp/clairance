@@ -87,6 +87,7 @@ func Defaults() Config {
 			SessionTTLHours:   720,
 			MaxAttempts:       8,
 			AttemptWindowMins: 15,
+			UsageDays:         30,
 		},
 		PostProcessing: PostProcessingConfig{
 			Backend:              BackendLocal,

@@ -147,6 +147,7 @@ type stackOptions struct {
 	static    string        // server.static_dir; the page built into the binary when empty
 	origins   []string      // server.allowed_origins
 	adsbEvery time.Duration // how often the receiver is read after the first time; an hour when zero
+	usage     bool          // the owner's usage journal, 30 days, beside the accounts (D84)
 }
 
 type stack struct {
@@ -301,6 +302,10 @@ func newStack(t *testing.T, o stackOptions) *stack {
 		startedAt: time.Now(), dbSampleAt: time.Now(),
 	}
 	h.AttachRuntime(rt, db, sidecar)
+	if o.usage {
+		h.usage = openUsage(svc, 30)
+		ws.SetPresence(pagePresence(h.usage))
+	}
 	r := &Router{handler: h, middleware: NewMiddleware(log), config: cfg, logger: log}
 	routes := r.Routes()
 	srv := httptest.NewServer(routes)

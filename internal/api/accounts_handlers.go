@@ -81,6 +81,7 @@ func (h *Handler) cuttable(r *http.Request) (*http.Request, func()) {
 
 // closeLive ends what an account still has open: its WebSocket and its streams.
 func (h *Handler) closeLive(user string) (sockets, streams int) {
+	h.usage.Cut(user) // what closes now ends by the cut, in the journal
 	if h.wsServer != nil {
 		sockets = h.wsServer.CloseTagged(user)
 	}

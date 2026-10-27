@@ -49,6 +49,13 @@ func (h *Handler) StreamAudio(w http.ResponseWriter, r *http.Request) {
 		defer release()
 	}
 
+	// Who listened to what, for the owner (D84).
+	if r.Method != http.MethodHead {
+		var tracked func()
+		w, tracked = h.soundTracked(w, r, id)
+		defer tracked()
+	}
+
 	// The station's own MP3 when the page asks for it and the stream has it:
 	// what every browser plays, Safari included, at a twenty-fifth of the WAV's
 	// rate (docs-fr/35-plan.md, D2 bis). Otherwise the WAV stream, as before.
