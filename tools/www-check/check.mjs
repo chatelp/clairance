@@ -82,7 +82,7 @@ function captureStore() {
     // In the page's order: what app.js reads at load, the store's domains
     // (each pushes to window.AtcStore), the x-data factories of their own, app.js.
     const before = ['tile-cache.js', ...readdirSync(join(WWW, 'store')).filter((f) => f.endsWith('.js')).sort().map((f) => 'store/' + f),
-        'accounts-panel.js', 'server-settings.js', 'altitude/altitude-filter.js', 'altitude/altitude-legend.js'];
+        'accounts-panel.js', 'usage-panel.js', 'server-settings.js', 'altitude/altitude-filter.js', 'altitude/altitude-legend.js'];
     for (const f of before) {
         vm.runInContext(readFileSync(join(WWW, f), 'utf8'), context, { filename: `www/${f}` });
     }

@@ -739,6 +739,60 @@
                                 <span class="cl-inline-error" x-show="error" x-text="error"></span>
                                 <span class="cl-field__help" x-show="note && !error" x-text="note"></span>
                             </div>
+                            <!-- Usage (D84, 27/10): what each account did, the owner's alone like
+                                 the accounts above. See usage-panel.js. -->
+                            <div x-data="usagePanel()" x-init="load()" x-show="loaded" x-cloak class="flex flex-col gap-3">
+                                <div class="cl-field">
+                                    <span class="cl-field__label cursor-help" data-help-title="Usage"
+                                          data-help="What each account did: the pages it had open, the frequencies it listened to, the clips it played again, and what interrupted it. Kept on this server for the number of days below, read by the admin alone; no address is written. Set by usage_days in config.toml.">Usage</span>
+                                    <button class="cl-btn cl-btn--quiet" @click="load()" :disabled="busy">Refresh</button>
+                                </div>
+                                <span class="cl-field__help" x-show="!enabled">Not kept: usage_days is 0 in config.toml.</span>
+                                <template x-if="enabled">
+                                    <div class="flex flex-col gap-3">
+                                        <span class="cl-field__help" x-text="'The last 7 days; ' + days + ' days are kept.'"></span>
+                                        <div class="flex flex-col gap-1">
+                                            <span class="cl-field__label cursor-help" data-help-title="Now"
+                                                  data-help="Who has a page open right now, and which frequencies they hear. Refreshed every 15 seconds while the settings are open.">Now</span>
+                                            <span class="cl-age" x-show="now.length === 0">Nobody here.</span>
+                                            <template x-for="p in now" :key="p.user">
+                                                <span class="cl-row flex-wrap"><b class="cl-mono" x-text="p.user"></b><span class="cl-age whitespace-normal" x-text="nowLine(p)"></span></span>
+                                            </template>
+                                        </div>
+                                        <span class="cl-age" x-show="accounts.length === 0">Nobody signed in these 7 days.</span>
+                                        <template x-for="a in accounts" :key="a.user">
+                                            <div class="flex flex-col gap-1 py-2" style="border-top: var(--border-width-default) solid var(--color-border-subtle);">
+                                                <span class="cl-row flex-wrap">
+                                                    <b class="cl-mono" x-text="a.user"></b>
+                                                    <span class="cl-age" x-text="'last seen ' + lastSeen(a)"></span>
+                                                </span>
+                                                <span class="cl-age whitespace-normal" x-text="weekLine(a)"></span>
+                                                <div class="flex items-end gap-1 cursor-help" role="img" :aria-label="'Each day of the week for ' + a.user"
+                                                     data-help-title="A bar a day" data-help="The last 7 days, today on the right. The pale bar is the time a page was open, the coloured one the time the sound was on, both against the busiest day. Hover a bar for its figures.">
+                                                    <template x-for="b in bars(a)" :key="b.date">
+                                                        <div class="flex flex-col items-center gap-0.5" :title="b.title" style="width: 1.5rem;">
+                                                            <div class="relative w-full" style="height: 2rem;">
+                                                                <div class="absolute bottom-0 inset-x-0 rounded-sm" :style="'height:' + b.connected + '%; background: var(--color-border-default);'"></div>
+                                                                <div class="absolute bottom-0 inset-x-0 rounded-sm" :style="'height:' + b.listening + '%; background: var(--color-accent-fill);'"></div>
+                                                            </div>
+                                                            <span class="cl-age" x-text="b.label"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                                <template x-if="a.interruptions.length">
+                                                    <div class="flex flex-col gap-0.5">
+                                                        <span class="cl-age cursor-help" data-help-title="Interruptions"
+                                                              data-help="What cut this account's page or sound: the server stopping (a restart), the station's stream ending, or the connection breaking and coming back. A page left to sleep is not counted. 'Back in' is how long the page or the sound took to return on its own.">Interruptions</span>
+                                                        <template x-for="i in a.interruptions" :key="i.at + i.kind + (i.freq || '')">
+                                                            <span class="cl-age whitespace-normal" x-text="interruptionLine(i)"></span>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
                             <template x-if="state">
                                 <div class="contents">
                                     <!-- Access: the first-run question, answerable again. Switching
@@ -1941,6 +1995,7 @@
     <script defer src="store/procedures.js"></script>
     <script defer src="store/probable.js"></script>
     <script defer src="accounts-panel.js"></script>
+    <script defer src="usage-panel.js"></script>
     <script defer src="server-settings.js"></script>
     <script defer src="app.js"></script>
     <!-- Alpine starts after every script above has registered its stores and
