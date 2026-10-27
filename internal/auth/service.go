@@ -259,12 +259,28 @@ func (s *Service) RetryAfter(r *http.Request) time.Duration {
 const decoyHash = "$argon2id$v=19$m=65536,t=3,p=2$AAAAAAAAAAAAAAAAAAAAAA$kFYJ0kYOQ0aH7VbTlSJ8YZm1LcAqvJLHhWpFkYhqQ2M"
 
 // SessionFrom returns the session a request carries, if any.
+//
+// A session is only as good as its account: one whose account is gone, or no
+// longer has the role it was issued with, is ended here rather than honoured.
+// The rule the start applies to sessions read back, applied on every request,
+// since accounts can now change while the server runs.
 func (s *Service) SessionFrom(r *http.Request) (*Session, bool) {
 	c, err := r.Cookie(CookieName)
 	if err != nil {
 		return nil, false
 	}
-	return s.store.Lookup(c.Value)
+	sess, ok := s.store.Lookup(c.Value)
+	if !ok {
+		return nil, false
+	}
+	s.mu.RLock()
+	role, known := s.roles[sess.User]
+	s.mu.RUnlock()
+	if !known || role != sess.Role {
+		s.store.Revoke(c.Value)
+		return nil, false
+	}
+	return sess, true
 }
 
 // SetCookie installs the session cookie.
