@@ -159,8 +159,15 @@ func (h *DB) current() *sql.DB {
 // The rest is the *sql.DB surface this project actually uses, so that changing
 // a field's type from *sql.DB to *DB leaves every call site alone.
 
+// A call after Close gets sql.ErrConnDone rather than a nil-pointer panic: a
+// timer still running as the server stops (the voice index, 26/10) made the
+// process exit in error once in seventeen stops.
 func (h *DB) Query(query string, args ...any) (*sql.Rows, error) {
-	return h.current().Query(query, args...)
+	db := h.current()
+	if db == nil {
+		return nil, sql.ErrConnDone
+	}
+	return db.Query(query, args...)
 }
 
 func (h *DB) QueryRow(query string, args ...any) *sql.Row {
@@ -168,9 +175,17 @@ func (h *DB) QueryRow(query string, args ...any) *sql.Row {
 }
 
 func (h *DB) Exec(query string, args ...any) (sql.Result, error) {
-	return h.current().Exec(query, args...)
+	db := h.current()
+	if db == nil {
+		return nil, sql.ErrConnDone
+	}
+	return db.Exec(query, args...)
 }
 
 func (h *DB) Begin() (*sql.Tx, error) {
-	return h.current().Begin()
+	db := h.current()
+	if db == nil {
+		return nil, sql.ErrConnDone
+	}
+	return db.Begin()
 }

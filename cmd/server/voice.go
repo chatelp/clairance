@@ -46,6 +46,11 @@ func newVoiceIndex(ctx context.Context, storage *sqlite.TranscriptionStorage, in
 			case <-ctx.Done():
 				return
 			case <-t.C:
+				// A tick and the stop can be ready together, and select picks
+				// either: the database may already be closed.
+				if ctx.Err() != nil {
+					return
+				}
 				v.refresh()
 			}
 		}

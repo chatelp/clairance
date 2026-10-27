@@ -341,7 +341,7 @@ func startFrequencies(ctx context.Context, cfg *config.Config, adsbService *adsb
 
 	// What the radio has said about each aircraft, carried on the aircraft itself
 	// so the map can show which targets the controller is actually talking to.
-	adsbService.SetVoiceIndex(newVoiceIndex(context.Background(), store.transcriptions, 5*time.Second, log))
+	adsbService.SetVoiceIndex(newVoiceIndex(ctx, store.transcriptions, 5*time.Second, log))
 	frequenciesService := frequencies.NewService(cfg, log, wsServer, store.transcriptions, store.clearances, fleet)
 	// Each frequency's sector: its airport and kind, the sizes from the settings
 	// panel, the airport's position from the reference data. Off unless the
