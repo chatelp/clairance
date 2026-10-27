@@ -126,6 +126,9 @@ lancées puis intégrées le soir même ; en production à la relance du 27/10. 
 revient à l'agent du lanceur, après le 28/10.
 Préparé pour le 27/10 : la bascule audio sur la branche `b1-ter` ; A3 avec l'agent du lanceur ; la relance en trois
 temps (A3, nouveau co-atc, bascule audio), une cause par relance. La page intégrée attendra que la page se stabilise.
+**27/10 au matin** : fiche S intégrée et vérifiée sur le Mac : les sessions survivent à une relance ; l'ami ne
+retapera plus son mot de passe à chaque mise à jour. Elle part avec la relance 2. Au passage, une panique rare à
+l'arrêt corrigée.
 **Fin du 26/10** : plus de relance aujourd'hui sauf panne (propriétaire). Faits l'après-midi : la page joue le son
 elle-même (Q63), Safari compris depuis 16:45 (reprise au clic, rééchantillonnage dans la page) et l'iPhone
 depuis 17:20 ; la couche des

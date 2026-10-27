@@ -494,6 +494,19 @@ sur la carte.
 
 ## État
 
+- 27/10, 09:55 : **fiche S relue et fusionnée** (d84435e ; en production à la relance 2 du jour). Les sessions
+  survivent à une relance : `configs/sessions.json` à côté des comptes, l'empreinte SHA-256 du jeton seulement, 0600,
+  ignoré par git ; connexion, déconnexion et révocation écrites aussitôt, l'expiration glissante au plus une fois par
+  minute et à l'arrêt. Le WebSocket de la page réessaie toutes les 5 s au plus au lieu de 30 (mesuré au cloud : après
+  une coupure de 30 s, la carte revenait 28,6 s après le serveur, 0,4 s désormais). Tests Go, `-race` sur auth et api,
+  filet de la page : verts. **Vérifié sur le Mac**, vrai binaire, copie de l'instance d'essai avec
+  `trusted_proxies` (une requête venue « d'Internet » sans cookie : 401) : connexion, fichier en 0600 avec une
+  empreinte de 64 caractères et aucun jeton ; arrêt, relance, même cookie : 200 (« Sessions read back: 1 kept ») ;
+  déconnexion : fichier vidé ; relance : 401. Pas rejoué sur le Mac : la page dans Chromium pendant la relance
+  (mesurée au cloud). **Constat de la fiche corrigé** (991152c) : une panique à l'arrêt, une fois sur 17 —
+  l'index vocal tournait sur un contexte jamais annulé et interrogeait la base déjà fermée ; il s'arrête avec le
+  serveur, et la base fermée répond une erreur (test qui reproduisait la panique). Autre constat, laissé : sans
+  mandataire, les flux des ports annexes n'ont pas le cookie (autre origine) ; sans effet derrière Traefik.
 - 26/10, 18:20 : **fiches P, Q et R relues et fusionnées** (202a566, 4d3a79a, e810731 ; en production à la relance
   du 27/10). **P**, le compte invité : treize champs portant une adresse ou un chemin vidés pour un viewer (figés
   dans `testdata/guest.txt`), deux flux par fréquence au plus quel que soit le format (la limite de dix ne valait

@@ -2041,6 +2041,10 @@ Le genre de défaut qu'aucun test ne trouve quand on n'a pas pensé à redémarr
 > **Au passage** : les sessions vivent en mémoire et ne survivent pas à un redémarrage.
 > C'est cohérent — une session est un jeton de présence, pas une donnée — mais ça veut
 > dire qu'on se reconnecte après chaque mise à jour du binaire.
+>
+> *Note du 27/10 : plus vrai depuis la fiche S (plan 35, D5). Les sessions sont gardées dans
+> `configs/sessions.json`, empreintes SHA-256 seulement. Pour déconnecter tout le monde : arrêter le serveur et
+> effacer ce fichier, ou retirer le compte (ses sessions tombent au démarrage).*
 
 ### D38 — `git add -A` sur un dépôt qui porte maintenant de l'état *(21/09)*
 
