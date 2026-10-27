@@ -4952,7 +4952,7 @@ Ce qui est décidé :
 Conséquence pour le compte de l'ami (D4, plan 35) : il pourra être créé depuis la page plutôt que par
 `co-atc -add-user`. En production à la prochaine relance, pas avant.
 
-**Fait le 27/10** (1ea56f6, 81d86a3, e7f5e6f, 550ab52, 079ea4e), vérifié dans Chrome sur l'instance d'essai.
+**Fait le 27/10** (1ea56f6, 81d86a3, e7f5e6f, 550ab52, 079ea4e), vérifié dans Chrome sur l'instance d'essai ; en production depuis le 27/10 à 15:37 (be6221b).
 
 ### D82 — L'archive audio de production plafonnée à 60 Go, le ciel témoin mis à l'abri *(16/10)*
 
