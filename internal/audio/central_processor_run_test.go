@@ -1,12 +1,8 @@
 package audio
 
 import (
-	"bytes"
 	"context"
-	"errors"
-	"io"
-	"os/exec"
-	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -20,67 +16,14 @@ func processorFor(t *testing.T, url string, c CentralProcessorConfig) *CentralAu
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.FFmpegPath == "" {
-		c.FFmpegPath = "ffmpeg"
-	}
 	if c.SampleRate == 0 {
-		c.SampleRate, c.Channels, c.Format = 16000, 1, "s16le"
+		c.SampleRate = 16000
 	}
 	p, err := NewCentralAudioProcessor(context.Background(), "125825", url, c, log)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return p
-}
-
-// The whole command line for each kind of source, so that a refactoring that
-// moves one option is seen: the global flags, then what only HTTP takes, then
-// the source's own input options, the input, and the PCM output on stdout.
-func TestTheFFmpegCommandLineForEachKindOfSource(t *testing.T) {
-	head := []string{"-loglevel", "error", "-fflags", "nobuffer", "-flags", "low_delay"}
-	tail := func(url string) []string {
-		return []string{"-i", url, "-f", "s16le", "-acodec", "pcm_s16le", "-ac", "1", "-ar", "16000", "-flush_packets", "1", "pipe:1"}
-	}
-	reconnect := []string{"-reconnect", "1", "-reconnect_at_eof", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5"}
-	cat := func(parts ...[]string) []string { return slices.Concat(parts...) }
-
-	for _, c := range []struct {
-		name string
-		url  string
-		cfg  CentralProcessorConfig
-		want []string
-	}{
-		{"icecast, ffmpeg reconnects", "http://station.invalid/aero.mp3",
-			CentralProcessorConfig{FFmpegTimeoutSecs: 10, FFmpegReconnectDelaySecs: 5},
-			cat(head, []string{"-timeout", "10000000"}, reconnect, tail("http://station.invalid/aero.mp3"))},
-		{"icecast, no timeout", "https://station.invalid/aero.mp3",
-			CentralProcessorConfig{FFmpegReconnectDelaySecs: 5},
-			cat(head, reconnect, tail("https://station.invalid/aero.mp3"))},
-		{"per-channel mount, the processor reconnects", "http://station.invalid/aero-125825.mp3",
-			CentralProcessorConfig{FFmpegTimeoutSecs: 10, FFmpegReconnectDelaySecs: 5, NoFFmpegReconnect: true},
-			cat(head, []string{"-timeout", "10000000"}, tail("http://station.invalid/aero-125825.mp3"))},
-		{"raw PCM over UDP", "udp://127.0.0.1:7355",
-			CentralProcessorConfig{FFmpegTimeoutSecs: 10, FFmpegReconnectDelaySecs: 5,
-				InputOptions: []string{"-f", "s16le", "-ar", "48000", "-ac", "1"}},
-			cat(head, []string{"-f", "s16le", "-ar", "48000", "-ac", "1"}, tail("udp://127.0.0.1:7355"))},
-		{"sound card", ":0",
-			CentralProcessorConfig{FFmpegTimeoutSecs: 10, FFmpegReconnectDelaySecs: 5,
-				InputOptions: []string{"-f", "avfoundation"}},
-			cat(head, []string{"-f", "avfoundation"}, tail(":0"))},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			if got := processorFor(t, c.url, c.cfg).ffmpegArgs(); !slices.Equal(got, c.want) {
-				t.Errorf("\n got %q\nwant %q", got, c.want)
-			}
-		})
-	}
-}
-
-func needFFmpeg(t *testing.T) {
-	t.Helper()
-	if _, err := exec.LookPath("ffmpeg"); err != nil {
-		t.Skip("ffmpeg not installed")
-	}
 }
 
 // statuses collects what a processor reports; the callback runs on its own
@@ -121,15 +64,12 @@ func (s *statuses) waitFor(t *testing.T, st ConnectionStatus, n int) {
 	}
 }
 
-// A real ffmpeg on a generated tone, as a capture device would be given: the
-// transcription's raw reader gets PCM, the browser's reader gets the WAV header
-// first, and stopping ends both.
-func TestARealFFmpegFeedsBothReaders(t *testing.T) {
-	needFFmpeg(t)
-	p := processorFor(t, "sine=frequency=440:sample_rate=16000", CentralProcessorConfig{
-		ReconnectDelay: time.Hour,
-		InputOptions:   []string{"-re", "-f", "lavfi"},
-	})
+// A source that ends -- a station that stops publishing -- is reported failed,
+// then restarted after the reconnect delay, by the processor itself.
+func TestASourceThatEndsIsRestartedAfterTheDelay(t *testing.T) {
+	b := mp3Fixture(t, "station-8k-vbr")
+	srv, _ := slowServer(t, func(int) []byte { return b[:len(b)/20] })
+	p := processorFor(t, srv.URL+"/aero-124350.mp3", CentralProcessorConfig{ReconnectDelay: 50 * time.Millisecond})
 	var st statuses
 	p.SetStatusCallback(st.record)
 	if state, _, err := p.GetStatus(); state != "stopped" || err != nil {
@@ -138,60 +78,51 @@ func TestARealFFmpegFeedsBothReaders(t *testing.T) {
 	if err := p.Start(); err != nil {
 		t.Fatal(err)
 	}
-	st.waitFor(t, StatusConnected, 1)
-
-	raw, err := p.CreateRawReader("transcription")
-	if err != nil {
-		t.Fatal(err)
-	}
-	wav, err := p.CreateReader("browser")
-	if err != nil {
-		t.Fatal(err)
-	}
-	pcm := make([]byte, 3200) // 100 ms
-	if _, err := io.ReadFull(raw, pcm); err != nil {
-		t.Fatalf("raw PCM: %v", err)
-	}
-	if bytes.Count(pcm, []byte{0}) == len(pcm) {
-		t.Error("a 440 Hz tone should not read as silence")
-	}
-	head := make([]byte, 44)
-	if _, err := io.ReadFull(wav, head); err != nil || !bytes.Equal(head, createWAVHeader(16000, 1)) {
-		t.Fatalf("the browser's reader should start with the WAV header: %v", err)
-	}
-	if _, err := io.ReadFull(wav, make([]byte, 3200)); err != nil {
-		t.Fatalf("then PCM: %v", err)
-	}
-
-	if err := p.Stop(); err != nil {
-		t.Fatal(err)
-	}
-	st.waitFor(t, StatusStopped, 1)
-	for name, r := range map[string]io.Reader{"raw": raw, "wav": wav} {
-		if _, err := r.Read(make([]byte, 64)); !errors.Is(err, io.EOF) {
-			t.Errorf("%s reader after Stop: %v, want EOF", name, err)
-		}
-	}
-	if err := p.Stop(); err != nil {
-		t.Errorf("a second Stop: %v", err)
-	}
-}
-
-// A source that ends -- a station that stops publishing -- is reported failed,
-// then restarted after the reconnect delay, by the processor itself.
-func TestASourceThatEndsIsRestartedAfterTheDelay(t *testing.T) {
-	needFFmpeg(t)
-	p := processorFor(t, "sine=frequency=440:sample_rate=16000:duration=0.2", CentralProcessorConfig{
-		ReconnectDelay: 50 * time.Millisecond,
-		InputOptions:   []string{"-f", "lavfi"},
-	})
-	var st statuses
-	p.SetStatusCallback(st.record)
-	if err := p.Start(); err != nil {
-		t.Fatal(err)
-	}
 	t.Cleanup(func() { p.Stop() })
 
 	st.waitFor(t, StatusFailed, 1)
 	st.waitFor(t, StatusConnected, 2)
+}
+
+// What only ffmpeg read -- SRT, a sound card, a file, raw PCM whose rate is
+// not given -- is refused at start with the reason, and is not retried: no
+// attempt can succeed.
+func TestASourceThisVersionDoesNotReadIsRefusedWithTheReason(t *testing.T) {
+	for _, c := range []struct {
+		url  string
+		pcm  PCMInput
+		want string
+	}{
+		{"srt://192.0.2.1:42069", PCMInput{}, "SRT and sound cards are no longer read"},
+		{":0", PCMInput{}, "not a source this version reads"},
+		{"hw:1", PCMInput{}, "not a source this version reads"},
+		{"/var/audio/a.wav", PCMInput{}, "not a source this version reads"},
+		{"rtsp://192.0.2.1/live", PCMInput{}, "not a source this version reads"},
+		{"udp://127.0.0.1:7355", PCMInput{Channels: 1}, "pcm_rate"},
+		{"udp://127.0.0.1", PCMInput{Rate: 48000, Channels: 1}, "a port is required"},
+	} {
+		p := processorFor(t, c.url, CentralProcessorConfig{PCM: c.pcm, ReconnectDelay: 10 * time.Millisecond})
+		var st statuses
+		p.SetStatusCallback(st.record)
+		err := p.Start()
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: %v, want %q", c.url, err, c.want)
+		}
+		st.waitFor(t, StatusFailed, 1)
+		time.Sleep(50 * time.Millisecond)
+		if n := st.count(StatusConnecting); n != 1 {
+			t.Errorf("%s: %d attempts, want 1", c.url, n)
+		}
+		if _, err := p.CreateRawReader("x"); err == nil {
+			t.Errorf("%s: a reader on a source that cannot be read", c.url)
+		}
+	}
+	for _, url := range []string{"http://station.invalid/a.mp3", "HTTPS://s1.liveatc.net/lfpg"} {
+		if err := SourceProblem(url, PCMInput{}); err != nil {
+			t.Errorf("%s: %v", url, err)
+		}
+	}
+	if err := SourceProblem("udp://@:7355", PCMInput{Rate: 48000, Channels: 2}); err != nil {
+		t.Errorf("raw PCM over UDP: %v", err)
+	}
 }

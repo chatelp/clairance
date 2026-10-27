@@ -55,7 +55,7 @@ func bytesWithin(r interface{ Read([]byte) (int, error) }, d time.Duration) int 
 // in the shared MultiReader is never removed; when the id comes back,
 // MultiReader.CreateReader finds it still open and hands back its old
 // position. The listener starts as far behind live as they were away, up to
-// the whole buffer (4 MiB: 87 s at the example's 24 kHz).
+// the whole buffer (4 MiB: 87 s at the 24 kHz of the day, 131 s at 16 kHz).
 //
 // Measured here on the tone: a new client gets 2 to 4 KB in its first 100 ms,
 // the live rate; the same id back after 1.5 s gets 64 KB at once, 2.0 s of
@@ -83,7 +83,7 @@ func TestAListenerWhoComesBackHearsLiveAudio(t *testing.T) {
 func TestTheFrequencyListCanBeReadConcurrently(t *testing.T) {
 	c := toneConfig()
 	c.Server.AdditionalPorts = []int{8001, 8002}
-	c.Frequencies.Sources = []cfg.FrequencyConfig{{ID: "a", Name: "A", URL: tone}, {ID: "b", Name: "B", URL: tone}}
+	c.Frequencies.Sources = []cfg.FrequencyConfig{{ID: "a", Name: "A", URL: listedOnly}, {ID: "b", Name: "B", URL: listedOnly}}
 	s := NewService(c, quietLog(t), nil, nil, nil, nil)
 	t.Cleanup(s.Stop)
 

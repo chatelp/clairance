@@ -48,9 +48,9 @@ func ulawChunk(mono []float64) []byte {
 }
 
 // ULawReader is a listener to the stream's decoded sound in mu-law, at the
-// stream's own rate (the second value), while it is decoded in Go; false
-// otherwise, and the caller serves the WAV stream. Like MP3Reader, a stream
-// decoded in Go that has not given its first frame yet is waited for.
+// stream's own rate (the second value), for an MP3 stream; false otherwise
+// (raw PCM over UDP), and the caller serves the WAV stream. Like MP3Reader,
+// a stream that has not given its first frame yet is waited for.
 func (p *CentralAudioProcessor) ULawReader(wait time.Duration) (io.ReadCloser, int, bool) {
 	if p.ulaw == nil {
 		return nil, 0, false
@@ -63,7 +63,7 @@ func (p *CentralAudioProcessor) ULawReader(wait time.Duration) (io.ReadCloser, i
 			p.ulaw.mu.Unlock()
 			return r, rate, true
 		}
-		if !p.goDecoder || !goDecodes(p.audioURL, p.inputOptions, p.channels, p.format) || time.Now().After(deadline) {
+		if !isHTTP(p.audioURL) || time.Now().After(deadline) {
 			return nil, 0, false
 		}
 		time.Sleep(100 * time.Millisecond)

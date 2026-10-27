@@ -7,9 +7,10 @@ import (
 
 // FrequencyHealth is one frequency as the launcher's health reads it
 // (/api/v1/health/detail, docs-fr/34): whether audio arrives, and whether it
-// is turned into text. Status alone cannot say it -- "connected" means ffmpeg
-// started, and from 16 to 18/10 every frequency read "connected" with nothing
-// coming out of ffmpeg. A time that has not happened since start is absent.
+// is turned into text. Status alone cannot say it -- "connected" means the
+// source was opened, and from 16 to 18/10 every frequency read "connected"
+// with nothing coming out of its decoder (then ffmpeg). A time that has not
+// happened since start is absent.
 type FrequencyHealth struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -62,9 +63,9 @@ func utcOrNil(t time.Time) *time.Time {
 }
 
 // MP3Stream is a listener to a frequency's own MP3 stream, relayed frame by
-// frame while it is decoded in Go (internal/audio, mp3relay.go); false when
-// there is none -- the source goes through ffmpeg, is not MP3, or has not
-// started -- and the caller serves the WAV stream instead.
+// frame as it is decoded (internal/audio, mp3relay.go); false when there is
+// none -- the source is raw PCM over UDP, or has not started -- and the
+// caller serves the WAV stream instead.
 func (s *Service) MP3Stream(id string) (io.ReadCloser, bool) {
 	s.streamsMu.RLock()
 	sp := s.activeStreams[id]

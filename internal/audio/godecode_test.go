@@ -231,11 +231,11 @@ func TestAStalledStreamIsCut(t *testing.T) {
 	}
 }
 
-// Through the processor, as production runs it, with an ffmpeg that does not
-// exist: the audio arrives, the connection that drops is taken again after
-// the delay, a station that switches from one format to another is followed,
-// and stopping ends the readers and the goroutines.
-func TestTheProcessorDecodesInGoWithoutFFmpeg(t *testing.T) {
+// Through the processor, as production runs it: the audio arrives, the
+// connection that drops is taken again after the delay, a station that
+// switches from one format to another is followed, and stopping ends the
+// readers and the goroutines.
+func TestTheProcessorDecodesInGo(t *testing.T) {
 	station, other := mp3Fixture(t, "station-8k-vbr"), mp3Fixture(t, "mpeg2-16k-cbr")
 	srv, hits := slowServer(t, func(n int) []byte {
 		if n%2 == 0 {
@@ -245,11 +245,7 @@ func TestTheProcessorDecodesInGoWithoutFFmpeg(t *testing.T) {
 	})
 	before := runtime.NumGoroutine()
 
-	p := processorFor(t, srv.URL+"/aero-124350.mp3", CentralProcessorConfig{
-		FFmpegPath:     "/nonexistent/ffmpeg",
-		ReconnectDelay: 50 * time.Millisecond,
-		GoDecoder:      true,
-	})
+	p := processorFor(t, srv.URL+"/aero-124350.mp3", CentralProcessorConfig{ReconnectDelay: 50 * time.Millisecond})
 	var st statuses
 	p.SetStatusCallback(st.record)
 	if err := p.Start(); err != nil {
@@ -293,28 +289,6 @@ func TestTheProcessorDecodesInGoWithoutFFmpeg(t *testing.T) {
 	}
 	if n := runtime.NumGoroutine(); n > before+2 {
 		t.Errorf("%d goroutines after Stop, %d before Start", n, before)
-	}
-}
-
-// A source the Go decoder does not read (raw PCM, a capture device, stereo
-// output) still goes to ffmpeg.
-func TestOnlyHTTPStreamsToMonoPCMAreDecodedInGo(t *testing.T) {
-	for _, c := range []struct {
-		url      string
-		opts     []string
-		channels int
-		want     bool
-	}{
-		{"http://station.invalid/aero-124350.mp3", nil, 1, true},
-		{"https://s1.liveatc.net/lfpg", nil, 1, true},
-		{"udp://127.0.0.1:7355", []string{"-f", "s16le"}, 1, false},
-		{":0", []string{"-f", "avfoundation"}, 1, false},
-		{"srt://192.0.2.1:42069", nil, 1, false},
-		{"http://station.invalid/aero.mp3", nil, 2, false},
-	} {
-		if got := goDecodes(c.url, c.opts, c.channels, "s16le"); got != c.want {
-			t.Errorf("%s %v, %d channels: %v, want %v", c.url, c.opts, c.channels, got, c.want)
-		}
 	}
 }
 

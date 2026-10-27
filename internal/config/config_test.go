@@ -98,10 +98,25 @@ func unread(key string) string {
 	return key + " is not a configuration key of this version and is ignored: remove it, or check its spelling"
 }
 
+// ffmpegGone says what Load says about a key of ffmpeg, removed with it.
+func ffmpegGone(key string) string {
+	return key + " is ignored: ffmpeg is no longer used, every source is read inside the binary; remove it"
+}
+
+// ffmpegWarnings is what a file written while ffmpeg decoded the streams --
+// the frozen legacy one, the full example of 10/10 -- is told of its keys.
+var ffmpegWarnings = []string{
+	"transcription.ffmpeg_sample_rate (24000) is read as transcription.sample_rate: write it so",
+	ffmpegGone("frequencies.ffmpeg_timeout_secs"), ffmpegGone("frequencies.ffmpeg_reconnect_delay_secs"),
+	ffmpegGone("transcription.ffmpeg_path"), ffmpegGone("transcription.ffmpeg_channels"),
+	ffmpegGone("transcription.ffmpeg_format"),
+}
+
 // The legacy file writes both duplicates in both homes, like the example of
 // its day, and 37 keys of the removed paths: the 17 of [atc_chat], 16 of
-// [transcription] and 4 of [post_processing] (docs-fr/fiches-cloud/A-rapport.md).
-// It is told each key by name, the section gone in one line, and nothing else.
+// [transcription] and 4 of [post_processing] (docs-fr/fiches-cloud/A-rapport.md);
+// and the six keys of ffmpeg, removed since (B1 ter). It is told each key by
+// name, the section gone in one line, and nothing else.
 func TestTheLegacyConfigurationIsToldItsDuplicatesAndItsDeadKeysByName(t *testing.T) {
 	got := legacyWarnings(t)
 	var want []string
@@ -109,6 +124,7 @@ func TestTheLegacyConfigurationIsToldItsDuplicatesAndItsDeadKeysByName(t *testin
 		"flight_phases.airport_range_nm repeats station.airport_range_nm (5): one key is enough, in [station]",
 		"post_processing.airlines_dat_path repeats reference.airlines_dat_path (assets/airlines.dat): one key is enough, in [reference]",
 	)
+	want = append(want, ffmpegWarnings...)
 	for _, key := range []string{
 		"transcription.openai_api_key", "transcription.model", "transcription.noise_reduction",
 		"transcription.chunk_ms", "transcription.buffer_size_kb", "transcription.reconnect_interval_sec",
@@ -229,11 +245,13 @@ func TestTheReducedExampleLoadsTheSameConfiguration(t *testing.T) {
 	reduced := loadAndValidate(t, filepath.Join("configs", "config.toml.example"))
 
 	// The full example writes airport_range_nm and airlines_dat_path in their
-	// two homes, which is exactly what it says at startup, and nothing else.
+	// two homes, and the keys of ffmpeg, removed since (B1 ter), which is
+	// exactly what it says at startup, and nothing else.
 	want := []string{
 		"flight_phases.airport_range_nm repeats station.airport_range_nm (5): one key is enough, in [station]",
 		"post_processing.airlines_dat_path repeats reference.airlines_dat_path (assets/airlines.dat): one key is enough, in [reference]",
 	}
+	want = append(want, ffmpegWarnings...)
 	if !reflect.DeepEqual(full.Warnings, want) {
 		t.Errorf("full example warnings:\n  %s\nwant:\n  %s",
 			strings.Join(full.Warnings, "\n  "), strings.Join(want, "\n  "))
@@ -247,6 +265,28 @@ func TestTheReducedExampleLoadsTheSameConfiguration(t *testing.T) {
 	// Where each was read from, and what each had to say, is not configuration.
 	full.ConfigPath, reduced.ConfigPath = "", ""
 	full.Warnings, reduced.Warnings = nil, nil
+
+	// The SRT source went from the shipped example with ffmpeg, which alone
+	// read it (B1 ter); the frozen one keeps it as it was.
+	var kept []FrequencyConfig
+	for _, s := range full.Frequencies.Sources {
+		if !strings.HasPrefix(s.URL, "srt://") {
+			kept = append(kept, s)
+		}
+	}
+	if len(kept) != len(full.Frequencies.Sources)-1 {
+		t.Fatalf("the frozen example should carry one SRT source: %+v", full.Frequencies.Sources)
+	}
+	full.Frequencies.Sources = kept
+
+	// The frozen example wrote ffmpeg_sample_rate = 24000, the default of its
+	// day; the default is 16 kHz, Whisper's rate, since B1 ter, and the shipped
+	// example, which writes no rate, takes it.
+	if full.Transcription.SampleRate != 24000 || reduced.Transcription.SampleRate != 16000 {
+		t.Errorf("sample rates: frozen %d, shipped %d; want 24000 and 16000",
+			full.Transcription.SampleRate, reduced.Transcription.SampleRate)
+	}
+	full.Transcription.SampleRate = reduced.Transcription.SampleRate
 
 	if diffs := diffValues("", reflect.ValueOf(*full), reflect.ValueOf(*reduced)); len(diffs) > 0 {
 		t.Errorf("the reduced example loads differently from the full one:\n  %s",
@@ -370,6 +410,8 @@ func TestAValueOutOfBoundsIsStillRefused(t *testing.T) {
 		{"server", `audio_replay = "everyone"`, "invalid server.audio_replay"},
 		{"transcription", "audio_archive_max_gb = -1", "invalid transcription.audio_archive_max_gb"},
 		{"transcription", "raw_log_max_days = -1", "invalid transcription.raw_log_max_days"},
+		{"transcription", "sample_rate = 0", "invalid transcription.sample_rate"},
+		{"transcription", "ffmpeg_sample_rate = 192000", "invalid transcription.sample_rate"},
 	} {
 		cfg, err := Load(writeConfig(t, withLines(minimalConfig, bad.section, bad.line)))
 		if err != nil {

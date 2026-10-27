@@ -46,10 +46,9 @@ tar1090_base_url = "http://192.168.1.166/tar1090/data/"   # where tar1090 serves
 # aircraft is signal_lost after 60 s. The source is probed at startup.
 
 [frequencies]
-# A source is anything ffmpeg reads: Icecast or LiveATC over HTTP, SRT (ffmpeg built with
-# libsrt), raw PCM over UDP from an SDR program, a receiver on the sound card. An 8 KB buffer,
-# a reconnect after 5 s. LiveATC asks not to redistribute its streams.
-# decoder = "go"                            # MP3 over HTTP decoded inside the binary, no ffmpeg (being tested)
+# A source is an MP3 stream over HTTP (Icecast, LiveATC) or raw PCM over UDP from an SDR
+# program; both are read inside the server, nothing to install. An 8 KB buffer, a reconnect
+# after 5 s. LiveATC asks not to redistribute its streams.
 
 [[frequencies.sources]]
 id = "cyyz_twr"                             # unique; names the stream in the database and the API
@@ -80,42 +79,23 @@ url = "https://s1-bos.liveatc.net/cyyz8"
 order = 5
 transcribe_audio = false
 
-# SRT from RTLSDR-Airband, read by ffmpeg itself (built with libsrt; Homebrew's is).
-[[frequencies.sources]]
-id = "cyyz_lcl"
-airport = "CYYZ"
-name = "Local"
-frequency_mhz = 133.7
-url = "srt://192.168.1.166:42069"
-order = 6
-transcribe_audio = true
-
-# Raw PCM over UDP, as GQRX, SDR++ or rtl_fm send it: ffmpeg must be told the format first.
+# Raw PCM over UDP, as GQRX, SDR++ or rtl_fm send it: signed 16-bit little-endian, at the rate
+# the program sends (GQRX: 48000), 1 or 2 channels mixed to one. Nothing in the packets says it.
 #[[frequencies.sources]]
 #id = "sdr_udp"
 #name = "SDR++ network sink"
 #frequency_mhz = 118.7
-#url = "udp://127.0.0.1:7355"
-#ffmpeg_input_options = ["-f", "s16le", "-ar", "48000", "-ac", "1"]
-#order = 7
-#transcribe_audio = true
-
-# A receiver on the sound card: the capture device is the input. macOS "-f", "avfoundation"
-# with url ":0" (ffmpeg -f avfoundation -list_devices true -i ""); Linux "-f", "alsa" with
-# url "hw:1" or "-f", "pulse" with "default"; Windows "-f", "dshow" with "audio=Line In".
-#[[frequencies.sources]]
-#id = "scanner"
-#name = "Scanner line-in"
-#frequency_mhz = 118.7
-#url = ":0"
-#ffmpeg_input_options = ["-f", "avfoundation"]
-#order = 8
+#url = "udp://127.0.0.1:7355"                # the address and port to listen on
+#pcm_rate = 48000
+#pcm_channels = 1
+#order = 6
 #transcribe_audio = true
 
 [transcription]
 # Local, on this machine: whole transmissions are posted to the sidecar in sidecar/, which
-# honours upstream's docs/LOCAL-STT.md; no key, no audio leaves the host. ffmpeg decodes
-# each stream to 24 kHz mono s16le. language = "en" serves a source that names none.
+# honours upstream's docs/LOCAL-STT.md; no key, no audio leaves the host. Each stream is
+# brought to mono 16-bit PCM at sample_rate, 16 kHz by default, Whisper's own rate.
+# language = "en" serves a source that names none.
 log_dir = "data/transcriptions"             # raw/{date}_{frequency}.log, append-only; empty to disable
 # Swept at start and every hour, never today's files; 0 keeps everything. The archive of clips
 # (--save-audio below, or audio_archive_dir) loses its oldest clips past the size; its manifests stay.

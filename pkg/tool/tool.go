@@ -1,5 +1,6 @@
-// Package tool finds the external programs the server runs -- ffmpeg,
-// pdftotext -- wherever they are installed, whatever started the server.
+// Package tool finds the external programs the server runs -- pdftotext, the
+// sidecar's interpreter -- wherever they are installed, whatever started the
+// server. ffmpeg was one until the audio was read inside the binary (B1 ter).
 //
 // A program started by a terminal inherits the shell's PATH; one started by
 // launchd, by `open` or by an application inherits /usr/bin:/bin:/usr/sbin:/sbin,

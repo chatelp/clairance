@@ -36,7 +36,7 @@ type Config struct {
 	Local              LocalSTTConfig
 	FrequencyLanguages map[string]string // frequency id -> expected language, from the catalogue
 	Language           string            // expected language when the catalogue gives none
-	FFmpegSampleRate   int               // rate of the PCM the frequencies service decodes
+	SampleRate         int               // rate of the PCM the frequencies service decodes
 	LogDir             string            // Optional directory for transcription log files
 }
 

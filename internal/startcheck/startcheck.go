@@ -5,7 +5,8 @@
 // from it, one line in the log and one entry in /api/v1/health/detail for the
 // launcher. The server starts all the same: it says what is missing, it does
 // not refuse to run. On 26/10 production started without ffmpeg on its PATH
-// and had no audio at all, which nothing said.
+// and had no audio at all, which nothing said; ffmpeg has since been removed
+// (B1 ter), the audio is read inside the binary, and is not looked for.
 package startcheck
 
 import (
@@ -27,7 +28,7 @@ import (
 
 // Missing is one thing the server depends on and did not find at start.
 type Missing struct {
-	Kind   string `json:"kind"`           // tool, sidecar, model, disk, directory, station_file
+	Kind   string `json:"kind"`           // source, tool, sidecar, model, disk, directory, station_file
 	What   string `json:"what"`           // what is missing, by name
 	Path   string `json:"path,omitempty"` // where it was looked for
 	Effect string `json:"effect"`         // what suffers from it
@@ -84,7 +85,7 @@ func Run(in Inputs) Report {
 		}
 	}
 	c := &check{cfg: in.Config, free: free, r: Report{Missing: []Missing{}}}
-	c.ffmpeg()
+	c.sources()
 	c.pdftotext()
 	c.sidecar()
 	c.databases(in.DBRetentionGB)
@@ -101,31 +102,20 @@ type check struct {
 
 func (c *check) missing(m Missing) { c.r.Missing = append(c.r.Missing, m) }
 
-// ffmpeg is looked for only when something is decoded by it: every source
-// when the decoder is ffmpeg, those added later from the panel included; with
-// the Go decoder, only a source it cannot read (raw PCM, a sound card).
-func (c *check) ffmpeg() {
-	var needers []string
-	goDecoder := c.cfg.Frequencies.Decoder == "go"
+// sources names each configured source the server cannot read: one ffmpeg
+// read before it was removed (SRT, a sound card, a file), or raw PCM whose
+// rate is not given. The audio needs nothing installed, so this is what can
+// still leave a frequency without it; the source is refused at start, and
+// its status says why, but a line here is what the launcher shows.
+func (c *check) sources() {
 	for _, src := range c.cfg.Frequencies.Sources {
-		if audio.NeedsFFmpeg(goDecoder, src.URL, src.FFmpegInputOptions, c.cfg.Transcription.FFmpegChannels, c.cfg.Transcription.FFmpegFormat) {
-			needers = append(needers, src.ID)
+		pcm := audio.PCMInput{Rate: src.PCMRate, Channels: max(src.PCMChannels, 1)}
+		if err := audio.SourceProblem(src.URL, pcm); err != nil {
+			c.missing(Missing{Kind: "source", What: "the source of " + src.ID, Path: src.URL,
+				Effect: "no audio on " + src.ID + ": " + err.Error(), Level: LevelError,
+				Hint: "an MP3 stream over http(s), or raw PCM over udp with its pcm_rate (configs/config.toml.example)"})
 		}
 	}
-	if goDecoder && len(needers) == 0 {
-		return
-	}
-	name := c.cfg.Transcription.FFmpegPath
-	if p, ok := tool.Find(name); ok {
-		c.r.Found = append(c.r.Found, Found{"ffmpeg", p})
-		return
-	}
-	effect := "no frequency will have audio"
-	if goDecoder {
-		effect = "no audio on " + strings.Join(needers, ", ") + ", which the Go decoder does not read"
-	}
-	c.missing(Missing{Kind: "tool", What: "ffmpeg", Path: lookedFor(name), Effect: effect, Level: LevelError,
-		Hint: "install ffmpeg, or name it by its full path in [transcription] ffmpeg_path"})
 }
 
 // pdftotext reads the charts of the official names list (internal/aip),

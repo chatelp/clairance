@@ -335,10 +335,6 @@ func startFrequencies(ctx context.Context, cfg *config.Config, adsbService *adsb
 	// target.
 	fleet := &adsbFleet{service: adsbService, lastSeenMinutes: cfg.PostProcessing.FleetLastSeenMinutes}
 
-	// Whether ffmpeg is there was said once by the startup check: without it
-	// no frequency it decodes has audio, and on 26/10 that was a line per
-	// stream asked for, lost among the rest.
-
 	// What the radio has said about each aircraft, carried on the aircraft itself
 	// so the map can show which targets the controller is actually talking to.
 	adsbService.SetVoiceIndex(newVoiceIndex(ctx, store.transcriptions, 5*time.Second, log))

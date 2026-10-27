@@ -174,7 +174,6 @@ type source struct {
 	Order           int     `json:"order"`
 	TranscribeAudio bool    `json:"transcribe_audio"`
 	Language        string  `json:"language"`
-	FFmpegReconnect bool    `json:"ffmpeg_reconnect"`
 	SectorAirport   string  `json:"sector_airport,omitempty"`
 	SectorKind      string  `json:"sector_kind,omitempty"`
 }
@@ -207,9 +206,6 @@ func wanted(st stationState, cat catalogue, streams string) map[string]source {
 			Order:           int(c.MHz*1000 + 0.5),
 			TranscribeAudio: t || !known,
 			Language:        language(c.Language),
-			// A channel's mount disappears when the station stops listening to
-			// it; ffmpeg's own reconnection would retry its 404 in a loop.
-			FFmpegReconnect: false,
 			SectorAirport:   sectorTable[c.ID][0],
 			SectorKind:      sectorTable[c.ID][1],
 		}

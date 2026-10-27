@@ -10,7 +10,7 @@ import (
 // the PATH of a server started by launchd or `open` holds none of Homebrew.
 func TestAProgramOffThePathIsFoundWhereItIsInstalled(t *testing.T) {
 	dir := t.TempDir()
-	prog := filepath.Join(dir, "fakeffmpeg")
+	prog := filepath.Join(dir, "fakeprogram")
 	if err := os.WriteFile(prog, []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +23,7 @@ func TestAProgramOffThePathIsFoundWhereItIsInstalled(t *testing.T) {
 	Dirs = []string{t.TempDir(), dir}
 	t.Setenv("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
 
-	if p, ok := Find("fakeffmpeg"); !ok || p != prog {
+	if p, ok := Find("fakeprogram"); !ok || p != prog {
 		t.Errorf("off the PATH: %q %v, want %q", p, ok, prog)
 	}
 	if p, ok := Find("notexec"); ok {
@@ -34,7 +34,7 @@ func TestAProgramOffThePathIsFoundWhereItIsInstalled(t *testing.T) {
 	}
 	// On the PATH: the PATH wins.
 	t.Setenv("PATH", dir)
-	if p, ok := Find("fakeffmpeg"); !ok || p != prog {
+	if p, ok := Find("fakeprogram"); !ok || p != prog {
 		t.Errorf("on the PATH: %q %v", p, ok)
 	}
 	// A path is taken as written.

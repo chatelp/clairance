@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yegors/co-atc/internal/audio/audiotest"
 	"github.com/yegors/co-atc/internal/frequencies"
 	"github.com/yegors/co-atc/internal/storage/sqlite"
 )
@@ -29,7 +30,7 @@ func (p frequenciesPage) byID(id string) *frequencies.Frequency {
 // The body cmd/radio-ctl-sync sends for one channel of the station.
 func sourceBody(base, id string) string {
 	return fmt.Sprintf(`{"name":"Channel %s","airport":"LFPG","frequency_mhz":125.825,"url":"%s/aero-%s.mp3",`+
-		`"order":5,"language":"en","transcribe_audio":false,"ffmpeg_reconnect":false,`+
+		`"order":5,"language":"en","transcribe_audio":false,`+
 		`"sector_airport":"LFPG","sector_kind":"approach"}`, id, base, id)
 }
 
@@ -220,16 +221,19 @@ func TestSourcesFromOutside(t *testing.T) {
 			{"id too long", strings.Repeat("a", 65), good, "id"},
 			{"a file", "x", strings.Replace(good, s.gone+"/aero-ok.mp3", "file:///etc/passwd", 1), "network address"},
 			{"a device", "x", strings.Replace(good, s.gone+"/aero-ok.mp3", ":0", 1), "network address"},
+			{"SRT, gone with ffmpeg", "x", strings.Replace(good, s.gone+"/aero-ok.mp3", "srt://192.0.2.1:42069", 1), "http, https or udp"},
+			{"RTSP", "x", strings.Replace(good, s.gone+"/aero-ok.mp3", "rtsp://192.0.2.1/live", 1), "http, https or udp"},
 			{"no url", "x", strings.Replace(good, s.gone+"/aero-ok.mp3", "", 1), "network address"},
 			{"language", "x", strings.Replace(good, `"language":"en"`, `"language":"de"`, 1), "language"},
 			{"sector kind", "x", strings.Replace(good, `"sector_kind":"approach"`, `"sector_kind":"centre"`, 1), "sector_kind"},
 			{"sector without airport", "x", strings.Replace(good, `"sector_airport":"LFPG",`, "", 1), "go together"},
 			{"sector airport", "x", strings.Replace(good, `"sector_airport":"LFPG"`, `"sector_airport":"Paris"`, 1), "ICAO"},
 			{"name too long", "x", strings.Replace(good, "Channel ok", strings.Repeat("n", 121), 1), "name"},
-			{"too many ffmpeg options", "x", strings.Replace(good, `"order":5`,
-				`"order":5,"ffmpeg_input_options":[`+strings.Repeat(`"-x",`, 32)+`"-x"]`, 1), "ffmpeg_input_options"},
-			{"an ffmpeg option with a newline", "x", strings.Replace(good, `"order":5`,
-				`"order":5,"ffmpeg_input_options":["-f","s16le\nrm"]`, 1), "ffmpeg_input_options"},
+			{"ffmpeg options, gone with ffmpeg", "x", strings.Replace(good, `"order":5`,
+				`"order":5,"ffmpeg_input_options":["-f","s16le","-ar","48000"]`, 1), "unknown field"},
+			{"raw PCM without its rate", "x", strings.Replace(good, s.gone+"/aero-ok.mp3", "udp://127.0.0.1:7355", 1), "pcm_rate"},
+			{"raw PCM in three channels", "x", strings.Replace(strings.Replace(good, s.gone+"/aero-ok.mp3", "udp://127.0.0.1:7355", 1),
+				`"order":5`, `"order":5,"pcm_rate":48000,"pcm_channels":3`, 1), "pcm_channels"},
 			{"a 5 KB body", "x", strings.Replace(good, "Channel ok", strings.Repeat("n", 5000), 1), "invalid request"},
 		}
 		for _, b := range bad {
@@ -243,10 +247,13 @@ func TestSourcesFromOutside(t *testing.T) {
 		if page.Count != 1 {
 			t.Errorf("a refused source was listed anyway: %v", page.Frequencies)
 		}
-		// And the options that are valid are kept as given.
-		rec := s.do("PUT", "/api/v1/sources/pcm", `{"name":"PCM","url":"udp://127.0.0.1:0","ffmpeg_input_options":["-f","s16le","-ar","48000","-ac","1"]}`)
+		// Raw PCM over UDP with its rate is a source; and radio-ctl-sync's
+		// ffmpeg_reconnect, from before ffmpeg went, is still taken, and ignored.
+		rec := s.do("PUT", "/api/v1/sources/pcm", fmt.Sprintf(
+			`{"name":"PCM","url":"udp://127.0.0.1:%d","pcm_rate":48000,"pcm_channels":1,"ffmpeg_reconnect":false}`,
+			audiotest.FreeUDPPort(t)))
 		if rec.Code != http.StatusOK {
-			t.Errorf("raw PCM over UDP with its options: %d %s", rec.Code, rec.Body.String())
+			t.Errorf("raw PCM over UDP with its rate: %d %s", rec.Code, rec.Body.String())
 		}
 	})
 }

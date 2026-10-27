@@ -14,10 +14,9 @@ import (
 
 const gib = 1 << 30
 
-// station is a configuration with everything there: ffmpeg and pdftotext on
-// a PATH of their own (and nowhere else), every source decoded in Go, a data
-// directory, the airport layout made, a disk with room. Each test takes one
-// thing away.
+// station is a configuration with everything there: pdftotext and python3 on
+// a PATH of their own (and nowhere else), an MP3 stream, a data directory,
+// the airport layout made, a disk with room. Each test takes one thing away.
 type station struct {
 	cfg  *config.Config
 	bin  string // the PATH's only directory
@@ -28,7 +27,7 @@ func newStation(t *testing.T) *station {
 	t.Helper()
 	dir := t.TempDir()
 	bin := filepath.Join(dir, "bin")
-	for _, name := range []string{"ffmpeg", "pdftotext", "python3"} {
+	for _, name := range []string{"pdftotext", "python3"} {
 		install(t, bin, name)
 	}
 	saved := tool.Dirs
@@ -38,10 +37,6 @@ func newStation(t *testing.T) *station {
 
 	cfg := &config.Config{ConfigPath: filepath.Join(dir, "config.toml")}
 	cfg.Storage.SQLiteBasePath = filepath.Join(dir, "data")
-	cfg.Transcription.FFmpegPath = "ffmpeg"
-	cfg.Transcription.FFmpegChannels = 1
-	cfg.Transcription.FFmpegFormat = "s16le"
-	cfg.Frequencies.Decoder = "go"
 	cfg.Frequencies.Sources = []config.FrequencyConfig{{ID: "app", URL: "http://station.lan:8000/aero-124350.mp3"}}
 	if err := os.MkdirAll(cfg.StationFilesDir(), 0o755); err != nil {
 		t.Fatal(err)
@@ -112,57 +107,53 @@ func TestNothingMissingIsAnEmptyList(t *testing.T) {
 		found = append(found, f.What)
 	}
 	if strings.Join(found, ",") != "pdftotext" {
-		t.Errorf("found %v: ffmpeg is not looked for when every source is decoded in Go", found)
+		t.Errorf("found %v: pdftotext alone is a program the server runs", found)
 	}
 }
 
 // With an empty PATH and nothing where Homebrew puts things -- a server
-// started by launchd -- ffmpeg is missing for every frequency when it decodes
-// them all; that is an error, and pdftotext a warning.
-func TestWithAnEmptyPathFFmpegIsAnErrorAndPdftotextAWarning(t *testing.T) {
+// started by launchd -- the audio still has everything it needs: ffmpeg is
+// never asked for, whatever the sources, none configured included (one added
+// later from the panel is read in Go too). pdftotext is a warning.
+func TestFFmpegIsNeverAskedFor(t *testing.T) {
 	s := newStation(t)
 	t.Setenv("PATH", "")
-	s.cfg.Frequencies.Decoder = ""
+	s.cfg.Frequencies.Sources = append(s.cfg.Frequencies.Sources,
+		config.FrequencyConfig{ID: "sdr", URL: "udp://127.0.0.1:7355", PCMRate: 48000})
 	r := s.run(20)
-	only(t, r, map[string]string{"ffmpeg": LevelError, "pdftotext": LevelWarn})
-	if m := find(r, "ffmpeg"); m.Effect != "no frequency will have audio" || !strings.Contains(m.Path, "PATH") {
-		t.Errorf("ffmpeg: %+v", m)
-	}
+	only(t, r, map[string]string{"pdftotext": LevelWarn})
 	if m := find(r, "pdftotext"); !strings.Contains(m.Effect, "charts") {
 		t.Errorf("pdftotext should say what the AIP names lose: %+v", m)
 	}
-	// No source configured yet, decoder ffmpeg: a source added from the panel
-	// would need it all the same.
 	s.cfg.Frequencies.Sources = nil
-	only(t, s.run(20), map[string]string{"ffmpeg": LevelError, "pdftotext": LevelWarn})
-}
-
-// Every source decoded in Go: ffmpeg is not needed, and not reported.
-func TestFFmpegIsNotLookedForWhenNothingNeedsIt(t *testing.T) {
-	s := newStation(t)
-	t.Setenv("PATH", "")
 	only(t, s.run(20), map[string]string{"pdftotext": LevelWarn})
+	for _, f := range r.Found {
+		if strings.Contains(f.What, "ffmpeg") {
+			t.Errorf("ffmpeg looked for: %+v", f)
+		}
+	}
 }
 
-// The Go decoder reads HTTP MP3 only: a source with input options (raw PCM,
-// a sound card) still needs ffmpeg, and the line names it.
-func TestASourceTheGoDecoderCannotReadNeedsFFmpeg(t *testing.T) {
+// A source this version cannot read -- one ffmpeg read before it was removed,
+// raw PCM without its rate -- is an error that names it and says why; an MP3
+// stream and raw PCM with its rate are read, and say nothing.
+func TestASourceThatCannotBeReadIsNamed(t *testing.T) {
 	s := newStation(t)
 	s.cfg.Frequencies.Sources = append(s.cfg.Frequencies.Sources,
-		config.FrequencyConfig{ID: "sdr", URL: "udp://127.0.0.1:7355", FFmpegInputOptions: []string{"-f", "s16le"}})
-	if err := os.Remove(filepath.Join(s.bin, "ffmpeg")); err != nil {
-		t.Fatal(err)
-	}
+		config.FrequencyConfig{ID: "sdr", URL: "udp://127.0.0.1:7355", PCMRate: 48000, PCMChannels: 2},
+		config.FrequencyConfig{ID: "local", URL: "srt://192.0.2.1:42069"},
+		config.FrequencyConfig{ID: "scanner", URL: ":0"},
+		config.FrequencyConfig{ID: "gqrx", URL: "udp://127.0.0.1:7356"},
+	)
 	r := s.run(20)
-	only(t, r, map[string]string{"ffmpeg": LevelError})
-	if m := find(r, "ffmpeg"); !strings.Contains(m.Effect, "sdr") || strings.Contains(m.Effect, "app") {
-		t.Errorf("the line should name the source that needs ffmpeg, only it: %q", m.Effect)
-	}
-	// Named by a path that is not there.
-	s.cfg.Transcription.FFmpegPath = "/nonexistent/ffmpeg"
-	install(t, s.bin, "ffmpeg")
-	if m := find(s.run(20), "ffmpeg"); m.Path != "/nonexistent/ffmpeg" {
-		t.Errorf("a path is looked for as written: %+v", m)
+	only(t, r, map[string]string{"the source of local": LevelError, "the source of scanner": LevelError,
+		"the source of gqrx": LevelError})
+	for id, says := range map[string]string{"local": "SRT and sound cards are no longer read", "scanner": "not a source this version reads",
+		"gqrx": "pcm_rate"} {
+		m := find(r, "the source of "+id)
+		if m.Kind != "source" || !strings.Contains(m.Effect, "no audio on "+id) || !strings.Contains(m.Effect, says) || m.Hint == "" {
+			t.Errorf("%s: %+v, want its reason %q", id, m, says)
+		}
 	}
 }
 
@@ -342,7 +333,7 @@ func TestTheStationsOwnFilesAreLookedForWhereTheyAreServedFrom(t *testing.T) {
 func TestTheReportIsOneLineEachAtItsLevel(t *testing.T) {
 	s := newStation(t)
 	t.Setenv("PATH", "")
-	s.cfg.Frequencies.Decoder = ""
+	s.cfg.Transcription.Local.Command = []string{"python3"}
 	path := filepath.Join(t.TempDir(), "check.log")
 	log, err := logger.New(logger.Config{Level: "info", Format: "json", File: path})
 	if err != nil {
@@ -367,8 +358,8 @@ func TestTheReportIsOneLineEachAtItsLevel(t *testing.T) {
 		lines = append(lines, e)
 	}
 	want := []struct{ level, prefix string }{
-		{"error", "Missing: ffmpeg -- no frequency will have audio"},
 		{"warn", "Missing: pdftotext -- "},
+		{"error", "Missing: the sidecar's program python3 -- the transcription sidecar cannot start"},
 		{"info", "Startup check: 2 missing"},
 	}
 	if len(lines) != len(want) {

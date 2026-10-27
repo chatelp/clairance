@@ -5,11 +5,11 @@ import (
 	"time"
 )
 
-// flowMeter counts the bytes ffmpeg hands over, second by second, over the
-// last flowWindow. "connected" says only that ffmpeg started: from 16 to
-// 18/10 every frequency read "connected" while ffmpeg, cut off from the
-// station, produced nothing for a day and a half. The bytes say whether audio
-// arrives (docs-fr/34, the launcher's health).
+// flowMeter counts the bytes the decoder hands over, second by second, over
+// the last flowWindow. "connected" says only that the source was opened: from
+// 16 to 18/10 every frequency read "connected" while its decoder (then
+// ffmpeg), cut off from the station, produced nothing for a day and a half.
+// The bytes say whether audio arrives (docs-fr/34, the launcher's health).
 type flowMeter struct {
 	mu    sync.Mutex
 	slots [flowWindow]flowSlot
@@ -54,7 +54,7 @@ func (m *flowMeter) flow(now time.Time) (int64, time.Time) {
 	return total, m.last
 }
 
-// Flow is the audio that came out of ffmpeg over the last minute, in bytes,
+// Flow is the audio that came out of the decoder over the last minute, in bytes,
 // and when its last byte did; a zero time before the first.
 func (p *CentralAudioProcessor) Flow() (int64, time.Time) {
 	return p.flow.flow(time.Now())
