@@ -157,7 +157,11 @@
             this._abort = abort;
             let announced = false;
             try {
-                const r = await fetch(this.src, { credentials: 'same-origin', cache: 'no-store', signal: abort.signal });
+                // 'include', not 'same-origin': the streams are spread over the
+                // server's additional ports, another origin, and with sign-in on
+                // the cookie must go there too -- three frequencies in four were
+                // refused for a signed-in owner on the local network (fiche S, 26/10).
+                const r = await fetch(this.src, { credentials: 'include', cache: 'no-store', signal: abort.signal });
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 const type = (r.headers.get('Content-Type') || '').toLowerCase();
                 let rate = parseInt(r.headers.get('X-Sample-Rate'), 10) || 8000;

@@ -68,6 +68,10 @@ func (m *Middleware) CORS(origins *auth.Origins) func(http.Handler) http.Handler
 					w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 					w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 					w.Header().Set("Access-Control-Allow-Credentials", "true")
+					// Another origin reads only the safelisted headers: the
+					// page's player, on an additional port, would miss the
+					// stream's rate and play 16 kHz as 8.
+					w.Header().Set("Access-Control-Expose-Headers", "X-Sample-Rate")
 				} else {
 					m.refused(origin)
 				}

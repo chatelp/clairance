@@ -67,6 +67,10 @@ func expectCORSForThePage(t *testing.T, h http.Header, what string) {
 	if got := h.Get("Access-Control-Allow-Credentials"); got != "true" {
 		t.Errorf("%s: Access-Control-Allow-Credentials = %q, want true", what, got)
 	}
+	// The page's player reads the rate from another origin (an additional port).
+	if got := h.Get("Access-Control-Expose-Headers"); got != "X-Sample-Rate" {
+		t.Errorf("%s: Access-Control-Expose-Headers = %q, want X-Sample-Rate", what, got)
+	}
 }
 
 // The stream as the page plays it, with real ffmpeg on a tone it generates
