@@ -130,7 +130,8 @@ temps (A3, nouveau co-atc, bascule audio), une cause par relance. La page intég
 retapera plus son mot de passe à chaque mise à jour. Elle part avec la relance 2. Au passage, une panique rare à
 l'arrêt corrigée. Puis, à la demande du propriétaire, les flux des ports annexes reçoivent le cookie (ebfd2ce),
 vérifié dans Chrome ; même relance. Et « someone is speaking » fréquences coupées (98f675a) : la mesure du
-serveur arrivait mais était jetée par la page.
+serveur arrivait mais était jetée par la page ; correctif de page seulement, en ligne dès la relance 1 (chaque démarrage recopie `www/`).
+**27/10, 13:17 : N5 passé**, goxiph validé (journal, base, lanceur et relevé Icecast de la station) : ffmpeg sera abandonné à la relance 3 avec `b1-ter` et le passage à 16 kHz, comme décidé le 26/10.
 **Fin du 26/10** : plus de relance aujourd'hui sauf panne (propriétaire). Faits l'après-midi : la page joue le son
 elle-même (Q63), Safari compris depuis 16:45 (reprise au clic, rééchantillonnage dans la page) et l'iPhone
 depuis 17:20 ; la couche des

@@ -494,6 +494,7 @@ sur la carte.
 
 ## État
 
+- 27/10, 13:17 : **N5 passé, goxiph validé** (B1 bis, plan 35). 24 h de production décodée en Go (26/10 13:09 → 27/10 13:17) : aucune erreur du décodeur hors nos relances, 19 h 25 d'affilée depuis 17:02 ; reprise seule après la coupure réseau de 13:24 (20 s) ; débit 100,0 à 100,3 % ; transmissions par heure au niveau de ffmpeg (468 contre 470 à la même heure la veille) ; Icecast, relevé de la station : aucun « fallen too far behind », connexions stables. Les deux connexions brèves sur aero-124350 à 18:17 et 18:21 que la station ne s'expliquait pas étaient nos instances d'essai (`runs/son-test`, essais 6 et 7), non annoncées. Suite : les trois relances, dont `b1-ter` et 16 kHz à la troisième.
 - 27/10, 12:00 : **« someone is speaking » s'affiche fréquences coupées** (98f675a), constat du propriétaire : rien
   au chargement avec tout coupé, alors que le texte défilait ; affiché après avoir écouté puis coupé. Cause, mesurée
   dans Chrome sans fenêtre (instance d'essai, trois MP3 en boucle) : la page recevait bien `frequency_activity` du
