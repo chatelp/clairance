@@ -24,7 +24,7 @@ type folderEntry struct {
 	Path      string `json:"path"`
 	Writable  bool   `json:"writable"`
 	Choosable bool   `json:"choosable"`
-	Why       string `json:"why,omitempty"` // why it cannot be chosen
+	Why       string `json:"why,omitempty"` // why it cannot be chosen: "databases" or "readonly"
 }
 
 type folderRoot struct {
@@ -34,7 +34,9 @@ type folderRoot struct {
 }
 
 // GetServerFolders lists a folder of the server's machine: ?path=, absolute;
-// without one, the archive in force, else the disks.
+// without one, the archive in force, else the disks. With ?nearest=1, a folder
+// that cannot be read -- its disk unplugged -- gives way to the nearest one
+// above it that can.
 func (h *Handler) GetServerFolders(w http.ResponseWriter, r *http.Request) {
 	dataDir := ""
 	if h.config != nil {
@@ -53,6 +55,10 @@ func (h *Handler) GetServerFolders(w http.ResponseWriter, r *http.Request) {
 	}
 	path = filepath.Clean(path)
 	entries, err := os.ReadDir(path)
+	for err != nil && r.URL.Query().Get("nearest") == "1" && filepath.Dir(path) != path {
+		path = filepath.Dir(path)
+		entries, err = os.ReadDir(path)
+	}
 	if err != nil {
 		WriteJSON(w, http.StatusNotFound, map[string]string{"error": "this folder cannot be read (is its disk plugged in?)"})
 		return
@@ -69,11 +75,13 @@ func (h *Handler) GetServerFolders(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		folders = append(folders, folderOf(name, full, dataDir))
-		if len(folders) == foldersShown {
-			break
-		}
 	}
+	// Sorted, then cut: the first ones by name, never any taken at random.
 	sort.Slice(folders, func(i, j int) bool { return strings.ToLower(folders[i].Name) < strings.ToLower(folders[j].Name) })
+	truncated := len(folders) > foldersShown
+	if truncated {
+		folders = folders[:foldersShown]
+	}
 	parent := filepath.Dir(path)
 	if parent == path {
 		parent = ""
@@ -81,7 +89,7 @@ func (h *Handler) GetServerFolders(w http.ResponseWriter, r *http.Request) {
 	here := folderOf(filepath.Base(path), path, dataDir)
 	w.Header().Set("Cache-Control", "no-store")
 	WriteJSON(w, http.StatusOK, map[string]any{
-		"path": path, "parent": parent, "here": here, "folders": folders, "roots": folderRoots(dataDir),
+		"path": path, "parent": parent, "here": here, "folders": folders, "truncated": truncated, "roots": folderRoots(dataDir),
 	})
 }
 
@@ -91,9 +99,9 @@ func folderOf(name, full, dataDir string) folderEntry {
 	f := folderEntry{Name: name, Path: full, Writable: disk.Writable(full)}
 	switch {
 	case dataDir != "" && (full == dataDir || strings.HasPrefix(full, dataDir+string(filepath.Separator))):
-		f.Why = "the databases' own folder"
+		f.Why = "databases" // the databases' own folder
 	case !f.Writable:
-		f.Why = "the server cannot write here"
+		f.Why = "readonly" // the server cannot write here
 	default:
 		f.Choosable = true
 	}
