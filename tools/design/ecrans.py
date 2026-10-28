@@ -568,6 +568,10 @@ if __name__ == '__main__':
     write('reglages-serveur.html', page('Settings · Server', app + R.settings_page('server')))
     write('reglages-acces.html', page('Settings · Access', app + R.settings_page('access')))
     write('reglages-apropos.html', page('Settings · About Clairance', app + R.settings_page('about')))
+    # Choosing the archive folder among the server machine's folders (owner, 28/10)
+    write('reglages-dossier.html', page('Settings · Server, choosing the archive folder', app + R.settings_page('server', picker='open')))
+    write('reglages-dossier-refus.html', page("Settings · Server, the databases' own folder", app + R.settings_page('server', picker='databases')))
+    write('telephone-reglages-dossier.html', page('Settings on a phone: choosing the archive folder', R.settings_page('server', state='is-detail', picker='open'), width=390, height=844))
     # The window at the two ends of the computer's widths: a large screen, and the narrowest (owner, 28/10)
     write('reglages-grand.html', page('Settings on a large screen', app + R.settings_page('server'), width=1920, height=1080))
     write('reglages-etroit.html', page('Settings in the narrowest window', app + R.settings_page('access'), width=768, height=1024))
@@ -607,6 +611,9 @@ if __name__ == '__main__':
         ('reglages-serveur.html', 'Settings · Server', 'Log detail, databases and their archive (a page that needs a look carries ▲ on its tab), the reports in two columns.', 1440, 900),
         ('reglages-grand.html', 'Settings on a large screen', 'The window keeps its size; the application stays in sight around it.', 1920, 1080),
         ('reglages-etroit.html', 'Settings, the narrowest window', 'From 768 px: the eight tabs fit, the cards go in one column.', 768, 1024),
+        ('reglages-dossier.html', 'Settings · the archive folder', "Choose…: the server machine's folders, browsed in a panel under the field.", 1440, 900),
+        ('reglages-dossier-refus.html', "Settings · a folder refused", "The databases' own folder: it can be opened, not chosen, and the panel says why.", 1440, 900),
+        ('telephone-reglages-dossier.html', 'The archive folder on a phone', 'The same panel, in touch rows.', 390, 844),
         ('telephone-reglages.html', 'Settings on a phone', 'The list of pages, grouped, in touch rows, each with its glyph.', 390, 844),
         ('reglages-apropos.html', 'Settings · About Clairance', 'The version of this page and of the server, and what changed, for everyone.', 1440, 900),
         ('avis-mise-a-jour.html', 'A new version to load', 'The page is older than the server: a notice, top right, never blocking.', 1440, 900),
