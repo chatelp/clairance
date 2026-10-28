@@ -502,9 +502,9 @@
                             <template x-if="me && me.user">
                                 <div class="flex flex-col gap-3">
                                     <div class="cl-field">
-                                        <span class="cl-field__label">Signed in as <b class="cl-mono" x-text="me.user"></b></span>
-                                        <span class="cl-badge cursor-help" x-text="roleLabel()"
-                                              data-help-title="Role" data-help="Admin: sees and changes everything, the accounts included. Viewer: reads, changes nothing, and hears the sound only if the server allows it."></span>
+                                        <span class="cl-field__label cl-row">Signed in as <b class="cl-mono" x-text="me.user"></b>
+                                            <span class="cl-badge cursor-help" x-text="roleLabel()"
+                                                  data-help-title="Role" data-help="Admin: sees and changes everything, the accounts included. Viewer: reads, changes nothing, and hears the sound only if the server allows it."></span></span>
                                     </div>
                                     <div class="cl-row">
                                         <button class="cl-btn" :disabled="signingOut"
@@ -672,7 +672,7 @@
                                     <button class="cl-disclosure" :aria-expanded="String(rulesOpen)" @click="rulesOpen = !rulesOpen">Advanced</button>
                                     <div x-show="rulesOpen" class="flex flex-col gap-3">
                                         <div class="cl-field">
-                                            <span class="cl-field__label cursor-help" data-help-title="Letters in flight numbers" data-help="59% of callsigns have letters. Measured +27% matched aircraft, precision 73% to 76%.">Letters in flight numbers</span>
+                                            <span class="cl-field__label cursor-help" data-help-title="Letters in flight numbers" data-help="59 % of callsigns have letters. Measured: +27 % aircraft rightly named, precision 73 % to 76 %.">Letters in flight numbers</span>
                                             <button class="cl-switch" role="switch" aria-label="Letters in flight numbers" :disabled="busy"
                                                     :class="draft.matching.letters ? 'is-on' : ''" :aria-checked="String(!!draft.matching.letters)" @click="flipRule('letters')"></button>
                                             <span class="cl-field__help">"seven uniform echo" read as 7UE.</span>
@@ -694,19 +694,19 @@
                                         </div>
                                         <p class="cl-plain m-0">An aircraft heard on the frequency in the last two minutes, named again in short:</p>
                                         <div class="cl-field">
-                                            <span class="cl-field__label cursor-help" data-help-title="By its last letters" data-help="Measured +8, no chance matches.">By its last letters</span>
+                                            <span class="cl-field__label cursor-help" data-help-title="By its last letters" data-help="Measured: 8 more aircraft rightly named, and no chance match.">By its last letters</span>
                                             <button class="cl-switch" role="switch" aria-label="By its last letters" :disabled="busy"
                                                     :class="draft.matching.context_letters ? 'is-on' : ''" :aria-checked="String(!!draft.matching.context_letters)" @click="flipRule('context_letters')"></button>
                                             <span class="cl-field__help">"sierra bravo" for AFR23SB.</span>
                                         </div>
                                         <div class="cl-field">
-                                            <span class="cl-field__label cursor-help" data-help-title="By its last two digits" data-help="Measured +13.">By its last two digits</span>
+                                            <span class="cl-field__label cursor-help" data-help-title="By its last two digits" data-help="Measured: 13 more aircraft rightly named.">By its last two digits</span>
                                             <button class="cl-switch" role="switch" aria-label="By its last two digits" :disabled="busy"
                                                     :class="draft.matching.context_digits ? 'is-on' : ''" :aria-checked="String(!!draft.matching.context_digits)" @click="flipRule('context_digits')"></button>
                                             <span class="cl-field__help">"five four" for LBT554, when no other aircraft just heard ends so.</span>
                                         </div>
                                         <div class="cl-field">
-                                            <span class="cl-field__label cursor-help" data-help-title="By its airline alone" data-help="Measured +68, but ADS-B cannot tell whether the right aircraft was named: to be checked by ear first.">By its airline alone</span>
+                                            <span class="cl-field__label cursor-help" data-help-title="By its airline alone" data-help="Measured: 68 more aircraft named than chance gives, but ADS-B cannot tell whether the right one was: to be checked by ear first.">By its airline alone</span>
                                             <button class="cl-switch" role="switch" aria-label="By its airline alone" :disabled="busy"
                                                     :class="draft.matching.context_names ? 'is-on' : ''" :aria-checked="String(!!draft.matching.context_names)" @click="flipRule('context_names')"></button>
                                             <span class="cl-field__help">When it is the only one of that airline just heard.</span>
@@ -736,20 +736,20 @@
                                             </div>
                                         </template>
                                         <div class="cl-field">
-                                            <span class="cl-field__label cursor-help" data-help-title="Exact flight number required" data-help="A score of 0.9 at least. Measured on 03 and 04/10: 95 % to 97 % right, 27 % fewer matches.">Exact flight number required</span>
+                                            <span class="cl-field__label cursor-help" data-help-title="Exact flight number required" data-help="A score of 0.9 at least. Measured on 03 and 04/10: 95 % to 97 % right, 27 % fewer matches.">Exact flight number required</span>
                                             <button class="cl-switch" role="switch" aria-label="Exact flight number required" :disabled="busy"
                                                     :class="(draft.matching.min_score || 0) >= 0.9 ? 'is-on' : ''" :aria-checked="String((draft.matching.min_score || 0) >= 0.9)"
                                                     @click="draft.matching.min_score = (draft.matching.min_score || 0) >= 0.9 ? 0 : 0.9; save()"></button>
                                             <span class="cl-field__help">A number heard in part, or an abbreviation alone, no longer names an aircraft.</span>
                                         </div>
                                         <div class="cl-field">
-                                            <span class="cl-field__label cursor-help" data-help-title="First two digits, airline named" data-help="Measured +1 to 2%, with nearly as much chance on one day: off by default.">First two digits, airline named</span>
+                                            <span class="cl-field__label cursor-help" data-help-title="First two digits, airline named" data-help="Measured: +1 to 2 % aircraft rightly named, with nearly as much chance on one day: off by default.">First two digits, airline named</span>
                                             <button class="cl-switch" role="switch" aria-label="First two digits, airline named" :disabled="busy"
                                                     :class="draft.matching.prefix_digits ? 'is-on' : ''" :aria-checked="String(!!draft.matching.prefix_digits)" @click="flipRule('prefix_digits')"></button>
                                             <span class="cl-field__help">"Air France Five One" for AFR511, right after the airline's name, when no other aircraft of the airline starts so.</span>
                                         </div>
                                         <div class="cl-field">
-                                            <span class="cl-field__label cursor-help" data-help-title="Accept one digit off" data-help="Measured: 81% of what it adds is noise.">Accept one digit off</span>
+                                            <span class="cl-field__label cursor-help" data-help-title="Accept one digit off" data-help="Measured: 81 % of what it adds is noise.">Accept one digit off</span>
                                             <button class="cl-switch" role="switch" aria-label="Accept one digit off" :disabled="busy"
                                                     :class="draft.matching.one_digit_off ? 'is-on' : ''" :aria-checked="String(!!draft.matching.one_digit_off)" @click="flipRule('one_digit_off')"></button>
                                             <span class="cl-field__help">A flight number heard with one digit wrong still names the aircraft. For experiments only.</span>
@@ -787,7 +787,7 @@
                                                         <span class="cl-check__box"></span>The network, with a password
                                                     </label>
                                                 </span>
-                                                <span class="cl-field__help">The same choice as at the first start. <span x-text="accessNote()"></span></span>
+                                                <span class="cl-field__help" x-text="accessNote()"></span>
                                             </div>
                                             <template x-if="newAccount">
                                                 <div class="flex flex-col gap-2 max-w-sm">
@@ -932,8 +932,17 @@
                                                     <div class="flex flex-col gap-0.5">
                                                         <span class="cl-age cursor-help" data-help-title="Interruptions"
                                                               data-help="What cut this account's page or sound: the server stopping (a restart), the station's stream ending, or the connection breaking and coming back. A page left to sleep is not counted. 'Back in' is how long the page or the sound took to return on its own.">Interruptions</span>
-                                                        <template x-for="i in a.interruptions" :key="i.at + i.kind + (i.freq || '')">
+                                                        <template x-for="i in a.interruptions.slice(0, 3)" :key="i.at + i.kind + (i.freq || '')">
                                                             <span class="cl-age whitespace-normal" x-text="interruptionLine(i)"></span>
+                                                        </template>
+                                                        <template x-if="a.interruptions.length > 3">
+                                                            <div x-data="{ more: false }" class="flex flex-col gap-0.5">
+                                                                <button class="cl-disclosure" :aria-expanded="String(more)" @click="more = !more"
+                                                                        x-text="'and ' + (a.interruptions.length - 3) + ' more this week'"></button>
+                                                                <template x-for="i in (more ? a.interruptions.slice(3) : [])" :key="'more-' + i.at + i.kind + (i.freq || '')">
+                                                                    <span class="cl-age whitespace-normal" x-text="interruptionLine(i)"></span>
+                                                                </template>
+                                                            </div>
                                                         </template>
                                                     </div>
                                                 </template>
@@ -954,12 +963,12 @@
                                     <!-- Editable: the only things here that change without a restart. -->
                                     <div class="cl-field">
                                         <span class="cl-field__label cursor-help" data-help-title="Log detail"
-                                              data-help="debug writes everything, error only what went wrong; info is the usual. More detail helps to report a problem, and fills the log faster.">Log detail</span>
+                                              data-help="In the server's own words: error, warn, info (the usual), debug. More detail helps to report a problem, and fills the log faster.">Log detail</span>
                                         <select class="cl-select" aria-label="Log detail" x-model="draft.log_level" @change="save()">
-                                            <option value="debug">debug</option>
-                                            <option value="info">info</option>
-                                            <option value="warn">warn</option>
-                                            <option value="error">error</option>
+                                            <option value="error">Errors only</option>
+                                            <option value="warn">Warnings and errors</option>
+                                            <option value="info">Normal</option>
+                                            <option value="debug">Everything (for debugging)</option>
                                         </select>
                                         <span class="cl-field__help">How much the server writes to its log.</span>
                                     </div>

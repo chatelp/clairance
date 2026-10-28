@@ -152,8 +152,12 @@ function serverSettings() {
                 const a = this.state.storage && this.state.storage.archive;
                 return { cls: 'is-warn', glyph: '▲', why: a && a.set ? 'Needs a look: the archive cannot be found' : 'Needs a look: no archive, the databases past the size are deleted' };
             }
-            if (id === 'listening' && this.aip && this.aip.coverage !== 'none' && this.aipStale) {
-                return { cls: 'is-warn', glyph: '▲', why: 'Needs a look: the official names are out of date' };
+            // The mark follows the page's lights: ▲ for --warn, ■ for --bad,
+            // nothing for --off -- a list not made is a choice, not a fault.
+            if (id === 'listening' && this.aip) {
+                const level = this.aipLight().level;
+                if (level === 'warn') return { cls: 'is-warn', glyph: '▲', why: 'Needs a look: the official names are out of date' };
+                if (level === 'bad') return { cls: 'is-bad', glyph: '■', why: 'Needs a look: the last update of the official names failed' };
             }
             return null;
         },
@@ -366,7 +370,7 @@ function serverSettings() {
                 return { level: 'bad', text: `Last update failed at ${this.aipClock(a.last_tried)}: ${a.last_error}` +
                     (a.present ? ` (the list of ${a.airac} stays in use)` : '') };
             }
-            if (!a.present) return { level: 'off', text: 'Not made yet: the matcher works without it' };
+            if (!a.present) return { level: 'off', text: 'Not made yet' };
             if (a.airac < a.in_force) return { level: 'warn', text: `AIRAC ${a.in_force} in force; this list is of ${a.airac}` };
             return { level: 'ok', text: `Up to date · AIRAC ${a.airac}` };
         },
@@ -441,6 +445,9 @@ function serverSettings() {
 
         accessLabel() {
             const a = this.state.access;
+            if (a.mode === 'account' && !a.local_allowed) {
+                return 'Sign-in required · ' + a.accounts.join(', ') + '. It stays on because the server is not bound to 127.0.0.1, or a proxy is declared.';
+            }
             if (a.mode === 'account') return 'Sign-in required · ' + a.accounts.join(', ');
             if (a.mode === 'local') return 'This machine only · no sign-in';
             return 'Not chosen yet';
@@ -449,8 +456,7 @@ function serverSettings() {
         accessNote() {
             const a = this.state.access;
             if (a.mode === 'account' && !a.local_allowed) {
-                return 'This server can be reached from other machines (it is not bound to 127.0.0.1, ' +
-                    'or a proxy is declared), so sign-in cannot be turned off.';
+                return 'This server can be reached from other machines, so sign-in stays on.';
             }
             if (a.mode === 'account') return 'Switching keeps the account, unused, for when sign-in is required again.';
             if (a.accounts.length) return 'Kept, unused: ' + a.accounts.join(', ') + '. Requiring sign-in brings it back with its password.';
@@ -578,9 +584,10 @@ function serverSettings() {
         fmtUptime(s) {
             if (!s && s !== 0) return '—';
             const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
-            if (d) return d + 'd ' + h + 'h';
-            if (h) return h + 'h ' + m + 'm';
-            return m + 'm';
+            if (d) return d + ' d ' + h + ' h';
+            if (h) return h + ' h ' + String(m).padStart(2, '0');
+            if (m) return m + ' min';
+            return 'under a minute';
         },
     };
 }
