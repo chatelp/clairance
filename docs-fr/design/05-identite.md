@@ -103,6 +103,8 @@ marque complète : 24 px de signe ; en dessous, le signe seul.
 | `signe-actif.svg`, `signe-actif-16.svg` | l'état « à l'écoute » (R2), 64 et 16 |
 | `favicon-actif.svg` | le favicon tant qu'une fréquence joue |
 | `barre-menus-ecoute.svg` | l'état « à l'écoute » de la barre de menus, en couleur (pas une image template) |
+| `barre-menus-bascule.svg`, `barre-menus-defaut.svg`, `barre-menus-panne.svg` | la bascule (modèle), le défaut et la panne (en couleur) du lanceur, 24/10 (`10-lanceur.md`) |
+| `app-icon.svg` | l'icône de Clairance.app, 1024 au gabarit du Mac ; source du `.icns` et des notifications |
 | `index.html` | la planche : tailles, onglet, barre de menus, connexion, bandeau, README, interdits |
 
 Export en PNG, quand il faudra : `rsvg-convert -w 512 signe.svg > signe-512.png`, ou un navigateur.
@@ -117,8 +119,10 @@ la teinte (principe 6) :
 
 Ce sont des images « template » (noir et transparence) : macOS les teinte pour la barre claire,
 la barre sombre et l'état pressé. Elles remplacent `dot.radiowaves.left.and.right` et
-`antenna.radiowaves.left.and.right.slash` dans `tools/menubar/AtcScribe.swift`. Un troisième
-état « dégradé » (sidecar tombé) pourra remplacer le plot par le triangle des voyants ; non dessiné.
+`antenna.radiowaves.left.and.right.slash` dans `tools/menubar/AtcScribe.swift`. **Depuis le 24/10,
+six états** (`10-lanceur.md`) : s'y ajoutent la bascule (◐, image modèle), le défaut (▲ ambre) et la
+panne (■ rouge), ces deux-là en couleur sur disque sombre comme « à l'écoute », avec les formes des
+voyants de la page. L'application a son icône, `app-icon.svg`.
 
 ## Où elle apparaît
 

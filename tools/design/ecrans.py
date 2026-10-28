@@ -44,6 +44,7 @@ def page(title, body, width=1440, height=900, folded=False, extra_class=''):
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
 <link rel="stylesheet" href="{SYS}/tokens.css">
 <link rel="stylesheet" href="{SYS}/components/bundle.css">
@@ -561,7 +562,17 @@ if __name__ == '__main__':
     write('a-calques.html', page('A · Layers and an airport', topbar() + '<div class="cl-app__main">' + thread() + sky(extra=airport_popup()) + column_now() + '</div>' + map_controls()))
     write('a-journal.html', page('A · Event log', topbar() + '<div class="cl-app__main">' + thread() + sky() + column_now() + '</div>' + event_log()))
     write('par.html', page('The PAR view', topbar() + '<div class="cl-app__main">' + thread() + sky(extra=par_view(), corner=False, pressed='PAR · LFPG') + column_now() + '</div>'))
-    write('reglages.html', page('Settings', topbar() + '<div class="cl-app__main">' + thread() + sky() + column_now() + '</div>' + settings(), height=1500))
+    # The settings, in pages (D86, 28/10): tools/design/reglages.py
+    _rspec = importlib.util.spec_from_file_location('reglages', os.path.join(os.path.dirname(__file__), 'reglages.py'))
+    R = importlib.util.module_from_spec(_rspec); _rspec.loader.exec_module(R)
+    app = topbar() + '<div class="cl-app__main">' + thread() + sky() + column_now() + '</div>'
+    write('reglages.html', page('Settings · Listening', app + R.settings_page('listening')))
+    write('reglages-lecteur.html', page('Settings · Listening, a viewer', app + R.settings_page('listening', role='viewer')))
+    write('reglages-usage.html', page('Settings · Usage', app + R.settings_page('usage')))
+    write('reglages-serveur.html', page('Settings · Server', app + R.settings_page('server')))
+    write('reglages-acces.html', page('Settings · Access', app + R.settings_page('access')))
+    write('telephone-reglages.html', page('Settings on a phone: the pages', R.settings_page('listening', state='is-list'), width=390, height=844))
+    write('telephone-reglages-page.html', page('Settings on a phone: a page', R.settings_page('listening', state='is-detail'), width=390, height=844))
     write('connexion.html', page('Sign in', signin(), width=1440, height=900))
     write('premier-lancement.html', page('First run', signin(first_run=True), width=1440, height=900))
     write('etats.html', page('States: connection lost, nothing on air, resume listening', topbar() + '<div class="cl-app__main">' + thread_empty() + states_sky() + column_now() + '</div>'))
@@ -580,7 +591,13 @@ if __name__ == '__main__':
         ('a-calques.html', 'A · Layers, an airport', 'The map controls (base map, layers, opacity) and an airport\'s card.', 1440, 900),
         ('a-journal.html', 'A · Event log', 'The bell: emergencies, go-arounds, runway changes, aircraft of interest, the station; its sounds.', 1440, 900),
         ('par.html', 'The PAR view', 'The existing PAR, with its header and arrival sequence, in the sky\'s place.', 1440, 900),
-        ('reglages.html', 'Settings', 'A page over the screen: Listening, Callsign matching, Display, Account, System (shown whole, as if scrolled).', 1440, 1500),
+        ('reglages.html', 'Settings · Listening', 'One page at a time, grouped: This browser, Station, Administration (D86). Listening holds the official names (AIP).', 1440, 900),
+        ('reglages-lecteur.html', 'Settings · a viewer', 'A viewer sees Display, Account and Listening, the values read, no control.', 1440, 900),
+        ('reglages-acces.html', 'Settings · Access', 'Who may open Clairance, the accounts in two columns, the live figures of the sign-in page.', 1440, 900),
+        ('reglages-usage.html', 'Settings · Usage', 'Who is here now, then each account\'s week in two columns.', 1440, 900),
+        ('reglages-serveur.html', 'Settings · Server', 'Log detail, databases and their archive (a page that needs a look carries ▲ in the nav), the reports in two columns.', 1440, 900),
+        ('telephone-reglages.html', 'Settings on a phone', 'The list of pages, grouped, in touch rows.', 390, 844),
+        ('telephone-reglages-page.html', 'Settings on a phone: a page', 'A page, with ‹ Settings to go back.', 390, 844),
         ('connexion.html', 'Sign in', "The sky: the page is the sign's scope; the station's console; the form at the centre.", 1440, 900),
         ('premier-lancement.html', 'First run', 'Who may open Clairance: this machine, or the network with a password.', 1440, 900),
         ('etats.html', 'States', 'Nothing on air, connection lost, click to resume listening.', 1440, 900),

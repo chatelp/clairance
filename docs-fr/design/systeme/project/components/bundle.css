@@ -494,6 +494,56 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
 .cl-page__title { margin: 0; font-size: var(--font-size-display); line-height: var(--font-line-height-display); font-weight: var(--font-weight-strong); }
 .cl-page__section { padding: var(--space-4) var(--space-6); display: flex; flex-direction: column; gap: var(--space-3); border-bottom: var(--border-width-default) solid var(--color-border-subtle); max-width: 640px; }
 .cl-page__section h3 { margin: 0; font-size: var(--font-size-title); line-height: var(--font-line-height-title); font-weight: var(--font-weight-strong); }
+/* SettingsPage in pages (D86, 28/10): a grouped nav, one page at a time, a wider page whose fields keep their reading width */
+.cl-page__inner { max-width: 1080px; grid-template-columns: 220px 1fr; }
+.cl-page__nav { gap: var(--space-4); overflow-y: auto; }
+.cl-page__group { display: flex; flex-direction: column; gap: var(--space-0-5); }
+.cl-page__group > .cl-label { padding: 0 var(--space-2); margin-bottom: var(--space-1); }
+.cl-page__nav a { display: flex; align-items: center; gap: var(--space-2); }
+.cl-page__nav a:hover { color: var(--color-text-primary); background: var(--color-surface-hover); }
+.cl-page__nav a[aria-current="true"]:hover { background: var(--color-surface-selected); color: var(--color-accent-strong); }
+/* a page that needs a look carries the status lights' shape, never a colour alone */
+.cl-page__mark { margin-left: auto; font-size: var(--font-size-caption); line-height: 1; }
+.cl-page__mark.is-warn { color: var(--color-status-warn); }
+.cl-page__mark.is-bad { color: var(--color-status-urgent); }
+.cl-page__scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.cl-page__pagehead { padding: var(--space-6) var(--space-6) var(--space-2); max-width: 640px; }
+.cl-page__pagetitle { margin: 0; font-size: var(--font-size-title); line-height: var(--font-line-height-title); font-weight: var(--font-weight-strong); }
+.cl-page__lede { margin: var(--space-1) 0 0; font-size: var(--font-size-small); line-height: var(--font-line-height-small); color: var(--color-text-secondary); }
+.cl-page__section:last-child { border-bottom: 0; }
+/* the rule between sections runs the page's width; the fields keep 592 px of reading width */
+.cl-page__section { max-width: none; }
+.cl-page__section > :not(.cl-grid2) { max-width: 592px; }
+/* lists of cards (accounts, usage, reports) take the page's width, in two columns from 1 024 px */
+.cl-page__section--wide { max-width: none; }
+.cl-grid2 { display: grid; grid-template-columns: 1fr; gap: var(--space-3); }
+@media (min-width: 1024px) { .cl-grid2 { grid-template-columns: 1fr 1fr; } }
+.cl-grid2 > .cl-card { min-width: 0; }
+/* a value read, not set (a viewer's Listening): plain text where the control would be */
+.cl-field__value { font-size: var(--font-size-body); line-height: var(--font-line-height-body); color: var(--color-text-secondary); text-align: right; }
+.cl-field--text .cl-field__value { text-align: left; }
+.cl-page__back { display: none; }
+/* phone: the list of pages, then a page with "‹ Settings" */
+@media (max-width: 767px) {
+  .cl-page__inner { max-width: none; grid-template-columns: 1fr; border: 0; }
+  /* one markup, two states: the list (the title, the close, the pages), then a page ("‹ Settings" for its head) */
+  .cl-page__inner.is-list { grid-template-rows: auto 1fr; align-content: start; }
+  .cl-page__inner.is-detail { grid-template-rows: 1fr; }
+  .cl-page__inner.is-list > .cl-page__body { order: -1; }
+  /* the list's head is the title and the close: "Saved" and "Reload" belong to a page */
+  .cl-page__inner.is-list .cl-page__head > .cl-light, .cl-page__inner.is-list .cl-page__head .cl-btn--quiet { display: none; }
+  .cl-page__inner.is-list .cl-page__scroll, .cl-page__inner.is-list .cl-page__back,
+  .cl-page__inner.is-detail > .cl-page__nav, .cl-page__inner.is-detail .cl-page__head { display: none; }
+  .cl-page__nav { border-right: 0; padding: var(--space-3) 0; }
+  .cl-page__group > .cl-label { padding: 0 var(--space-4); }
+  .cl-page__nav a { min-height: 44px; padding: 0 var(--space-4); border-radius: 0; font-size: var(--font-size-body); color: var(--color-text-primary); border-bottom: var(--border-width-default) solid var(--color-border-subtle); }
+  .cl-page__nav a::after { content: "›"; color: var(--color-text-tertiary); margin-left: auto; }
+  /* a page's mark sits right before the chevron */
+  .cl-page__nav a:has(.cl-page__mark)::after { margin-left: var(--space-2); }
+  .cl-page__nav a[aria-current="true"] { background: none; color: var(--color-text-primary); }
+  .cl-page__back { display: flex; align-items: center; gap: var(--space-1); min-height: 44px; padding: 0 var(--space-3); border-bottom: var(--border-width-default) solid var(--color-border-default); }
+  .cl-page__pagehead, .cl-page__section { padding-left: var(--space-4); padding-right: var(--space-4); }
+}
 .cl-field { display: grid; grid-template-columns: 1fr auto; gap: var(--space-1) var(--space-4); align-items: center; }
 .cl-field__label { font-size: var(--font-size-body); line-height: var(--font-line-height-body); color: var(--color-text-primary); }
 .cl-field__help { grid-column: 1 / -1; font-size: var(--font-size-small); line-height: var(--font-line-height-small); color: var(--color-text-secondary); }
