@@ -108,6 +108,7 @@ function serverSettings() {
         namingChoices: [['surer', 'Surer', '9 names, all right'], ['measured', 'Standard', '18 names, all right'], ['more', 'More', '19 names, 18 right']],
         rulesOpen: false,
         debugOpen: false,
+        alsoMoreOpen: false,
 
         // The role, the phone's width, and the server's state read at the
         // first opening rather than with the page: the settings are closed
@@ -608,6 +609,17 @@ function serverSettings() {
         // judged against the one whose runway axis it flies, else the nearest.
         alsoChoices() {
             return this.airportChoices().filter(c => c.code !== this.draft.reference_airport);
+        },
+        // Shown and folded (alsoSplit): five on the line, the followed ones always.
+        alsoLists() {
+            return alsoSplit(this.alsoChoices(), this.draft.also_airports, 5);
+        },
+        // Ticked from the fold, a box moves up to the line: the keyboard
+        // follows it there. The root is read before the render, which
+        // detaches the box it was ticked from.
+        keepAlsoFocus(code) {
+            const root = this.$root;
+            this.$nextTick(() => root.querySelector('[data-also="' + code + '"]')?.focus());
         },
         alsoFollowed(code) {
             return this.draft.also_airports.includes(code);
