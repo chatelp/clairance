@@ -508,8 +508,9 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
 .cl-page__nav { display: flex; }
 .cl-page__group { display: flex; }
 .cl-page__nav a { display: flex; align-items: center; color: var(--color-text-secondary); text-decoration: none; border-radius: var(--radius-md); }
-.cl-page__nav a:hover { color: var(--color-text-primary); background: var(--color-surface-hover); }
-.cl-page__nav a[aria-current="true"], .cl-page__nav a[aria-current="true"]:hover { background: var(--color-surface-selected); color: var(--color-accent-strong); }
+/* hover only where a pointer hovers: on a touch screen it would stick to the last row touched */
+@media (hover: hover) { .cl-page__nav a:hover { color: var(--color-text-primary); background: var(--color-surface-hover); } }
+.cl-page__nav a[aria-current="true"] { background: var(--color-surface-selected); color: var(--color-accent-strong); }
 /* each page's glyph: the interface glyphs' 16 grid drawn at 20 px, its stroke kept at 1.5 px */
 .cl-page__glyph { width: 20px; height: 20px; flex: none; }
 .cl-page__glyph * { vector-effect: non-scaling-stroke; }
