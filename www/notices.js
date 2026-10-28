@@ -12,11 +12,13 @@
 // One notice at a time, none while the connection banner, the settings or
 // the sign-in show.
 
-// The lines an account has not seen: news newest first, and the id of the
-// newest entry it saw. With none seen yet, the newest entry alone; with the
-// newest seen, nothing; with an id the file no longer has, the newest alone.
-// Four lines at most, the newest first. Pure, for the tests.
-function newsUnseen(entries, seenId) {
+// The lines an account has not seen: news newest first, the id of the newest
+// entry it saw, and when the account was made ("2026-10-28...", or empty).
+// With none seen yet, the newest entry alone; with the newest seen, nothing;
+// with an id the file no longer has, the newest alone. An entry older than the
+// account is never news to it. Four lines at most, the newest first. Pure, for
+// the tests.
+function newsUnseen(entries, seenId, createdAt) {
     if (!Array.isArray(entries) || !entries.length) return null;
     let fresh;
     if (!seenId) fresh = entries.slice(0, 1);
@@ -24,6 +26,8 @@ function newsUnseen(entries, seenId) {
         const i = entries.findIndex((e) => e.id === seenId);
         fresh = i < 0 ? entries.slice(0, 1) : entries.slice(0, i);
     }
+    if (createdAt) fresh = fresh.filter((e) => e.date >= String(createdAt).slice(0, 10));
+    if (!fresh.length) return null;
     const lines = fresh.flatMap((e) => e.lines || []).slice(0, 4);
     return lines.length ? { date: fresh[0].date, lines, newest: entries[0].id } : null;
 }
@@ -63,7 +67,7 @@ if (typeof document !== 'undefined') document.addEventListener('alpine:init', ()
                 this.server = v;
                 this.news = Array.isArray(news) ? news : [];
                 this.user = (auth && auth.user) || 'this-machine';
-                this.unseen = newsUnseen(this.news, this.seen());
+                this.unseen = newsUnseen(this.news, this.seen(), auth && auth.created_at);
             } catch (e) { return; }
             // The heartbeat says which page the server serves now; a
             // reconnection reads it again at once. Checked every 2 s, and put

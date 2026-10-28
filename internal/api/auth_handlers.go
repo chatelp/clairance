@@ -31,6 +31,13 @@ func (h *Handler) GetAuthStatus(w http.ResponseWriter, r *http.Request) {
 			out["authenticated"] = true
 			out["user"] = sess.User
 			out["expires_at"] = sess.ExpiresAt
+			// When the account was made, when known: the page shows it no news
+			// older than itself (D87, www/notices.js).
+			for _, a := range h.auth.Accounts() {
+				if a.Name == sess.User && a.CreatedAt != "" {
+					out["created_at"] = a.CreatedAt
+				}
+			}
 		}
 	}
 	// What the page may offer: "owner" or "viewer", and owner when sign-in is

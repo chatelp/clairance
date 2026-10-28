@@ -29,3 +29,9 @@ test('a version\'s date, and what a playing frequency is told', () => {
     assert.equal(listeningSentence(['124.350']), ' You are listening to 124.350: the sound stops for a moment, and a click starts it again.');
     assert.match(listeningSentence(['124.350', '126.425']), /to 124\.350 and 126\.425:/);
 });
+
+test('an account made after a version is not told its news', () => {
+    assert.deepEqual(newsUnseen(news, '', '2026-10-21T09:00:00Z').lines, ['c1', 'c2', 'c3']);
+    assert.equal(newsUnseen(news, '', '2026-10-29T09:00:00Z'), null);
+    assert.deepEqual(newsUnseen(news, 'a', '2026-10-17').lines, ['c1', 'c2', 'c3', 'b1']);
+});

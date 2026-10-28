@@ -5,7 +5,14 @@
     "lines": [
       "The settings are now in pages, grouped by who they concern.",
       "After a cut, the page reconnects on its own and says so.",
-      "This page says when a new version is ready, and what changed."
+      "Clairance tells you when a new version is ready, and what changed."
+    ]
+  },
+  {
+    "id": "2026-10-26",
+    "date": "2026-10-26",
+    "lines": [
+      "The sound starts within a second, and plays on an iPhone."
     ]
   }
 ]
