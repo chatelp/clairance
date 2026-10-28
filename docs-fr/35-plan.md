@@ -150,6 +150,7 @@ relance de la production ne le laisse pas sans explication.
 | E1. Le portage du sidecar sur Linux avec NVIDIA (faster-whisper, repli processeur ; Q54) — **le code fait le 26/10 par la fiche N** (e375fa0), vérifié sur processeur (cloud) et sans régression sous MLX (Mac) ; reste un GPU et les vrais modèles convertis | B4 |
 | E2. L'avertissement légal (dans l'application et le README) : ne pas rediffuser, ne pas publier d'audio ni d'immatriculations privées | — |
 | E3. Le guide d'installation, en anglais et en français | B, E1 |
+| E5. Les réglages refondus (D86) : une page à la fois en trois groupes, le rôle viewer lu par la page, renommages, aides sans doublon ; analyse `38-reglages-analyse.md` | **mise en forme par l'agent design avant le code**, puis principale | — |
 | E4. La mesure de sortie : une installation sur une machine vierge, à partir du seul guide, **en moins d'une heure, par quelqu'un qui n'a pas écrit le code** ; la précision d'appariement inchangée après portage (95 %, D73) | E1 à E3 |
 
 ### F — Le produit, ensuite

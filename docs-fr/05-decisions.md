@@ -4925,6 +4925,28 @@ système de design : la séquence d'arrivée calculée dans le store pour tous l
 (la PAR la relit), les gabarits français des consignes, puis la migration elle-même
 (`04-migration.md`).
 
+### D86 — Les réglages en pages groupées, mis en forme par l'agent design *(28/10)*
+
+> **Décision du propriétaire, 28/10**, sur l'analyse `38-reglages-analyse.md` : « des settings multi-pages,
+> et pas une longue liste dans une colonne étroite, ce serait mieux », puis, aux questions : organisation
+> retenue « mais à retravailler avec l'agent design » ; viewer : son navigateur, son compte, Listening en
+> lecture ; réglages expérimentaux sous « Advanced » ; renommages : tous.
+
+Ce qui est décidé :
+
+- **Une page à la fois, en trois groupes** : *Mon navigateur* (Display, avec les diagnostics repliés ;
+  Account), *Station* (Listening, qui absorbe Regional data ; Matching, préréglages puis « Advanced »),
+  *Administration* (Access : qui peut ouvrir, comptes, chiffres publics ; Usage ; Server : journal,
+  taille, archive, rapports). Page élargie, deux colonnes là où c'est utile ; liste puis détail sur
+  téléphone. **La mise en forme est confiée à l'agent design**, qui propose avant tout code.
+- **Un viewer** voit Display, Account et Listening en lecture ; la page lit le rôle, le serveur reste
+  l'autorité.
+- **« Accept one digit off » et « First two digits »** passent sous « Advanced ».
+- **Renommages** : « Measured » → « Standard » ; « Station console on the sign-in page » → « Live
+  figures on the sign-in page » ; « Log level » → « Log detail » ; un seul mot pour le rôle admin
+  partout dans l'interface.
+- Une règle d'aide : la phrase sous le champ dit quoi, la bulle dit pourquoi ou la mesure.
+
 ### D85 — La rétention archive au lieu d'effacer, et le plafond local passe à 6 Go *(28/10)*
 
 > **Décision du propriétaire, 28/10**, après l'enquête sur la place disque (le disque interne du Mac
