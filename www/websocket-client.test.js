@@ -64,3 +64,27 @@ test('an unknown type is dropped, not thrown', () => {
     const { socket } = connected();
     assert.doesNotThrow(() => socket.receive({ type: 'something_new', data: {} }));
 });
+
+// A connection that says nothing for 45 s is dropped and a new one opened: a
+// page learns of a close only if it hears it, and on 27/10 one did not, played
+// its sound all night and never reconnected. The server's heartbeat (every
+// 15 s) keeps a live connection from passing for silent.
+test('a silent connection is replaced; a heartbeat keeps it', (t) => {
+    t.mock.timers.enable({ apis: ['setInterval', 'setTimeout', 'Date'] });
+    const { client, socket } = connected();
+    client.enableAutoReconnect();
+    let closes = 0;
+    client.addEventListener('close', () => closes++);
+    for (const fn of socket.handlers.open || []) fn({});
+
+    for (let s = 0; s < 120; s += 15) {
+        t.mock.timers.tick(15000);
+        socket.receive({ type: 'heartbeat', data: {} });
+    }
+    assert.equal(FakeSocket.last, socket, 'a connection that hears its heartbeat was replaced');
+
+    t.mock.timers.tick(50000);
+    assert.notEqual(FakeSocket.last, socket, 'a silent connection was kept');
+    assert.equal(closes, 1, 'the page was not told its connection was lost');
+    client.disconnect();
+});

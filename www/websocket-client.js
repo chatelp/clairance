@@ -29,6 +29,14 @@ class WebSocketClient {
         this.maxReconnectDelay = 5000;
         this.reconnectJitterFactor = 0.25;
         this.connectTimeoutMs = 10000;
+        // A connection that says nothing for this long is taken for dead and
+        // replaced. The server sends a heartbeat every 15 s (internal/websocket,
+        // heartbeatPeriod); a page only learns of a close it receives, and one
+        // made behind the proxy may never arrive: on 27/10 a page lost its
+        // connection at 21:02, played its sound all night, and never reconnected.
+        this.silenceLimitMs = 45000;
+        this._lastMessageAt = 0;
+        this._silenceWatch = null;
         this.intentionalClose = false;
         this.connectionState = 'idle'; // idle | connecting | connected | reconnecting | closed
         this.nextReconnectDelayMs = null;
@@ -128,6 +136,7 @@ class WebSocketClient {
             this.reconnectAttempts = 0;
             this.nextReconnectDelayMs = null;
             this._clearConnectTimeout();
+            this._watchSilence();
             this._setConnectionState('connected');
             this._notifyListeners('open', event);
         };
@@ -136,6 +145,7 @@ class WebSocketClient {
             console.log('WebSocket connection closed');
             this.isReconnecting = false;
             this._clearConnectTimeout();
+            this._stopSilenceWatch();
             this._notifyListeners('close', event);
 
             if (this.autoReconnect && !this.intentionalClose) {
@@ -164,6 +174,7 @@ class WebSocketClient {
         };
 
         this._boundMessageHandler = (event) => {
+            this._lastMessageAt = Date.now();
             try {
                 const message = JSON.parse(event.data);
                 this._recordInboundMessage(message?.type || 'unknown');
@@ -189,6 +200,30 @@ class WebSocketClient {
         this.connection.addEventListener('close', this._boundCloseHandler);
         this.connection.addEventListener('error', this._boundErrorHandler);
         this.connection.addEventListener('message', this._boundMessageHandler);
+    }
+
+    /**
+     * Watch the open connection for silence: past silenceLimitMs without a
+     * message, it is dropped unheard and a new one opened, as for a close.
+     */
+    _watchSilence() {
+        this._stopSilenceWatch();
+        this._lastMessageAt = Date.now();
+        this._silenceWatch = setInterval(() => {
+            if (this.connectionState !== 'connected') return;
+            if (Date.now() - this._lastMessageAt <= this.silenceLimitMs) return;
+            console.warn(`WebSocket: nothing heard for ${Math.round((Date.now() - this._lastMessageAt) / 1000)} s, reconnecting`);
+            this._stopSilenceWatch();
+            this._notifyListeners('close', { silent: true });
+            this.connect(); // drops the old socket unheard, then opens a new one
+        }, Math.min(5000, this.silenceLimitMs));
+    }
+
+    _stopSilenceWatch() {
+        if (this._silenceWatch) {
+            clearInterval(this._silenceWatch);
+            this._silenceWatch = null;
+        }
     }
 
     /**
@@ -273,6 +308,7 @@ class WebSocketClient {
         this.autoReconnect = false;
         this.intentionalClose = true;
         this.nextReconnectDelayMs = null;
+        this._stopSilenceWatch();
 
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);

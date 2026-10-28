@@ -216,3 +216,26 @@ func TestAFilteredClientIsSentWhatItsFilterReturns(t *testing.T) {
 		t.Errorf("the other client's status: %+v, want it as broadcast", m)
 	}
 }
+
+// Every page is sent a heartbeat, whatever else happens: the proof it needs
+// that its connection lives (27/10: a page whose connection died behind the
+// proxy never knew, and never reconnected).
+func TestEveryPageIsSentAHeartbeat(t *testing.T) {
+	saved := heartbeatPeriod
+	heartbeatPeriod = 50 * time.Millisecond
+	t.Cleanup(func() { heartbeatPeriod = saved })
+	s, url := newTestServer(t)
+	c := dial(t, url)
+	waitForClients(t, s, 1)
+	_ = c.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for i := 0; i < 2; i++ {
+		_, data, err := c.ReadMessage()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var m Message
+		if err := json.Unmarshal(data, &m); err != nil || m.Type != MessageTypeHeartbeat {
+			t.Fatalf("got %s (%v), want a heartbeat", data, err)
+		}
+	}
+}
