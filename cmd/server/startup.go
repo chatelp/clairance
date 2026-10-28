@@ -174,11 +174,15 @@ func openStorage(cfg *config.Config, runtimeSettings *config.Runtime, log *logge
 			logger.Int("db_retention_days", cfg.Storage.DBRetentionDays),
 			logger.Float64("db_retention_gb", runtimeSettings.DBRetentionGB()))
 	}
-	if err := cleanupOldDailyDatabases(dbDir, dbPath, runtimeSettings.DBRetentionGB(), log); err != nil {
-		log.Warn("Failed to clean up old database files",
-			logger.Error(err),
-			logger.String("path", dbDir),
-			logger.Float64("retention_gb", runtimeSettings.DBRetentionGB()))
+	// With an archive, the first pass runs once the server is up
+	// (runDatabaseRetentionCleanup): archiving can take minutes (D85).
+	if cfg.Storage.ArchiveDir == "" {
+		if err := cleanupOldDailyDatabases(dbDir, dbPath, runtimeSettings.DBRetentionGB(), "", log); err != nil {
+			log.Warn("Failed to clean up old database files",
+				logger.Error(err),
+				logger.String("path", dbDir),
+				logger.Float64("retention_gb", runtimeSettings.DBRetentionGB()))
+		}
 	}
 
 	log.Info("Using daily database", logger.String("path", dbPath))

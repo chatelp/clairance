@@ -61,7 +61,7 @@ func TestRetentionKeepsTheNewestDaysWithinTheSize(t *testing.T) {
 	daily(t, dir, "co-atc-2026-09-25.db", gib)
 	daily(t, dir, "co-atc-2026-09-24.db", gib/10)
 
-	if err := cleanupOldDailyDatabases(dir, active, 3, quietLogger(t)); err != nil {
+	if err := cleanupOldDailyDatabases(dir, active, 3, "", quietLogger(t)); err != nil {
 		t.Fatal(err)
 	}
 	want := []string{"co-atc-2026-09-26.db", "co-atc-2026-09-27.db", "co-atc-2026-09-28.db"}
@@ -78,7 +78,7 @@ func TestAPauseDeletesNothingUnderTheSize(t *testing.T) {
 	active := daily(t, dir, "co-atc-2026-10-08.db", gib/100)
 	daily(t, dir, "co-atc-2026-09-28.db", gib/5)
 
-	if err := cleanupOldDailyDatabases(dir, active, 20, quietLogger(t)); err != nil {
+	if err := cleanupOldDailyDatabases(dir, active, 20, "", quietLogger(t)); err != nil {
 		t.Fatal(err)
 	}
 	if got := left(t, dir); len(got) != 2 {
@@ -93,7 +93,7 @@ func TestTodayIsKeptAndCounts(t *testing.T) {
 	active := daily(t, dir, "co-atc-2026-09-28.db", 2*gib)
 	daily(t, dir, "co-atc-2026-09-27.db", gib/100)
 
-	if err := cleanupOldDailyDatabases(dir, active, 1, quietLogger(t)); err != nil {
+	if err := cleanupOldDailyDatabases(dir, active, 1, "", quietLogger(t)); err != nil {
 		t.Fatal(err)
 	}
 	want := []string{"co-atc-2026-09-28.db"}
@@ -111,7 +111,7 @@ func TestTheWriteAheadLogCountsAndGoes(t *testing.T) {
 	daily(t, dir, "co-atc-2026-09-27.db-wal", gib)
 	daily(t, dir, "co-atc-2026-09-27.db-shm", gib/1000)
 
-	if err := cleanupOldDailyDatabases(dir, active, 1, quietLogger(t)); err != nil {
+	if err := cleanupOldDailyDatabases(dir, active, 1, "", quietLogger(t)); err != nil {
 		t.Fatal(err)
 	}
 	want := []string{"co-atc-2026-09-28.db"}
@@ -129,7 +129,7 @@ func TestOtherFilesAreNeverTouched(t *testing.T) {
 	daily(t, dir, "other-2026-09-01.db", 2*gib)
 	daily(t, dir, "users.json", 1)
 
-	if err := cleanupOldDailyDatabases(dir, active, 1, quietLogger(t)); err != nil {
+	if err := cleanupOldDailyDatabases(dir, active, 1, "", quietLogger(t)); err != nil {
 		t.Fatal(err)
 	}
 	want := []string{"co-atc-2026-09-28.db", "co-atc-notes.db", "other-2026-09-01.db", "users.json"}

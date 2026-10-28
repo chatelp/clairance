@@ -16,7 +16,7 @@ func TestAZeroSizeMeansTheDefault(t *testing.T) {
 	daily(t, dir, "co-atc-2026-09-25.db", 6*gib)
 	daily(t, dir, "co-atc-2026-09-24.db", 6*gib)
 
-	if err := cleanupOldDailyDatabases(dir, active, 0, quietLogger(t)); err != nil {
+	if err := cleanupOldDailyDatabases(dir, active, 0, "", quietLogger(t)); err != nil {
 		t.Fatal(err)
 	}
 	// 1 + 6 + 6 + 6 = 19 GB fit in 20; the fourth older day does not.
@@ -52,7 +52,7 @@ func TestTheActiveFileIsRecognisedHoweverItsPathIsSpelled(t *testing.T) {
 		"./data/../data/co-atc-2026-09-28.db",
 		filepath.Join(dir, "co-atc-2026-09-28.db"),
 	} {
-		if err := cleanupOldDailyDatabases("data", active, 1, quietLogger(t)); err != nil {
+		if err := cleanupOldDailyDatabases("data", active, 1, "", quietLogger(t)); err != nil {
 			t.Fatal(err)
 		}
 		if got := left(t, dir); len(got) != 1 || got[0] != "co-atc-2026-09-28.db" {
@@ -69,7 +69,7 @@ func TestTodayIsKeptWhenALaterDayExists(t *testing.T) {
 	daily(t, dir, "co-atc-2026-09-30.db", gib/2)
 	daily(t, dir, "co-atc-2026-09-29.db", gib)
 
-	if err := cleanupOldDailyDatabases(dir, active, 2, quietLogger(t)); err != nil {
+	if err := cleanupOldDailyDatabases(dir, active, 2, "", quietLogger(t)); err != nil {
 		t.Fatal(err)
 	}
 	want := []string{"co-atc-2026-09-28.db", "co-atc-2026-09-30.db"}
@@ -85,7 +85,7 @@ func TestRetentionBeforeTodaysFileExists(t *testing.T) {
 	daily(t, dir, "co-atc-2026-09-27.db", gib/2)
 	daily(t, dir, "co-atc-2026-09-26.db", gib)
 
-	if err := cleanupOldDailyDatabases(dir, filepath.Join(dir, "co-atc-2026-09-28.db"), 1, quietLogger(t)); err != nil {
+	if err := cleanupOldDailyDatabases(dir, filepath.Join(dir, "co-atc-2026-09-28.db"), 1, "", quietLogger(t)); err != nil {
 		t.Fatal(err)
 	}
 	want := []string{"co-atc-2026-09-27.db"}
@@ -97,7 +97,7 @@ func TestRetentionBeforeTodaysFileExists(t *testing.T) {
 // A directory that cannot be read is reported, not taken for an empty one.
 func TestAMissingDirectoryIsAnError(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "absent")
-	if err := cleanupOldDailyDatabases(missing, filepath.Join(missing, "co-atc-2026-09-28.db"), 1, quietLogger(t)); err == nil {
+	if err := cleanupOldDailyDatabases(missing, filepath.Join(missing, "co-atc-2026-09-28.db"), 1, "", quietLogger(t)); err == nil {
 		t.Error("reading a missing directory should fail")
 	}
 }

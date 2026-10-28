@@ -133,6 +133,9 @@ enabled = true                              # the phraseology grammar against li
 [storage]
 sqlite_base_path = "data"                   # one co-atc-YYYY-MM-DD.db a day
 db_retention_gb = 20                        # 8 to 11 full days (1.8 GB a day measured, 2.6 at the busiest); the panel can change it
+# archive_dir = "/Volumes/External/clairance-archive"  # each day past the retention is copied here, gzipped and
+#                                           # checked, before it is deleted; never created by the server, and
+#                                           # while it cannot be found nothing is deleted
 
 [logging]
 level = "info"                              # debug, info, warn, error; changeable from the settings panel

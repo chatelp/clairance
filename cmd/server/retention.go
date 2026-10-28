@@ -1,8 +1,12 @@
 package main
 
 import (
+	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -16,7 +20,7 @@ import (
 	"github.com/yegors/co-atc/pkg/logger"
 )
 
-func runDatabaseRetentionCleanup(ctx context.Context, dbDir string, db *sqlite.DB, rt *config.Runtime, log *logger.Logger) {
+func runDatabaseRetentionCleanup(ctx context.Context, dbDir, archiveDir string, db *sqlite.DB, rt *config.Runtime, log *logger.Logger) {
 	// Two cadences. Rotation is checked every minute so the switch lands close
 	// to midnight; retention is an hourly sweep, which is as often as it can
 	// possibly matter.
@@ -30,12 +34,18 @@ func runDatabaseRetentionCleanup(ctx context.Context, dbDir string, db *sqlite.D
 		// settings panel takes effect on the next sweep rather than at the next
 		// restart.
 		capGB := rt.DBRetentionGB()
-		if err := cleanupOldDailyDatabases(dbDir, db.Path(), capGB, log); err != nil {
+		if err := cleanupOldDailyDatabases(dbDir, db.Path(), capGB, archiveDir, log); err != nil {
 			log.Warn("Periodic database retention cleanup failed",
 				logger.Error(err),
 				logger.String("path", dbDir),
 				logger.Float64("retention_gb", capGB))
 		}
+	}
+
+	// With an archive, the startup pass is this one rather than one before the
+	// server answers: archiving several days can take minutes (D85).
+	if archiveDir != "" {
+		sweep()
 	}
 
 	for {
@@ -71,7 +81,12 @@ func runDatabaseRetentionCleanup(ctx context.Context, dbDir string, db *sqlite.D
 // that does not, it and every older file are deleted -- never a newer day for an
 // older one. Today's file is never deleted, and counts. A file's -wal and -shm
 // count with it and go with it.
-func cleanupOldDailyDatabases(dbDir, activeDBPath string, capGB float64, log *logger.Logger) error {
+//
+// With archiveDir (28/10, D85), a day that goes is first copied there, gzipped
+// and checked (archiveDaily), and is deleted only then. An archive directory
+// that cannot be found -- its disk unplugged -- deletes nothing: the days stay
+// over the cap until it is back, and the log says so.
+func cleanupOldDailyDatabases(dbDir, activeDBPath string, capGB float64, archiveDir string, log *logger.Logger) error {
 	if capGB <= 0 {
 		capGB = config.DefaultDBRetentionGB
 	}
@@ -137,6 +152,21 @@ func cleanupOldDailyDatabases(dbDir, activeDBPath string, capGB float64, log *lo
 			continue
 		}
 		over = true
+		if archiveDir != "" {
+			if info, err := os.Stat(archiveDir); err != nil || !info.IsDir() {
+				log.Warn("Database archive not found: the days over the retention are kept until it is back",
+					logger.String("archive_dir", archiveDir),
+					logger.String("oldest_kept", files[len(files)-1].date.Format("2006-01-02")),
+					logger.Float64("retention_gb", capGB))
+				break
+			}
+			if err := archiveDaily(f.path, archiveDir); err != nil {
+				log.Warn("Old database kept: its archive failed",
+					logger.String("path", f.path), logger.String("archive_dir", archiveDir), logger.Error(err))
+				total += f.bytes
+				continue
+			}
+		}
 		for _, p := range []string{f.path, f.path + "-wal", f.path + "-shm"} {
 			if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("remove old db '%s': %w", p, err)
@@ -144,7 +174,11 @@ func cleanupOldDailyDatabases(dbDir, activeDBPath string, capGB float64, log *lo
 		}
 		deleted++
 		freed += f.bytes
-		log.Info("Deleted old database file",
+		msg := "Deleted old database file"
+		if archiveDir != "" {
+			msg = "Archived and deleted old database file"
+		}
+		log.Info(msg,
 			logger.String("path", f.path),
 			logger.String("file_date", f.date.Format("2006-01-02")),
 			logger.Int64("bytes", f.bytes))
@@ -158,6 +192,112 @@ func cleanupOldDailyDatabases(dbDir, activeDBPath string, capGB float64, log *lo
 			logger.Float64("retention_gb", capGB))
 	}
 	return nil
+}
+
+// archiveDaily copies a closed daily database into dir, gzipped, with its
+// write-ahead log when that is not empty (a file closed by a crash may still
+// hold the end of its day there), reads each copy back against its original,
+// and adds their SHA-256 to dir/SHA256SUMS. The local files are not touched:
+// the caller deletes them once this returns nil. A copy already there is kept
+// when it holds the same bytes, and is an error when it does not.
+func archiveDaily(path, dir string) error {
+	for _, p := range []string{path, path + "-wal"} {
+		info, err := os.Stat(p)
+		if err != nil || (p != path && info.Size() == 0) {
+			if p == path {
+				return fmt.Errorf("read %s: %w", p, err)
+			}
+			continue
+		}
+		sum, err := fileSHA256(p)
+		if err != nil {
+			return err
+		}
+		dst := filepath.Join(dir, filepath.Base(p)+".gz")
+		if have, err := gzipSHA256(dst); err == nil {
+			if have != sum {
+				return fmt.Errorf("%s exists and holds other bytes", dst)
+			}
+			continue
+		}
+		if err := gzipFile(p, dst); err != nil {
+			return err
+		}
+		if have, err := gzipSHA256(dst); err != nil || have != sum {
+			os.Remove(dst)
+			return fmt.Errorf("%s does not read back as its original (%v)", dst, err)
+		}
+		f, err := os.OpenFile(filepath.Join(dir, "SHA256SUMS"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintf(f, "%s  %s\n", sum, filepath.Base(p))
+		if cerr := f.Close(); err == nil {
+			err = cerr
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// gzipFile writes src gzipped to dst, through dst.part, synced before it takes
+// its name.
+func gzipFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	part := dst + ".part"
+	out, err := os.OpenFile(part, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	zw := gzip.NewWriter(out)
+	_, err = io.Copy(zw, in)
+	for _, step := range []func() error{zw.Close, out.Sync, out.Close} {
+		if e := step(); err == nil {
+			err = e
+		}
+	}
+	if err != nil {
+		os.Remove(part)
+		return fmt.Errorf("archive %s: %w", src, err)
+	}
+	return os.Rename(part, dst)
+}
+
+func fileSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// gzipSHA256 is the SHA-256 of what a gzipped file holds.
+func gzipSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	zr, err := gzip.NewReader(f)
+	if err != nil {
+		return "", err
+	}
+	h := sha256.New()
+	if _, err := io.Copy(h, zr); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // runFilePurge keeps the two kinds of files that grow every day outside the

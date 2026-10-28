@@ -202,6 +202,15 @@ func (c *check) databases(retentionGB float64) {
 			}
 		}
 	}
+	// The archive the retention copies a day to before deleting it (D85): not
+	// found, nothing is deleted, and the databases grow past the retention.
+	if a := c.cfg.Storage.ArchiveDir; a != "" {
+		if info, err := os.Stat(a); err != nil || !info.IsDir() {
+			c.missing(Missing{Kind: "directory", What: "the database archive", Path: absolute(a),
+				Effect: "the days past the retention are kept, not deleted, until it is back: the databases grow past db_retention_gb",
+				Level:  LevelWarn, Hint: "an external disk may be unplugged; or empty [storage] archive_dir to delete them as before"})
+		}
+	}
 	headroom := int64(retentionGB*(1<<30)) - used
 	free, ok := c.free(existing)
 	if !ok || headroom <= 0 || free >= headroom {

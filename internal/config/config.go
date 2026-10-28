@@ -192,6 +192,10 @@ type StorageConfig struct {
 	// server run on demand, days said nothing about what a disk can hold, and a
 	// restart after a week's pause deleted every file at once.
 	DBRetentionGB float64 `toml:"db_retention_gb"`
+	// ArchiveDir, when set, receives each day the retention lets go, gzipped
+	// and checked, before it is deleted (28/10, D85); a directory that cannot
+	// be found deletes nothing. Empty: the days past the retention are deleted.
+	ArchiveDir string `toml:"archive_dir"`
 	// DBRetentionDays is no longer used; kept so an old configuration still
 	// loads, and says so at startup.
 	DBRetentionDays int `toml:"db_retention_days"`

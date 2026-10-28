@@ -178,7 +178,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go runDatabaseRetentionCleanup(ctx, store.dir, store.aircraft.GetDB(), runtimeSettings, log)
+	go runDatabaseRetentionCleanup(ctx, store.dir, cfg.Storage.ArchiveDir, store.aircraft.GetDB(), runtimeSettings, log)
 	go runFilePurge(ctx, cfg, log)
 
 	lifecycle.Say(lifecycle.Step, map[string]any{"step": "services"})

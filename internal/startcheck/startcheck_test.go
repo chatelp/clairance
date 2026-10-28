@@ -371,3 +371,17 @@ func TestTheReportIsOneLineEachAtItsLevel(t *testing.T) {
 		}
 	}
 }
+
+// A database archive that cannot be found is named (D85): the retention then
+// keeps the days it would have archived. Found, or not configured: nothing.
+func TestAnArchiveThatCannotBeFoundIsNamed(t *testing.T) {
+	s := newStation(t)
+	s.cfg.Storage.ArchiveDir = filepath.Join(t.TempDir(), "unplugged")
+	if m := find(s.run(20), "the database archive"); m.Level != LevelWarn || !strings.Contains(m.Effect, "kept, not deleted") {
+		t.Errorf("an archive not found: %+v", m)
+	}
+	s.cfg.Storage.ArchiveDir = t.TempDir()
+	if m := find(s.run(20), "the database archive"); m.What != "" {
+		t.Errorf("an archive found: %+v", m)
+	}
+}
