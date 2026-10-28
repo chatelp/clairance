@@ -4973,6 +4973,15 @@ Ce qui est décidé :
   partout dans l'interface.
 - Une règle d'aide : la phrase sous le champ dit quoi, la bulle dit pourquoi ou la mesure.
 
+**Complément du 28/10, demande du propriétaire** après la mise en production : « toujours sur une colonne étroite au
+centre de la page, je préférerais une fenêtre en overlay », « un glyphe représentatif par onglet », « des tabs
+horizontaux pour les écrans larges, et un menu pour les smartphones ». Proposition de la session design (fenêtre,
+onglets ou navigation à gauche), **le propriétaire choisit les onglets** : à partir de 768 px, une fenêtre de taille
+fixe posée sur l'application, vue autour à travers le voile ; les pages en onglets, un glyphe au-dessus de chaque
+libellé, le nom du groupe au-dessus du titre de la page ; fermeture par la croix, Échap, ou un appui et un relâchement
+sur le voile, jamais pendant une saisie, sans rien perdre de ce qui est tapé ; sous 768 px, la liste puis la page,
+chaque rangée avec son glyphe. Codé le 28/10 (62e6068), essais de la session design faits sur 8020.
+
 ### D85 — La rétention archive au lieu d'effacer, et le plafond local passe à 6 Go *(28/10)*
 
 > **Décision du propriétaire, 28/10**, après l'enquête sur la place disque (le disque interne du Mac
