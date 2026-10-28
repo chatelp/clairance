@@ -4956,6 +4956,21 @@ Ce qui est décidé :
 
 **Fait le 28/10** (4f69da5, 7afc9b1) : tests (archive vérifiée puis effacement, WAL compris ; archive introuvable : rien d'effacé, rien de créé ; copie existante identique gardée, différente jamais écrasée ; contrôle de démarrage), instance d'essai démarrée avec une archive absente (nommée dans la santé détaillée, non créée, rien d'effacé). Plafond à 6 Go réglé par le propriétaire le 28/10 vers 11:40. **En production depuis le 28/10 à 11:29** (relance 8, cdaf1a3), `archive_dir` réglé dans `configs/config.toml` ; première passe : 7 journées archivées puis retirées (23/09 → 02/10), 4,05 Go libérés, `data/` 9,2 → 5,5 Go.
 
+**Complément du 28/10, demande du propriétaire** : « il faut que la sauvegarde des bases clairance et leur
+destination soit configurable par l'utilisateur (admin) dans le gui ». La destination se règle depuis
+Réglages › System, à côté du plafond, par l'admin seul (comme tout réglage du serveur) ; vide, pas
+d'archive. Elle s'enregistre avec les autres réglages du panneau (`runtime-settings.json`) et s'applique à
+la passe suivante, sans relance ; `[storage] archive_dir` n'est plus que la valeur de départ. Un chemin
+n'est accepté que **absolu, existant, dossier, inscriptible**, et hors du dossier des bases ; le serveur ne
+le crée jamais. Il n'est vérifié que quand il change : un disque débranché n'empêche pas d'enregistrer les
+autres réglages. Le panneau montre l'état de l'archive : trouvée ou non, ce qu'elle contient, la place libre
+sur son disque. **Sans archive, ce qui dépasse le plafond est effacé** (précision du propriétaire), et c'est dit
+en avertissement : voyant orange sous le champ (« No archive: the databases past N GB are deleted for
+good »), confirmation demandée quand on retire l'archive, et chaque effacement écrit en avertissement au
+journal. Fait le 28/10 (deux commits « the database archive is set from the settings » et « the archive
+folder in Settings > System »), vérifié dans Chrome sur l'instance d'essai ; en production à la prochaine
+relance.
+
 ### D84 — Un suivi d'usage par compte, pour le propriétaire *(27/10)*
 
 > **Décision du propriétaire, 27/10**, après la première écoute de l'invité : « il y a moyen de
