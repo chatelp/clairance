@@ -33,6 +33,7 @@ import (
 var (
 	version = "dev"
 	commit  = "unknown"
+	builtAt time.Time // when the commit was made, from the binary (vcsTime)
 )
 
 // vcsCommit is the commit a plain go build records in the binary, short, with
@@ -63,6 +64,22 @@ func vcsCommit(info *debug.BuildInfo) string {
 	return rev
 }
 
+// vcsTime is when the commit a plain go build records was made, zero when
+// there is none: the date of the server's version, for the page (D87).
+func vcsTime(info *debug.BuildInfo) time.Time {
+	if info == nil {
+		return time.Time{}
+	}
+	for _, s := range info.Settings {
+		if s.Key == "vcs.time" {
+			if t, err := time.Parse(time.RFC3339, s.Value); err == nil {
+				return t
+			}
+		}
+	}
+	return time.Time{}
+}
+
 // main brings the server up in a fixed order, each step in startup.go and
 // serve.go, waits for a signal and takes it down. The order is the one the
 // comments below and in those steps date and justify; moving a step changes
@@ -75,12 +92,13 @@ func main() {
 	flag.Parse()
 	started := time.Now()
 
-	if commit == "unknown" {
-		if info, ok := debug.ReadBuildInfo(); ok {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if commit == "unknown" {
 			if c := vcsCommit(info); c != "" {
 				commit = c
 			}
 		}
+		builtAt = vcsTime(info)
 	}
 
 	if *addUser != "" {

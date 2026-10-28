@@ -175,6 +175,9 @@ func (r *Router) Routes() http.Handler {
 			// did once in (D84): the owner's only (ownerRoutes, auth_handlers.go).
 			router.Get("/signins", r.handler.GetSignIns)
 			router.Get("/usage", r.handler.GetUsage)
+			// The page's version and the server's (D87): read at load, then
+			// announced in the WebSocket's heartbeat.
+			router.Get("/version", r.handler.GetVersion)
 			// The accounts, managed by the owner while the server runs (D83):
 			// reading is in ownerRoutes, writing a viewer never may.
 			router.Get("/accounts", r.handler.GetAccounts)

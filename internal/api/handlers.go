@@ -60,7 +60,9 @@ type Handler struct {
 	db            *sqlite.DB
 	sttSidecar    *transcription.Sidecar
 	startedAt     time.Time
-	version       string // of the binary, set at build time; see SetBuild
+	version       string    // of the binary, set at build time; see SetBuild
+	pageVersion   string    // the page's fingerprint, see version.go
+	builtAt       time.Time // when the server's commit was made
 	commit        string
 	dbSampleAt    time.Time
 	dbSampleBytes int64
