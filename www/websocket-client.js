@@ -7,6 +7,9 @@
  * - Reconnect indefinitely with exponential backoff + jitter.
  * - Surface connection state and reconnect telemetry for UI.
  */
+// The client's own events, never a server message.
+const CONNECTION_EVENTS = new Set(['open', 'close', 'error', 'state_change', 'reconnect_scheduled']);
+
 class WebSocketClient {
     /**
      * @param {string} url WebSocket endpoint URL.
@@ -19,7 +22,11 @@ class WebSocketClient {
         this.autoReconnect = false;
         this.reconnectAttempts = 0;
         this.baseReconnectDelay = 1000;
-        this.maxReconnectDelay = 30000;
+        // 5 s, not 30: the wait grows while the server is away, so a restart
+        // was seen up to the last wait late -- the map frozen and the banner up
+        // 17 s after a 15 s restart, 29 s after a 30 s one, the sound already
+        // back (fiche S, 26/10). One refused connection every 5 s costs nothing.
+        this.maxReconnectDelay = 5000;
         this.reconnectJitterFactor = 0.25;
         this.connectTimeoutMs = 10000;
         this.intentionalClose = false;
@@ -40,6 +47,7 @@ class WebSocketClient {
             phase_change: [],
             clearance_issued: [],
             frequency_status: [],
+            frequency_activity: [],
             frequencies_changed: [],
             state_change: [],
             reconnect_scheduled: [],
@@ -160,35 +168,16 @@ class WebSocketClient {
                 const message = JSON.parse(event.data);
                 this._recordInboundMessage(message?.type || 'unknown');
 
-                if (message.type === 'aircraft_added') {
-                    this._notifyListeners('aircraft_added', message.data);
-                } else if (message.type === 'aircraft_update') {
-                    this._notifyListeners('aircraft_update', message.data);
-                } else if (message.type === 'aircraft_predicted_state') {
-                    this._notifyListeners('aircraft_predicted_state', message.data);
-                } else if (message.type === 'aircraft_removed') {
-                    this._notifyListeners('aircraft_removed', message.data);
-                } else if (message.type === 'aircraft_bulk_response') {
-                    this._notifyListeners('aircraft_bulk_response', message.data);
-                } else if (message.type === 'transcription') {
-                    this._notifyListeners('transcription', message.data);
-                } else if (message.type === 'transcription_update') {
-                    this._notifyListeners('transcription_update', message.data);
-                } else if (message.type === 'transcription_second') {
-                    this._notifyListeners('transcription_second', message.data);
-                } else if (message.type === 'aircraft') {
-                    this._notifyListeners('aircraft', message.data);
-                } else if (message.type === 'status_update') {
-                    if (window.Alpine && Alpine.store('atc')) {
-                        Alpine.store('atc').handleStatusUpdateMessage(message.data);
-                    }
-                    this._notifyListeners('status_update', message.data);
-                } else if (message.type === 'phase_change') {
-                    this._notifyListeners('phase_change', message.data);
-                } else if (message.type === 'frequency_status') {
-                    this._notifyListeners('frequency_status', message.data);
-                } else if (message.type === 'frequencies_changed') {
-                    this._notifyListeners('frequencies_changed', message.data);
+                if (message.type === 'status_update' && window.Alpine && Alpine.store('atc')) {
+                    Alpine.store('atc').handleStatusUpdateMessage(message.data);
+                }
+                // Every message type a listener can register for, not a list of
+                // its own: frequency_activity was registered and sent, but missing
+                // here, and dropped -- "someone is speaking" never came from the
+                // server, and a page loaded with every frequency muted showed
+                // none (27/10).
+                if (!CONNECTION_EVENTS.has(message.type) && this.listeners[message.type]) {
+                    this._notifyListeners(message.type, message.data);
                 }
             } catch (error) {
                 this._recordParseError();

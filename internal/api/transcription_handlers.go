@@ -17,8 +17,18 @@ import (
 func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	h.logger.Info("WebSocket connection request received")
 
-	// Handle the WebSocket connection
-	h.wsServer.HandleConnection(w, r)
+	// Handle the WebSocket connection; a guest's page is not sent what a
+	// guest is not told (guest.go).
+	// Tagged with its account, so that cutting the account off closes it.
+	tag := ""
+	if sess, ok := h.signedIn(r); ok {
+		tag = sess.User
+	}
+	if h.guest(r) {
+		h.wsServer.HandleConnectionTagged(w, r, guestMessage, tag)
+		return
+	}
+	h.wsServer.HandleConnectionTagged(w, r, nil, tag)
 }
 
 // GetAllTranscriptions returns all transcriptions with pagination

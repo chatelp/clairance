@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/yegors/co-atc/pkg/logger"
+	"github.com/yegors/co-atc/pkg/tool"
 )
 
 // Sidecar ties the local speech-to-text service to the lifetime of this server.
@@ -52,6 +53,12 @@ type Sidecar struct {
 
 	lastHealth Health
 
+	// For the launcher's health (docs-fr/36): when the running child started,
+	// how many times it was started again, and whether Supervise gave up.
+	startedAt time.Time
+	restarts  int
+	gaveUp    bool
+
 	// The server started with nothing to transcribe and no sidecar to run
 	// (Idle): nothing was started or probed, and nothing vouches for a sidecar
 	// at the URL. reached is set once a source asking for transcription found
@@ -78,7 +85,17 @@ type Health struct {
 	// What the models run on, as the sidecar declares it: the GPU's name, or
 	// "mlx". Empty from a sidecar that does not say.
 	Backend string `json:"backend"`
-	Models  map[string]struct {
+	// The model's queue by lane (sidecar/lanes.py), the second readings not
+	// fetched yet, and whether clips are being archived -- what the launcher's
+	// health shows (docs-fr/34).
+	Queue struct {
+		First  int `json:"first"`
+		Second int `json:"second"`
+	} `json:"queue"`
+	SecondPending           int  `json:"second_pending"`
+	Archiving               bool `json:"archiving"`
+	ArchivingStoppedLowDisk bool `json:"archiving_stopped_low_disk"`
+	Models                  map[string]struct {
 		ID        string `json:"id"`
 		Kind      string `json:"kind"`
 		Available bool   `json:"available"`
@@ -271,7 +288,10 @@ func (s *Sidecar) Stop() {
 }
 
 func (s *Sidecar) spawn() error {
-	cmd := exec.Command(s.command[0], s.command[1:]...)
+	// The interpreter wherever it is installed (pkg/tool), whatever started
+	// the server.
+	name, _ := tool.Find(s.command[0])
+	cmd := exec.Command(name, s.command[1:]...)
 	startInOwnGroup(cmd)
 	// Tells our sidecar to stop if we are killed outright. Stop() handles every
 	// ordinary exit, but not SIGKILL -- and a sidecar that outlives us holds the
@@ -292,6 +312,7 @@ func (s *Sidecar) spawn() error {
 	s.mu.Lock()
 	s.cmd = cmd
 	s.done = done
+	s.startedAt = time.Now()
 	s.mu.Unlock()
 
 	go func() {
@@ -363,6 +384,9 @@ func (s *Sidecar) Supervise(ctx context.Context) {
 			}
 			restarts = kept
 			if len(restarts) >= maxRestarts {
+				s.mu.Lock()
+				s.gaveUp = true
+				s.mu.Unlock()
 				s.logger.Error("Local STT sidecar keeps dying, no longer restarting it: transcription is stopped",
 					logger.Int("restarts", len(restarts)),
 					logger.String("window", restartWindow.String()),
@@ -385,6 +409,9 @@ func (s *Sidecar) Supervise(ctx context.Context) {
 				return
 			}
 			restarts = append(restarts, time.Now())
+			s.mu.Lock()
+			s.restarts++
+			s.mu.Unlock()
 			if err := s.spawn(); err != nil {
 				s.logger.Error("Could not restart the local STT sidecar", logger.Error(err))
 				return
@@ -406,6 +433,53 @@ func (s *Sidecar) Supervise(ctx context.Context) {
 			}
 		}
 	}()
+}
+
+// SidecarChild is the sidecar this server started, as the launcher's health
+// shows it (docs-fr/36-contrat-lanceur.md).
+type SidecarChild struct {
+	PID       int    // 0 when none runs
+	State     string // "running", "restarting", "stopped", or "failed" once Supervise gave up
+	StartedAt time.Time
+	Restarts  int
+	LastExit  string // how the previous one ended, once one has
+	Command   []string
+}
+
+// Child describes the sidecar this server started; false when it started
+// none -- no command, a sidecar run by someone else.
+func (s *Sidecar) Child() (SidecarChild, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.command) == 0 || s.cmd == nil || s.cmd.Process == nil {
+		return SidecarChild{}, false
+	}
+	c := SidecarChild{Restarts: s.restarts, Command: append([]string(nil), s.command...)}
+	running := s.done != nil
+	if running {
+		select {
+		case <-s.done:
+			running = false
+		default:
+		}
+	}
+	switch {
+	case running && !s.stopped:
+		c.State, c.PID, c.StartedAt = "running", s.cmd.Process.Pid, s.startedAt
+	case s.stopped:
+		c.State = "stopped"
+	case s.gaveUp:
+		c.State = "failed"
+	default:
+		c.State = "restarting"
+	}
+	// waitErr is the last death's until the next one: kept across a restart.
+	if s.waitErr != nil {
+		c.LastExit = s.waitErr.Error()
+	} else if !running && !s.stopped {
+		c.LastExit = "exited cleanly"
+	}
+	return c, true
 }
 
 // exited reports how the child ended, or nil while it is still running (or was

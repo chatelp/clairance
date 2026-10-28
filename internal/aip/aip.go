@@ -30,6 +30,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/yegors/co-atc/pkg/tool"
 )
 
 // A known AIRAC date; the cycle repeats every 28 days.
@@ -542,15 +544,11 @@ func (m *Maker) procedurePoints(ctx context.Context, n *Names, base, folder stri
 }
 
 // pdfToText finds poppler's pdftotext: on the PATH, or where Homebrew puts it
-// (a launcher's PATH may not hold it).
+// (a launcher's PATH may not hold it; pkg/tool).
 func pdfToText() string {
-	if p, err := exec.LookPath("pdftotext"); err == nil {
-		return p
+	p, ok := tool.Find("pdftotext")
+	if !ok {
+		return ""
 	}
-	for _, p := range []string{"/opt/homebrew/bin/pdftotext", "/usr/local/bin/pdftotext", "/usr/bin/pdftotext"} {
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
-	}
-	return ""
+	return p
 }

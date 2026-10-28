@@ -206,3 +206,21 @@ func TestFileConfiguredLogsToBoth(t *testing.T) {
 		t.Errorf("the line did not reach the file, got %q", body)
 	}
 }
+
+// The file being written is said as it is, for the launcher's health: the
+// day's, with the date the launcher used to rebuild itself.
+func TestTheLogFileBeingWrittenIsSaid(t *testing.T) {
+	dir := t.TempDir()
+	log, err := New(Config{Level: "info", Format: "json", File: filepath.Join(dir, "co-atc.log")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Info("hello")
+	want := filepath.Join(dir, "co-atc-"+time.Now().Format("2006-01-02")+".log")
+	if got := File(); got != want {
+		t.Errorf("File() = %q, want %q", got, want)
+	}
+	if _, err := os.Stat(want); err != nil {
+		t.Error(err)
+	}
+}

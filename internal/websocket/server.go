@@ -27,6 +27,7 @@ const (
 	MessageTypeFilterUpdate           = "filter_update"          // Client sends filter preferences
 	MessageTypeFrequencyStatus        = "frequency_status"       // Frequency connection status changes
 	MessageTypeFrequenciesChanged     = "frequencies_changed"    // A source was added or removed while running
+	MessageTypeFrequencyActivity      = "frequency_activity"     // Someone is speaking on a frequency, and the level
 )
 
 // Deadlines on the connection. A client that stops reading -- a phone put to
@@ -40,6 +41,13 @@ const (
 	pongWait   = 60 * time.Second
 	pingPeriod = pongWait / 2
 )
+
+// maxMessageBytes bounds one message from a client. gorilla reads a whole
+// message into memory and sets no bound of its own: a signed-in client
+// could send gigabytes in one. The page sends one kind, a bulk request of
+// about 80 bytes (www/store/feed.js); a larger message closes the
+// connection (1009, message too big).
+const maxMessageBytes = 64 << 10
 
 // Message represents a WebSocket message
 type Message struct {
@@ -73,6 +81,17 @@ type Client struct {
 	agent  string
 	since  time.Time
 	reason string
+
+	// What this client is sent of each message; nil, everything. See
+	// HandleConnectionFiltered.
+	filter func(*Message) *Message
+
+	// The account it was opened by, "" without sign-in: what CloseTagged
+	// closes when the owner cuts that account off.
+	tag string
+
+	// Told why the client went, for a tagged client when a Presence is set.
+	gone func(reason string)
 }
 
 // leave records the first reason the client goes; later ones are consequences.
@@ -103,6 +122,21 @@ type Server struct {
 	originCheck atomic.Pointer[func(*http.Request) bool]
 	refusedMu   sync.Mutex
 	refused     map[string]bool // origins already logged
+
+	presence atomic.Pointer[Presence]
+}
+
+// Presence is told of each client opened by a signed-in account, by its tag,
+// and returns what is told why it went: the owner's usage journal (D84).
+type Presence func(tag string) (gone func(reason string))
+
+// SetPresence sets who is told of the accounts' clients; nil, nobody.
+func (s *Server) SetPresence(p Presence) {
+	if p == nil {
+		s.presence.Store(nil)
+		return
+	}
+	s.presence.Store(&p)
 }
 
 // NewServer creates a new WebSocket server
@@ -196,6 +230,12 @@ func (s *Server) Run() {
 				// Then close the channel
 				close(client.send)
 				s.logLeft(client)
+				if client.gone != nil {
+					client.mu.Lock()
+					reason := client.reason
+					client.mu.Unlock()
+					client.gone(reason)
+				}
 			}
 			clientCount := len(s.clients)
 			s.mu.Unlock()
@@ -237,6 +277,21 @@ func (s *Server) Run() {
 
 // HandleConnection handles a WebSocket connection
 func (s *Server) HandleConnection(w http.ResponseWriter, r *http.Request) {
+	s.HandleConnectionFiltered(w, r, nil)
+}
+
+// HandleConnectionFiltered is HandleConnection for a client that is not sent
+// everything: each message to it goes through filter first, which returns the
+// message to send -- a copy where it changes something, since every client is
+// handed the same message -- or nil to send nothing.
+func (s *Server) HandleConnectionFiltered(w http.ResponseWriter, r *http.Request, filter func(*Message) *Message) {
+	s.HandleConnectionTagged(w, r, filter, "")
+}
+
+// HandleConnectionTagged is HandleConnectionFiltered for a client opened by a
+// signed-in account, named by tag, so that it can be closed when the owner
+// cuts that account off (CloseTagged).
+func (s *Server) HandleConnectionTagged(w http.ResponseWriter, r *http.Request, filter func(*Message) *Message, tag string) {
 	s.logger.Info("Handling new WebSocket connection request",
 		String("remote_addr", r.RemoteAddr),
 		String("user_agent", r.UserAgent()))
@@ -262,6 +317,11 @@ func (s *Server) HandleConnection(w http.ResponseWriter, r *http.Request) {
 		remote:    r.RemoteAddr,
 		agent:     r.UserAgent(),
 		since:     time.Now(),
+		filter:    filter,
+		tag:       tag,
+	}
+	if p := s.presence.Load(); p != nil && tag != "" {
+		client.gone = (*p)(tag)
 	}
 
 	// Register client
@@ -270,6 +330,28 @@ func (s *Server) HandleConnection(w http.ResponseWriter, r *http.Request) {
 	// Start client goroutines
 	go client.readPump()
 	go client.writePump()
+}
+
+// CloseTagged closes every client opened by the account tag, and says how
+// many. Each leaves as any closed connection does: its read fails, and the
+// server lets it go.
+func (s *Server) CloseTagged(tag string) int {
+	if tag == "" {
+		return 0
+	}
+	s.mu.RLock()
+	var found []*Client
+	for c := range s.clients {
+		if c.tag == tag {
+			found = append(found, c)
+		}
+	}
+	s.mu.RUnlock()
+	for _, c := range found {
+		c.leave("access cut by the owner")
+		c.Close()
+	}
+	return len(found)
 }
 
 // logLeft writes why a client went, once, when the server lets it go.
@@ -352,6 +434,7 @@ func (c *Client) readPump() {
 		c.conn.Close()
 	}()
 
+	c.conn.SetReadLimit(maxMessageBytes)
 	// Browsers answer pings by themselves, even in a background tab.
 	_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error {
@@ -489,6 +572,11 @@ func (c *Client) Close() {
 
 // SendMessage sends a message to this specific client
 func (c *Client) SendMessage(message *Message) bool {
+	if c.filter != nil {
+		if message = c.filter(message); message == nil {
+			return true
+		}
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

@@ -111,9 +111,9 @@ func (p *LocalProcessor) Stop() error {
 
 // run reads PCM, cuts it into transmissions, and sends each one to the sidecar.
 func (p *LocalProcessor) run() {
-	rate := p.config.FFmpegSampleRate
+	rate := p.config.SampleRate
 	if rate <= 0 {
-		rate = 24000
+		rate = 16000
 	}
 	frame := rate / 50 // 20 ms of s16le mono
 	buf := make([]byte, frame*2)
@@ -226,6 +226,7 @@ func (p *LocalProcessor) send(pcm []byte, rate int, at time.Time) {
 	// From the request to the decoded answer: what one transmission costs,
 	// waiting behind others in the sidecar's queue included.
 	started := time.Now()
+	p.timing.Sent(p.frequencyID, started)
 	resp, err := p.client.Do(req)
 	if err != nil {
 		if p.ctx.Err() == nil {
@@ -274,6 +275,7 @@ func (p *LocalProcessor) send(pcm []byte, rate int, at time.Time) {
 		return
 	}
 	p.timing.Record(time.Since(started))
+	p.timing.Transcribed(p.frequencyID, time.Now())
 
 	p.logger.Info("Transcribed",
 		String("language", out.Language),
@@ -310,10 +312,19 @@ func (p *LocalProcessor) MeanTranscriptionSeconds() (float64, bool) {
 // language) costs a fraction of a decode and would pull the figure down. The
 // sign-in page shows it; the first transmission sets it, each next one moves
 // it by timingAlpha of the difference.
+//
+// It also keeps, per frequency, when a transmission was last sent to the
+// sidecar and when one last came back as text: audio arriving with no
+// transmission cut is a quiet frequency, transmissions sent with no text back
+// is a deaf transcription, and the launcher's health tells them apart by these
+// two times (docs-fr/34).
 type TranscriptionTiming struct {
 	mu   sync.Mutex
 	mean float64 // seconds
 	seen bool
+
+	sent        map[string]time.Time // frequency -> last transmission sent
+	transcribed map[string]time.Time // frequency -> last one transcribed
 }
 
 // timingAlpha weighs the newest transmission: 0.1 is about the last ten.
@@ -331,6 +342,43 @@ func (t *TranscriptionTiming) Record(d time.Duration) {
 		return
 	}
 	t.mean += timingAlpha * (d.Seconds() - t.mean)
+}
+
+// Sent records that a frequency's transmission went to the sidecar.
+func (t *TranscriptionTiming) Sent(frequencyID string, at time.Time) {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.sent == nil {
+		t.sent = map[string]time.Time{}
+	}
+	t.sent[frequencyID] = at
+}
+
+// Transcribed records that a frequency's transmission came back as text.
+func (t *TranscriptionTiming) Transcribed(frequencyID string, at time.Time) {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.transcribed == nil {
+		t.transcribed = map[string]time.Time{}
+	}
+	t.transcribed[frequencyID] = at
+}
+
+// Activity returns when a frequency last sent a transmission and when one
+// last came back as text; a zero time for what has not happened since start.
+func (t *TranscriptionTiming) Activity(frequencyID string) (sent, transcribed time.Time) {
+	if t == nil {
+		return time.Time{}, time.Time{}
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.sent[frequencyID], t.transcribed[frequencyID]
 }
 
 // Mean returns the rolling mean in seconds, and false while nothing has been

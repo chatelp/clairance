@@ -11,6 +11,7 @@ import (
 	"github.com/yegors/co-atc/internal/api"
 	"github.com/yegors/co-atc/internal/config"
 	"github.com/yegors/co-atc/internal/frequencies"
+	"github.com/yegors/co-atc/internal/lifecycle"
 	"github.com/yegors/co-atc/internal/reference"
 	"github.com/yegors/co-atc/internal/storage/sqlite"
 	"github.com/yegors/co-atc/internal/transcription"
@@ -33,12 +34,14 @@ func loadConfig(configPath string) (*config.Config, string) {
 	// Load configuration with fallback logic
 	cfg, resolvedConfigPath, err := config.LoadWithFallbackAndPath(configPath)
 	if err != nil {
+		lifecycle.Failed("config", err)
 		fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Validate configuration
 	if err := cfg.Validate(); err != nil {
+		lifecycle.Failed("config", err)
 		fmt.Fprintf(os.Stderr, "Invalid configuration: %v\n", err)
 		os.Exit(1)
 	}
@@ -55,6 +58,7 @@ func newLogger(cfg *config.Config) *logger.Logger {
 		MaxFiles:  cfg.Logging.MaxFiles,
 	})
 	if err != nil {
+		lifecycle.Failed("logger", err)
 		fmt.Fprintf(os.Stderr, "Error creating logger: %v\n", err)
 		os.Exit(1)
 	}
@@ -72,9 +76,11 @@ func buildADSBClient(cfg *config.Config, log *logger.Logger) *adsb.Client {
 		log,
 	)
 
+	lifecycle.Say(lifecycle.Step, map[string]any{"step": "adsb_source", "timeout_s": 10})
 	probeCtx, probeCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	if err := adsbClient.ValidateSource(probeCtx); err != nil {
 		probeCancel()
+		lifecycle.Failed("adsb_source", err)
 		fatalLog := log.WithOptions(zap.AddStacktrace(zapcore.PanicLevel))
 		fatalLog.Fatal("ADS-B source validation failed", logger.Error(err), logger.String("source_type", cfg.ADSB.SourceType))
 	}
@@ -106,8 +112,10 @@ func startSidecar(signalCtx context.Context, cfg *config.Config, log *logger.Log
 		return sttSidecar
 	}
 	sidecarCtx, sidecarCancel := context.WithTimeout(signalCtx, 5*time.Minute)
+	lifecycle.Say(lifecycle.Step, map[string]any{"step": "sidecar", "timeout_s": 300})
 	if err := sttSidecar.Start(sidecarCtx); err != nil {
 		sidecarCancel()
+		lifecycle.Failed("sidecar", err)
 		fatalLog := log.WithOptions(zap.AddStacktrace(zapcore.PanicLevel))
 		fatalLog.Fatal("Local transcription sidecar unavailable", logger.Error(err))
 	}
@@ -142,9 +150,9 @@ type dailyStorage struct {
 }
 
 // openStorage opens today's database, after the retention pass that may delete
-// older ones. It also returns the values the settings panel can change while
-// the server runs, which that pass reads. The caller closes the database.
-func openStorage(cfg *config.Config, configPath string, log *logger.Logger) (*config.Runtime, *dailyStorage) {
+// older ones, which reads the retention from the values the settings panel can
+// change. The caller closes the database.
+func openStorage(cfg *config.Config, runtimeSettings *config.Runtime, log *logger.Logger) *dailyStorage {
 	// Generate today's database filename
 	today := time.Now().Format("2006-01-02")
 	dbFilename := fmt.Sprintf("co-atc-%s.db", today)
@@ -152,26 +160,29 @@ func openStorage(cfg *config.Config, configPath string, log *logger.Logger) (*co
 
 	// Ensure the directory exists
 	dbDir := cfg.Storage.SQLiteBasePath
+	lifecycle.Say(lifecycle.Step, map[string]any{"step": "storage"})
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
+		lifecycle.Failed("storage", err)
 		log.Error("Failed to create database directory", logger.Error(err), logger.String("path", dbDir))
 		os.Exit(1)
 	}
 
-	// Values that can be changed while the server runs, from the settings panel.
-	// Read before the first retention pass, so a size set from the panel is the
-	// one that pass obeys, not the configured default.
-	runtimeSettings := config.NewRuntime(cfg, configPath, log)
-
+	// The retention pass obeys a size set from the panel, not the configured
+	// default: runtimeSettings was read before.
 	if cfg.Storage.DBRetentionDays > 0 {
 		log.Warn("db_retention_days is no longer used: the daily databases are kept within db_retention_gb",
 			logger.Int("db_retention_days", cfg.Storage.DBRetentionDays),
 			logger.Float64("db_retention_gb", runtimeSettings.DBRetentionGB()))
 	}
-	if err := cleanupOldDailyDatabases(dbDir, dbPath, runtimeSettings.DBRetentionGB(), log); err != nil {
-		log.Warn("Failed to clean up old database files",
-			logger.Error(err),
-			logger.String("path", dbDir),
-			logger.Float64("retention_gb", runtimeSettings.DBRetentionGB()))
+	// With an archive, the first pass runs once the server is up
+	// (runDatabaseRetentionCleanup): archiving can take minutes (D85).
+	if runtimeSettings.DBArchiveDir() == "" {
+		if err := cleanupOldDailyDatabases(dbDir, dbPath, runtimeSettings.DBRetentionGB(), "", log); err != nil {
+			log.Warn("Failed to clean up old database files",
+				logger.Error(err),
+				logger.String("path", dbDir),
+				logger.Float64("retention_gb", runtimeSettings.DBRetentionGB()))
+		}
 	}
 
 	log.Info("Using daily database", logger.String("path", dbPath))
@@ -182,6 +193,7 @@ func openStorage(cfg *config.Config, configPath string, log *logger.Logger) (*co
 		log,
 	)
 	if err != nil {
+		lifecycle.Failed("storage", err)
 		log.Error("Failed to create SQLite storage", logger.Error(err))
 		os.Exit(1)
 	}
@@ -193,7 +205,7 @@ func openStorage(cfg *config.Config, configPath string, log *logger.Logger) (*co
 	// Create clearance storage
 	clearanceStorage := sqlite.NewClearanceStorage(sqliteStorage.GetDB(), log)
 
-	return runtimeSettings, &dailyStorage{
+	return &dailyStorage{
 		dir:            dbDir,
 		aircraft:       sqliteStorage,
 		transcriptions: transcriptionStorage,
@@ -311,6 +323,7 @@ func startWeather(cfg *config.Config, effectiveAirport string, refAirport *refer
 
 	// Start weather service
 	if err := weatherService.Start(); err != nil {
+		lifecycle.Failed("weather", err)
 		log.Error("Failed to start weather service", logger.Error(err))
 		os.Exit(1)
 	}
@@ -328,7 +341,7 @@ func startFrequencies(ctx context.Context, cfg *config.Config, adsbService *adsb
 
 	// What the radio has said about each aircraft, carried on the aircraft itself
 	// so the map can show which targets the controller is actually talking to.
-	adsbService.SetVoiceIndex(newVoiceIndex(context.Background(), store.transcriptions, 5*time.Second, log))
+	adsbService.SetVoiceIndex(newVoiceIndex(ctx, store.transcriptions, 5*time.Second, log))
 	frequenciesService := frequencies.NewService(cfg, log, wsServer, store.transcriptions, store.clearances, fleet)
 	// Each frequency's sector: its airport and kind, the sizes from the settings
 	// panel, the airport's position from the reference data. Off unless the
@@ -365,6 +378,7 @@ func startFrequencies(ctx context.Context, cfg *config.Config, adsbService *adsb
 
 	// Start frequencies service
 	if err := frequenciesService.Start(ctx); err != nil {
+		lifecycle.Failed("frequencies", err)
 		log.Error("Failed to start frequencies service", logger.Error(err))
 		os.Exit(1)
 	}
@@ -378,5 +392,11 @@ func buildRouter(cfg *config.Config, adsbService *adsb.Service, frequenciesServi
 	router := api.NewRouter(adsbService, frequenciesService, weatherService, refService, cfg, log, wsServer, store.transcriptions, store.clearances)
 	router.Handler().AttachRuntime(runtimeSettings, store.aircraft.GetDB(), sttSidecar)
 	router.Handler().SetBuild(version, commit)
+	// Which page the browser gets: the binary's own, or a directory's.
+	if page := api.PageOf(cfg); page.Source == "embedded" {
+		log.Info(fmt.Sprintf("Page: embedded (commit %s)", commit))
+	} else {
+		log.Info("Page: from "+page.Dir, logger.String("static_dir", cfg.Server.StaticDir))
+	}
 	return router
 }

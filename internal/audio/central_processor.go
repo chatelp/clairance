@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os/exec"
-	"strings"
 	"sync"
 	"time"
 
@@ -34,58 +32,62 @@ type StatusChangeCallback func(frequencyID string, status ConnectionStatus, erro
 
 // CentralAudioProcessor manages audio processing for a frequency
 // that can be shared between browser streaming and transcription.
-// Every source goes through ffmpeg: whatever it can read is a source.
+//
+// Every source is read inside the binary since the Go decoder passed its
+// 24-hour production trial (docs-fr/35-plan.md, N5 and B1 ter): an MP3
+// stream over HTTP is decoded by the copy of goxiph in
+// third_party (godecode.go), raw PCM over UDP is received as it is (udp.go).
+// Both write 16-bit mono PCM at the configured rate, which is what the
+// readers below share. ffmpeg, which read everything before, is gone with
+// what only it could read (SRT, a sound card).
 type CentralAudioProcessor struct {
-	id                       string
-	audioURL                 string
-	ffmpegPath               string
-	sampleRate               int
-	channels                 int
-	ffmpegTimeoutSecs        int // FFmpeg connection timeout in seconds
-	ffmpegReconnectDelaySecs int // FFmpeg reconnect delay in seconds
-	noFFmpegReconnect        bool
-	ffmpegCmd                *exec.Cmd
-	ffmpegStdout             io.ReadCloser
-	inputOptions             []string // ffmpeg options placed before -i, from the source
-	multiReader              *MultiReader
-	ctx                      context.Context
-	cancel                   context.CancelFunc
-	logger                   *logger.Logger
-	mu                       sync.Mutex
-	isRunning                bool
-	lastError                error
-	lastActivity             time.Time
-	reconnectTimer           *time.Timer
-	monitorTicker            *time.Ticker
-	reconnectDelay           time.Duration
-	format                   string
-	contentType              string
-	statusCallback           StatusChangeCallback // Callback for status changes
-	currentStatus            ConnectionStatus     // Current connection status
+	id             string
+	audioURL       string
+	sampleRate     int
+	pcm            PCMInput // what a raw PCM source sends; unused for MP3
+	multiReader    *MultiReader
+	ctx            context.Context
+	cancel         context.CancelFunc
+	logger         *logger.Logger
+	mu             sync.Mutex
+	isRunning      bool
+	lastError      error
+	lastActivity   time.Time
+	reconnectTimer *time.Timer
+	reconnectDelay time.Duration
+	statusCallback StatusChangeCallback // Callback for status changes
+	currentStatus  ConnectionStatus     // Current connection status
+	flow           flowMeter            // bytes decoded, the last minute (flow.go)
+
+	// decodeCancel stops the decoder running, decoded is the end of its pipe
+	// the readers are fed from.
+	decodeCancel context.CancelFunc
+	decoded      io.ReadCloser
+
+	// mp3 relays the stream's own MP3 frames to browsers (mp3relay.go), fed
+	// by the MP3 decoder.
+	mp3 *mp3Relay
+	// ulaw relays the decoded sound in mu-law to pages that play it
+	// themselves (ulaw.go), fed by the MP3 decoder.
+	ulaw *mp3Relay
+
+	// activity says when the frequency carries sound (activity.go); nil
+	// until SetActivityCallback.
+	activity *activityMeter
 }
+
+// Channels is what every source is brought to: one channel. A radio
+// frequency carries one voice at a time, and the transcription reads mono.
+const Channels = 1
 
 // CentralProcessorConfig contains configuration for the central audio processor
 type CentralProcessorConfig struct {
-	FFmpegPath               string
-	SampleRate               int
-	Channels                 int
-	Format                   string
-	ReconnectDelay           time.Duration
-	FFmpegTimeoutSecs        int // FFmpeg connection timeout in seconds (0 = no timeout)
-	FFmpegReconnectDelaySecs int // FFmpeg reconnect delay in seconds
+	SampleRate     int           // of the PCM written, whatever the source's
+	ReconnectDelay time.Duration // after a stream that ends or fails
 
-	// NoFFmpegReconnect leaves reconnecting to this processor, which restarts
-	// ffmpeg after ReconnectDelay, instead of asking ffmpeg to do it. ffmpeg's
-	// own reconnection retries a stream that has ended or answers 404 in a tight
-	// loop, which is right for a stream that always exists and wrong for one a
-	// station creates and removes as it changes what it listens to.
-	NoFFmpegReconnect bool
-
-	// InputOptions go on ffmpeg's command line before -i, as the source gives
-	// them: the format and rate of raw PCM over UDP, or the capture device of
-	// a receiver plugged into the sound card. Empty for a stream ffmpeg
-	// recognises by itself, which is every HTTP one.
-	InputOptions []string
+	// PCM is what a raw PCM source over UDP sends: nothing in its packets
+	// says it. Unused for an MP3 stream, which says its own format.
+	PCM PCMInput
 }
 
 // NewCentralAudioProcessor creates a new central audio processor.
@@ -102,25 +104,39 @@ func NewCentralAudioProcessor(
 	multiReader := NewMultiReader(procCtx, logger.Named("multi-reader"))
 
 	return &CentralAudioProcessor{
-		id:                       id,
-		audioURL:                 audioURL,
-		ffmpegPath:               config.FFmpegPath,
-		sampleRate:               config.SampleRate,
-		channels:                 config.Channels,
-		ffmpegTimeoutSecs:        config.FFmpegTimeoutSecs,
-		ffmpegReconnectDelaySecs: config.FFmpegReconnectDelaySecs,
-		noFFmpegReconnect:        config.NoFFmpegReconnect,
-		inputOptions:             config.InputOptions,
-		multiReader:              multiReader,
-		ctx:                      procCtx,
-		cancel:                   procCancel,
-		logger:                   logger.Named("central-audio-processor").With(String("id", id)),
-		isRunning:                false,
-		lastActivity:             time.Now(),
-		contentType:              "audio/wav", // We'll be serving WAV format
-		format:                   config.Format,
-		reconnectDelay:           config.ReconnectDelay,
+		id:             id,
+		audioURL:       audioURL,
+		sampleRate:     config.SampleRate,
+		pcm:            config.PCM,
+		mp3:            newMP3Relay(),
+		ulaw:           newRelay(ulawBurstChunks),
+		multiReader:    multiReader,
+		ctx:            procCtx,
+		cancel:         procCancel,
+		logger:         logger.Named("central-audio-processor").With(String("id", id)),
+		isRunning:      false,
+		lastActivity:   time.Now(),
+		reconnectDelay: config.ReconnectDelay,
 	}, nil
+}
+
+// SourceProblem says why a source cannot be read, or nil: an MP3 stream
+// over http or https, or raw PCM over udp with its rate and channels.
+// Anything else was read by ffmpeg, removed in B1 ter.
+func SourceProblem(audioURL string, pcm PCMInput) error {
+	switch {
+	case isHTTP(audioURL):
+		return nil
+	case isUDP(audioURL):
+		if err := pcm.Valid(); err != nil {
+			return fmt.Errorf("raw PCM over UDP: %w", err)
+		}
+		_, err := udpAddr(audioURL)
+		return err
+	default:
+		return fmt.Errorf("%q: not a source this version reads -- an MP3 stream over http(s), or raw PCM over udp; "+
+			"SRT and sound cards are no longer read", audioURL)
+	}
 }
 
 // SetStatusCallback sets the callback function for status changes
@@ -150,19 +166,15 @@ func (p *CentralAudioProcessor) Start() error {
 
 	p.logger.Info("Starting central audio processor",
 		String("url", p.audioURL),
-		Int("sample_rate", p.sampleRate),
-		Int("channels", p.channels))
+		Int("sample_rate", p.sampleRate))
 
 	// Notify connecting status
 	p.notifyStatusChange(StatusConnecting, "")
 
-	if err := p.startFFmpeg(); err != nil {
+	if err := p.startDecoder(); err != nil {
 		p.notifyStatusChange(StatusFailed, err.Error())
-		return fmt.Errorf("failed to start ffmpeg: %w", err)
+		return fmt.Errorf("failed to start the decoder: %w", err)
 	}
-
-	// Start monitoring
-	p.startMonitoring()
 
 	p.isRunning = true
 	// Notify connected status
@@ -181,16 +193,12 @@ func (p *CentralAudioProcessor) Stop() error {
 
 	p.logger.Info("Stopping central audio processor")
 
-	// Stop monitoring
-	if p.monitorTicker != nil {
-		p.monitorTicker.Stop()
-		p.monitorTicker = nil
-	}
-
 	// Cancel context to stop all operations
 	p.cancel()
 
-	p.stopFFmpeg()
+	p.stopDecoder()
+	p.mp3.close()
+	p.ulaw.close()
 
 	// Close multi-reader
 	p.multiReader.Close()
@@ -201,91 +209,43 @@ func (p *CentralAudioProcessor) Stop() error {
 	return nil
 }
 
-// startFFmpeg starts the ffmpeg process for HTTP streams
-func (p *CentralAudioProcessor) startFFmpeg() error {
-	p.logger.Debug("Starting ffmpeg process",
-		String("path", p.ffmpegPath),
-		String("url", p.audioURL))
-
-	// Create ffmpeg command with enhanced arguments
-	p.ffmpegCmd = exec.CommandContext(p.ctx, p.ffmpegPath, p.ffmpegArgs()...)
-
-	// Get stdout pipe
-	var err error
-	p.ffmpegStdout, err = p.ffmpegCmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("failed to create stdout pipe: %w", err)
+// startDecoder starts reading the source in Go: what the decoder writes goes
+// through a pipe to processOutput, and a read error there -- the stream that
+// ends, the connection that drops, the port that cannot be had -- schedules
+// the next attempt.
+func (p *CentralAudioProcessor) startDecoder() error {
+	if err := SourceProblem(p.audioURL, p.pcm); err != nil {
+		return err
 	}
-
-	// Start ffmpeg
-	if err := p.ffmpegCmd.Start(); err != nil {
-		return fmt.Errorf("failed to start ffmpeg: %w", err)
-	}
-
-	// Start copying data from ffmpeg to multi-reader
-	go p.processFFmpegOutput()
-
+	ctx, cancel := context.WithCancel(p.ctx)
+	pr, pw := io.Pipe()
+	p.decodeCancel = cancel
+	p.decoded = pr
+	go func() {
+		var err error
+		if isUDP(p.audioURL) {
+			err = decodeUDP(ctx, p.audioURL, p.pcm, p.sampleRate, pw, p.logger)
+		} else {
+			err = decodeHTTP(ctx, p.audioURL, p.sampleRate, pw, p.mp3, p.ulaw, p.logger)
+		}
+		if ctx.Err() != nil {
+			err = ctx.Err()
+		}
+		pw.CloseWithError(err)
+	}()
+	go p.processOutput(pr)
 	return nil
 }
 
-// ffmpegArgs is ffmpeg's command line for this processor's stream.
-//
-// The timeout and reconnection knobs are options of ffmpeg's HTTP protocol:
-// given with any other input -- raw PCM over UDP, a capture device -- ffmpeg
-// stops with "Option reconnect not found" (ffmpeg 8.0.1, measured 10/10). They
-// go only with http and https; the source's own input options cover the rest.
-func (p *CentralAudioProcessor) ffmpegArgs() []string {
-	args := []string{
-		"-loglevel", "error", // Minimal logging
-		"-fflags", "nobuffer", // Disable input buffering
-		"-flags", "low_delay", // Enable low delay mode
+// stopDecoder stops the decoder, if one runs, and any restart scheduled.
+func (p *CentralAudioProcessor) stopDecoder() {
+	if p.decodeCancel != nil {
+		p.decodeCancel()
+		p.decodeCancel = nil
 	}
-
-	if isHTTP(p.audioURL) {
-		// Add timeout if configured (convert seconds to microseconds)
-		if p.ffmpegTimeoutSecs > 0 {
-			args = append(args, "-timeout", fmt.Sprintf("%d", p.ffmpegTimeoutSecs*1000000))
-		}
-		if !p.noFFmpegReconnect {
-			args = append(args,
-				"-reconnect", "1", // Enable reconnection
-				"-reconnect_at_eof", "1", // Reconnect at end of file
-				"-reconnect_streamed", "1", // Reconnect for streamed inputs
-				"-reconnect_delay_max", fmt.Sprintf("%d", p.ffmpegReconnectDelaySecs), // Configurable reconnect delay
-			)
-		}
-	}
-	args = append(args, p.inputOptions...)
-	args = append(args,
-		"-i", p.audioURL, // Input URL, or a capture device named by the input options
-		"-f", p.format, // Output format (should be s16le for raw PCM)
-		"-acodec", "pcm_s16le", // Audio codec
-		"-ac", fmt.Sprintf("%d", p.channels), // Channels
-		"-ar", fmt.Sprintf("%d", p.sampleRate), // Sample rate
-		"-flush_packets", "1", // Flush packets immediately
-		"pipe:1", // Output to stdout
-	)
-	return args
-}
-
-// isHTTP reports that ffmpeg will read the source with its HTTP protocol.
-func isHTTP(audioURL string) bool {
-	u := strings.ToLower(audioURL)
-	return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://")
-}
-
-// stopFFmpeg stops the ffmpeg process
-func (p *CentralAudioProcessor) stopFFmpeg() {
-	if p.ffmpegCmd != nil && p.ffmpegCmd.Process != nil {
-		p.logger.Info("Stopping ffmpeg process")
-
-		// Try to kill the process, but don't log errors during shutdown
-		// These errors are expected as ffmpeg may already be terminated
-		_ = p.ffmpegCmd.Process.Kill()
-
-		// Wait for the process to exit, but don't log errors
-		// The exit status might be non-zero or the process might already be gone
-		_ = p.ffmpegCmd.Wait()
+	if p.decoded != nil {
+		_ = p.decoded.Close()
+		p.decoded = nil
 	}
 
 	if p.reconnectTimer != nil {
@@ -294,9 +254,10 @@ func (p *CentralAudioProcessor) stopFFmpeg() {
 	}
 }
 
-// processFFmpegOutput processes the output from ffmpeg
-func (p *CentralAudioProcessor) processFFmpegOutput() {
-	p.logger.Info("Starting to process ffmpeg output")
+// processOutput copies what the decoder writes to the readers, until it
+// stops; then it schedules a restart after the reconnect delay.
+func (p *CentralAudioProcessor) processOutput(decoded io.Reader) {
+	p.logger.Info("Starting to process the decoded audio")
 
 	// Create buffer for reading
 	buffer := make([]byte, 4096)
@@ -306,28 +267,27 @@ func (p *CentralAudioProcessor) processFFmpegOutput() {
 	for {
 		select {
 		case <-p.ctx.Done():
-			p.logger.Info("Context canceled, stopping ffmpeg output processing",
+			p.logger.Info("Context canceled, stopping the decoded audio processing",
 				Int("total_bytes_processed", bytesProcessed))
 			return
 		default:
-			// Read from ffmpeg
-			n, err := p.ffmpegStdout.Read(buffer)
+			n, err := decoded.Read(buffer)
 			if err != nil {
 				if err == io.EOF {
-					p.logger.Warn("FFmpeg output ended unexpectedly",
+					p.logger.Warn("The source ended unexpectedly",
 						Int("total_bytes_processed", bytesProcessed),
 						String("duration_since_start", time.Since(lastLogTime).String()))
 				} else {
-					p.logger.Error("Error reading from ffmpeg", Error(err),
+					p.logger.Error("Error reading the source", Error(err),
 						Int("total_bytes_processed", bytesProcessed),
 						String("duration_since_start", time.Since(lastLogTime).String()))
 					p.lastError = err
 				}
 
-				// Attempt to restart ffmpeg after a delay
+				// Attempt to restart the decoder after a delay
 				p.mu.Lock()
 				if p.isRunning && p.reconnectTimer == nil {
-					p.logger.Warn("Scheduling ffmpeg restart due to read error",
+					p.logger.Warn("Scheduling a restart of the source after a read error",
 						String("error_type", fmt.Sprintf("%T", err)),
 						String("error_message", err.Error()))
 					// Notify failed status
@@ -338,14 +298,14 @@ func (p *CentralAudioProcessor) processFFmpegOutput() {
 
 						p.reconnectTimer = nil
 						if p.isRunning {
-							p.logger.Info("Executing scheduled ffmpeg restart")
+							p.logger.Info("Executing scheduled restart of the source")
 							p.notifyStatusChange(StatusConnecting, "")
-							p.stopFFmpeg()
-							if err := p.startFFmpeg(); err != nil {
-								p.logger.Error("Failed to restart ffmpeg", Error(err))
+							p.stopDecoder()
+							if err := p.startDecoder(); err != nil {
+								p.logger.Error("Failed to restart the source", Error(err))
 								p.notifyStatusChange(StatusFailed, err.Error())
 							} else {
-								p.logger.Info("FFmpeg restarted successfully")
+								p.logger.Info("Source restarted")
 								p.notifyStatusChange(StatusConnected, "")
 							}
 						}
@@ -359,14 +319,19 @@ func (p *CentralAudioProcessor) processFFmpegOutput() {
 				bytesProcessed += n
 				// Update last activity time
 				p.lastActivity = time.Now()
+				p.flow.add(n, p.lastActivity)
 
 				// Log progress every 30 seconds
 				if time.Since(lastLogTime) > 30*time.Second {
-					p.logger.Debug("FFmpeg processing progress",
+					p.logger.Debug("Decoding progress",
 						Int("bytes_processed", bytesProcessed),
 						Int("bytes_this_read", n),
 						String("duration", time.Since(lastLogTime).String()))
 					lastLogTime = time.Now()
+				}
+
+				if a := p.activity; a != nil {
+					a.push(buffer[:n])
 				}
 
 				// Write to multi-reader
@@ -380,50 +345,13 @@ func (p *CentralAudioProcessor) processFFmpegOutput() {
 	}
 }
 
-// startMonitoring starts monitoring the audio source (ffmpeg or SRT)
-func (p *CentralAudioProcessor) startMonitoring() {
-	// The loop keeps its own copy: Stop sets p.monitorTicker to nil, and reading
-	// the field here raced with that and crashed on the nil ticker -- once per
-	// stop, at worst, which removing sources at runtime makes routine.
-	ticker := time.NewTicker(5 * time.Second)
-	p.monitorTicker = ticker
-
-	go func() {
-		for {
-			select {
-			case <-p.ctx.Done():
-				return
-			case <-ticker.C:
-				p.mu.Lock()
-				// Monitor ffmpeg process
-				if p.isRunning && p.ffmpegCmd != nil && p.ffmpegCmd.ProcessState != nil {
-					p.logger.Warn("FFmpeg process has exited unexpectedly")
-
-					if p.isRunning && p.reconnectTimer == nil {
-						p.logger.Info("Restarting ffmpeg after unexpected exit")
-						p.notifyStatusChange(StatusConnecting, "Reconnecting after process exit")
-						p.stopFFmpeg()
-						if err := p.startFFmpeg(); err != nil {
-							p.logger.Error("Failed to restart ffmpeg", Error(err))
-							p.notifyStatusChange(StatusFailed, err.Error())
-						} else {
-							p.notifyStatusChange(StatusConnected, "")
-						}
-					}
-				}
-				p.mu.Unlock()
-			}
-		}
-	}()
-}
-
 // CreateReader creates a new reader for the audio stream (with WAV header for browser playback)
 func (p *CentralAudioProcessor) CreateReader(id string) (io.ReadCloser, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	if !p.isRunning {
-		if err := p.startFFmpeg(); err != nil {
+		if err := p.startDecoder(); err != nil {
 			return nil, fmt.Errorf("failed to start processor: %w", err)
 		}
 		p.isRunning = true
@@ -431,7 +359,7 @@ func (p *CentralAudioProcessor) CreateReader(id string) (io.ReadCloser, error) {
 
 	// Create a reader with WAV header
 	reader := p.multiReader.CreateReader(id)
-	return NewWAVReader(reader, p.sampleRate, p.channels), nil
+	return NewWAVReader(reader, p.sampleRate, Channels), nil
 }
 
 // CreateRawReader creates a new reader for raw PCM audio (no WAV header, for transcription)
@@ -440,7 +368,7 @@ func (p *CentralAudioProcessor) CreateRawReader(id string) (io.ReadCloser, error
 	defer p.mu.Unlock()
 
 	if !p.isRunning {
-		if err := p.startFFmpeg(); err != nil {
+		if err := p.startDecoder(); err != nil {
 			return nil, fmt.Errorf("failed to start processor: %w", err)
 		}
 		p.isRunning = true

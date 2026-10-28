@@ -1,0 +1,14 @@
+# Where an address, a path or the station's name shows, and who reads it (viewer, owner).
+/api/v1/adsb/source          aircraft.last_error                - owner
+/api/v1/aip-names            last_error                         - owner
+/api/v1/config               storage.sqlite_base_path           - owner
+/api/v1/frequencies          frequencies.*.last_error           - owner
+/api/v1/frequencies          frequencies.*.url                  - owner
+/api/v1/frequencies/{id}     last_error                         - owner
+/api/v1/frequencies/{id}     url                                - owner
+/api/v1/server               logging.file                       - owner
+/api/v1/server               storage.active_db                  - owner
+/api/v1/server               storage.dir                        - owner
+/api/v1/server               transcription.detail               - owner
+/api/v1/status               receiver.detail                    - owner
+WS frequency_status          data.error                         - owner

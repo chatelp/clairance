@@ -62,4 +62,9 @@ func (h *Handler) GetTranscriptionAudio(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "audio/wav")
 	w.Header().Set("Cache-Control", "private, max-age=86400")
 	http.ServeContent(w, r, "", st.ModTime(), f)
+	if r.Method == http.MethodGet {
+		if sess, ok := h.signedIn(r); ok {
+			h.usage.Clip(sess.User, t.FrequencyID, strconv.FormatInt(id, 10))
+		}
+	}
 }

@@ -40,14 +40,12 @@ func (s *Service) Role(r *http.Request) string {
 	if !s.Enabled() {
 		return RoleOwner
 	}
+	// SessionFrom has checked the account still holds the session's role, so
+	// the session's role is the account's. An unknown account used to fall
+	// through to owner here.
 	sess, ok := s.SessionFrom(r)
 	if !ok {
 		return ""
 	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	if role, ok := s.roles[sess.User]; ok {
-		return role
-	}
-	return RoleOwner
+	return sess.Role
 }

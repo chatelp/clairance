@@ -98,6 +98,21 @@ It works on a phone too, through the same page.
 
 <p align="center"><img src=".github/readme/phone.png" width="550" alt="On a phone: the radio thread and the sky"></p>
 
+### Open it to a friend
+
+- **Accounts, managed from the page.** In *Settings → Account → Accounts* the admin adds an
+  account, admin or viewer, gives one a new password, cuts one off — its pages and its sound
+  stop within the second — or removes it, while the server runs. A viewer reads the thread,
+  the map and the transcripts, changes nothing, and hears the audio only if the server allows
+  it.
+- **From the Internet, behind your own reverse proxy** and over HTTPS ([below](#reaching-it-from-the-internet-behind-a-reverse-proxy)).
+  Sign-ins survive a restart of the server.
+- **Who came, and what they did.** Every sign-in, refused or not, is traced. *Usage* shows who
+  has a page open and which frequencies they hear, and for each account over the last 7 days
+  the time connected and listening, the clips played again, a bar a day, and what interrupted
+  them: a restart, the station's stream ending, a connection lost and back. Kept 30 days on the
+  server, with no address written.
+
 ## How well it works
 
 Measured on the station it was built for, near Paris, with the numbers and their method
@@ -141,6 +156,9 @@ Said plainly, because they matter more than the features:
   NVIDIA port is a target, not done; the Windows build compiles but has never been run.
 - **Not yet easy to install elsewhere.** It runs, every day, on its owner's station; nobody
   else has installed it yet, and there is no installation guide beyond the one below.
+- **Audio for guests is all or nothing.** `audio_replay = "all"` lets every viewer account hear
+  the streams and the clips, or none of them; there is no per-account switch, and changing it
+  needs a restart.
 - **Probable runways and exits are inferences**, and labelled as such: nothing is shown for
   an aircraft the controller vectors off its procedure, and departures already in the air
   when the server starts have no exit.
@@ -163,17 +181,18 @@ go out, and when:
   (OpenStreetMap's Overpass API, `tools/airport-layout/fetch.py`), and the Whisper models
   (Hugging Face).
 
-The page itself loads nothing from a CDN.
+The page itself loads nothing from a CDN. The accounts, the sessions, the sign-in trace and the
+usage journal stay on the server.
 
 ## What you need
 
 - **An ADS-B receiver** with `tar1090` or `readsb` (or an external source, see above).
-- **Audio of the airband**: anything FFmpeg reads — an Icecast stream per frequency (what
-  this was built against), an HTTP stream, raw PCM over UDP from an SDR program, a receiver
-  on the sound card, SRT if your FFmpeg has libsrt.
+- **Audio of the airband**: an MP3 stream over HTTP per frequency (Icecast, what this was
+  built against, or LiveATC), or raw 16-bit PCM over UDP from an SDR program (GQRX, SDR++,
+  rtl_fm). Both are read inside the server: nothing to install for the audio.
 - **A Mac with Apple Silicon** for transcription (the station's runs on a Mac mini with
   24 GB; the three models take 8 GB or more), **Python 3.11+** for the sidecar, **Go 1.23+**,
-  **FFmpeg**, and `pdftotext` (poppler) for the procedure tables.
+  and `pdftotext` (poppler) for the procedure tables.
 
 ## Getting started
 
@@ -184,6 +203,9 @@ cp configs/config.toml.example configs/config.toml   # then set your station, so
 go build -o bin/co-atc ./cmd/server
 python3 -m venv .venv && .venv/bin/pip install -r sidecar/requirements.txt
 ```
+
+The page is built into the binary: `bin/co-atc` serves the page of its own commit and needs
+no `www/` beside it. To work on the page without rebuilding, set `[server] static_dir = "www"`.
 
 To have the settings and the sign-in page say which build is running:
 
@@ -208,7 +230,9 @@ machine only (no sign-in) or reachable with an account. A server that listens be
 Optional, once:
 
 - `python3 tools/airport-layout/fetch.py --config configs/config.toml` draws the airports'
-  runways, taxiways and aprons around your station (OpenStreetMap, ODbL).
+  runways, taxiways and aprons around your station (OpenStreetMap, ODbL). The file belongs to
+  your station and is not built in: it is written to `station/` in the data directory
+  (`[storage] sqlite_base_path`), from where the server serves it to the map.
 - In *Settings → Regional data*, **Update from the SIA** fetches the official names and the
   published procedures of the French airports you follow.
 - `tools/menubar/` builds **Clairance.app**, a menu-bar launcher that starts and stops
@@ -222,14 +246,140 @@ Optional, once:
 
 `configs/config.toml.example` is about 170 lines; a key left out takes its default
 (`internal/config/defaults.go`). At startup the server names, one line each, what it found
-in the file and does not read.
+in the file and does not read, and what it depends on and does not find: a source it
+cannot read, `pdftotext`, the sidecar's program, script and models, room on the disks,
+a data directory it can write, the airport layout. Each line says what suffers; the server
+starts all the same, and `/api/v1/health/detail` lists them under `missing`.
+
+## Reaching it from the Internet, behind a reverse proxy
+
+```mermaid
+flowchart LR
+  guest["A guest's browser<br/>viewer account"]
+  owner["The owner's browser<br/>admin account, on the network"]
+  proxy["Your reverse proxy<br/>HTTPS, its certificate"]
+  subgraph server["Clairance, its first port"]
+    direction TB
+    signin["Sign-in<br/>Argon2id, 8 tries / 15 min"]
+    role["Role<br/>admin or viewer"]
+    files[("users.json · sessions.json<br/>signins.jsonl · usage.jsonl")]
+    signin --> role
+    role -.-> files
+  end
+  probe["An uptime probe<br/>/api/v1/health"]
+  guest -- "HTTPS" --> proxy
+  proxy -- "HTTP, X-Forwarded-For" --> server
+  owner --> server
+  probe -- "the public address" --> proxy
+```
+
+Clairance does not serve HTTPS to the Internet itself: put a reverse proxy in front of it
+that terminates TLS and forwards in plain HTTP on your network. On the server, declare that
+proxy and nothing else, and require sign-in:
+
+```toml
+[server]
+host = "0.0.0.0"                    # the proxy runs on another machine: listen on the network
+trusted_proxies = ["192.0.2.10"]    # the proxy's address as this server sees it, and only it
+audio_replay = "owner"              # "all" to let viewer accounts hear the streams and clips
+```
+
+With the proxy declared, the server reads the browser's address and scheme from its
+`X-Forwarded-For` and `X-Forwarded-Proto` (from it alone), marks the session cookie `Secure`,
+points the page's audio at the page's own address rather than at ports 8001–8004, refuses
+the first-run page to whatever comes through it, keeps `/api/v1/health/detail` to the owner,
+and refuses to run without sign-in. Give a guest an account of their own from *Settings →
+Account → Accounts* (*Add an account*, role viewer): it can sign in at once. A viewer reads,
+changes nothing, and hears nothing unless `audio_replay = "all"` -- then two streams of a
+frequency at most. It is not told where the server's things are: the streams' and the
+receiver's addresses, the database's and the log's paths, and the errors that repeat them are
+emptied in what it reads. To prepare accounts before the server is opened, `co-atc -add-user
+<name>` prints a block to paste under `[[auth.users]]`; those are shown in the panel and
+changed only in the file.
+
+An example for Traefik v3 (file provider; the names and addresses are placeholders, the
+`192.0.2.x` ones from the documentation range):
+
+```yaml
+# Static configuration: the HTTPS entry point.
+entryPoints:
+  websecure:
+    address: ":443"
+    # No forwardedHeaders.insecure: Traefik then drops the X-Forwarded-* a client sends
+    # and writes its own, which is what trusted_proxies believes.
+    transport:
+      respondingTimeouts:
+        readTimeout: 60s   # the default: reading a request, not the length of the answer
+        writeTimeout: 0s   # the default; any other value cuts every audio stream at that age
+        idleTimeout: 180s
+```
+
+```yaml
+# Dynamic configuration.
+http:
+  routers:
+    clairance:
+      rule: Host(`clairance.example.org`)
+      entryPoints: [websecure]
+      service: clairance
+      middlewares: [clairance-headers]
+      tls:
+        certResolver: letsencrypt        # the resolver your Traefik already uses
+    clairance-login:                     # a longer rule, so it wins for the sign-in alone
+      rule: Host(`clairance.example.org`) && Path(`/api/v1/auth/login`)
+      entryPoints: [websecure]
+      service: clairance
+      middlewares: [clairance-headers, clairance-login-limit]
+      tls:
+        certResolver: letsencrypt
+  middlewares:
+    clairance-login-limit:
+      rateLimit:                         # per client address; the server adds its own limit
+        average: 10                      # (8 wrong passwords per address, or IPv6 /64,
+        period: 1m                       # per 15 minutes)
+        burst: 5
+    clairance-headers:
+      headers:
+        stsSeconds: 31536000
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: same-origin
+        customResponseHeaders:
+          X-Robots-Tag: "noindex, nofollow"
+  services:
+    clairance:
+      loadBalancer:
+        # passHostHeader stays true (the default): the page's origin is then the Host the
+        # server receives, and its WebSocket is accepted. If you turn it off, add
+        # "https://clairance.example.org" to [server] allowed_origins.
+        servers:
+          - url: "http://192.0.2.20:8000"  # the machine running Clairance, on its first port
+```
+
+Do not compress in the proxy (the server already compresses text, never the audio), and
+do not forward ports 8001–8004: through the proxy, everything goes through the first port.
+
+- **Sessions** are kept on disk (`sessions.json`, the cookies' hashes only), so a restart signs
+  nobody out. One unused for 30 days ends (`[auth] session_ttl_hours = 720`); every session
+  ends 90 days after its sign-in.
+- **To cut someone off**, *Cut access* in the panel: their sessions end, and their pages and
+  sound stop within the second; the password is kept. Give a new password, or *Remove* the
+  account, to keep them out. Nothing to restart.
+- **To see who came**: the sign-in trace (`signins.jsonl` beside the accounts, or
+  `/api/v1/signins` signed in as the owner), and *Settings → Account → Usage* for what each
+  account did (`usage.jsonl`, `[auth] usage_days = 30`, 0 keeps none).
+- **To watch it from outside**, point an uptime probe at `/api/v1/health` through the public
+  address and look for `"status":true`: it answers without sign-in, true while the server runs
+  and its ADS-B arrives. A probe on the proxy's own machine falls with it.
+- **Bandwidth**: a listener takes 64 kb/s a frequency from the server (the station's own 8 kHz,
+  in mu-law). The station's streams are read once by the server, however many listen.
 
 ## How it works
 
 ```mermaid
 flowchart TD
   station["Receiving station<br/>one audio stream per frequency · ADS-B"]
-  seg["Segmenter<br/>a transmission ends after 0.6 s of silence<br/><i>Go · FFmpeg</i>"]
+  seg["Segmenter<br/>a transmission ends after 0.6 s of silence<br/><i>Go</i>"]
   subgraph sidecar["Transcription sidecar · Python, MLX"]
     direction LR
     vad["Speech or noise?<br/><i>Silero VAD</i>"] --> en["English reading<br/><i>whisper-large-v3-atco2</i>"]

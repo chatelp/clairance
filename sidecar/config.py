@@ -10,6 +10,15 @@ class Config:
     host: str = "127.0.0.1"
     port: int = 8178
 
+    # What turns audio into text (engines.py): "mlx" on Apple Silicon,
+    # "faster-whisper" (CTranslate2) elsewhere; "auto" is MLX where it can be
+    # imported, else faster-whisper. device and compute_type are faster-whisper's:
+    # "auto" is the NVIDIA GPU in float16 when CTranslate2 sees one, else the
+    # processor in int8.
+    engine: str = "auto"
+    device: str = "auto"
+    compute_type: str = "auto"
+
     # Models are chosen per language, not per frequency: the caller passes the
     # language it expects and the sidecar honours it. See docs-fr/13-strategie-bilingue.md.
     model_en: str = "sfabriece/whisper-large-v3-atco2-asr-mlx"
@@ -85,6 +94,9 @@ class Config:
     # fills the disk takes the database down with it, and the database is the
     # thing that cannot be rebuilt from anything else.
     save_audio_min_free_gb: float = 8.0
+    # MLX's buffer cache, bounded (device.limit_cache): unbounded, it took the
+    # sidecar from 8 to 16 GB in 25 minutes on 26/10. 0 leaves it unbounded.
+    mlx_cache_limit_gb: float = 1.0
 
     # Stop when the process that started this one goes away.
     #
@@ -107,10 +119,19 @@ def from_args(argv: list[str] | None = None) -> Config:
     p = argparse.ArgumentParser(description="Local STT sidecar for Clairance")
     p.add_argument("--host", default=d.host)
     p.add_argument("--port", type=int, default=d.port)
+    p.add_argument("--engine", default=d.engine, choices=("auto", "mlx", "faster-whisper"),
+                   help="mlx (Apple Silicon) or faster-whisper (CTranslate2); auto: MLX where it "
+                        "can be imported, else faster-whisper")
+    p.add_argument("--device", default=d.device, choices=("auto", "cuda", "cpu"),
+                   help="faster-whisper only: auto is the NVIDIA GPU when CTranslate2 sees one, else the processor")
+    p.add_argument("--compute-type", default=d.compute_type, metavar="TYPE",
+                   help="faster-whisper only: auto is float16 on the GPU, int8 on the processor "
+                        "(any CTranslate2 type: int8_float16, float32...)")
     p.add_argument("--model-en", default=d.model_en,
-                   help="MLX model (path or HF repo) for English audio")
+                   help="model (path or HF repo) for English audio: an MLX conversion with the MLX "
+                        "engine, a CTranslate2 one with faster-whisper")
     p.add_argument("--model-fr", default=d.model_fr,
-                   help="MLX model for French audio; leave empty to refuse French")
+                   help="model for French audio, as --model-en; leave empty to refuse French")
     p.add_argument("--preload", action="store_true",
                    help="load models at startup rather than on first use")
     p.add_argument("--no-vad", dest="vad", action="store_false")
@@ -119,8 +140,8 @@ def from_args(argv: list[str] | None = None) -> Config:
     p.add_argument("--second-opinion", dest="second", action="store_true",
                    help="on a transcript that looks French, transcribe again with the French model")
     p.add_argument("--fr-detector", default=d.fr_detector, metavar="MODEL",
-                   help="multilingual MLX Whisper (path or HF repo) whose language detection also "
-                        "opens the second opinion; empty for the word gate alone")
+                   help="multilingual Whisper (path or HF repo, converted for the engine) whose language "
+                        "detection also opens the second opinion; empty for the word gate alone")
     p.add_argument("--fr-threshold", type=float, default=d.fr_threshold,
                    help="probability of French above which the detector opens the second opinion (default 0.1)")
     p.add_argument("--fr-no-fallback", dest="fr_no_fallback", action="store_true",
@@ -131,10 +152,13 @@ def from_args(argv: list[str] | None = None) -> Config:
                    help="keep every transmission's audio and a manifest line, rejected ones included")
     p.add_argument("--save-audio-min-free-gb", type=float, default=d.save_audio_min_free_gb,
                    help="stop archiving below this much free disk space (default 8)")
+    p.add_argument("--mlx-cache-limit-gb", type=float, default=d.mlx_cache_limit_gb,
+                   help="bound MLX's cache of freed buffers, in GB (default 1; 0 for no bound)")
     p.add_argument("--no-exit-with-parent", dest="exit_with_parent", action="store_false",
                    help="keep running after the process that started this one goes away")
     a = p.parse_args(argv)
-    return Config(host=a.host, port=a.port, model_en=a.model_en, model_fr=a.model_fr,
+    return Config(host=a.host, port=a.port, engine=a.engine, device=a.device,
+                  compute_type=a.compute_type, model_en=a.model_en, model_fr=a.model_fr,
                   preload=a.preload, vad_enabled=a.vad,
                   min_speech_seconds=a.min_speech_seconds, log_level=a.log_level,
                   second_opinion=a.second, fr_detector=a.fr_detector,
@@ -142,4 +166,5 @@ def from_args(argv: list[str] | None = None) -> Config:
                   fr_cut_loops=a.fr_cut_loops,
                   save_audio=a.save_audio,
                   save_audio_min_free_gb=a.save_audio_min_free_gb,
+                  mlx_cache_limit_gb=a.mlx_cache_limit_gb,
                   exit_with_parent=a.exit_with_parent)

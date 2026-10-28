@@ -88,13 +88,41 @@ func (t *TrustedProxies) Scheme(r *http.Request) string {
 	return "http"
 }
 
+// Forwarded says that a request came through a trusted proxy: the browser
+// is not talking to co-atc directly, and reaches only the address the proxy
+// serves -- not the other ports co-atc listens on.
+func (t *TrustedProxies) Forwarded(r *http.Request) bool {
+	if !t.trusts(r.RemoteAddr) {
+		return false
+	}
+	for _, h := range []string{"X-Forwarded-For", "X-Forwarded-Proto", "X-Forwarded-Host", "Forwarded"} {
+		if r.Header.Get(h) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 // ClientIP is the address to hold responsible for a request -- for rate limiting,
 // and for saying in a log who failed to sign in.
+//
+// X-Forwarded-For is read from the right, where each proxy appends the address
+// it was spoken to from: past the addresses of trusted proxies, the first one
+// that is not is the browser as the outermost trusted proxy saw it. Taking the
+// last address alone was right behind a single proxy and wrong behind two --
+// a CDN in front of Traefik made every visitor the CDN's address, so eight
+// wrong passwords from anyone locked everyone out. Every X-Forwarded-For line
+// is read, in order: a proxy that adds its own line rather than appending to
+// the client's would otherwise leave the client's invented one first.
 func (t *TrustedProxies) ClientIP(r *http.Request) string {
 	if t.trusts(r.RemoteAddr) {
-		if f := r.Header.Get("X-Forwarded-For"); f != "" {
+		if f := strings.Join(r.Header.Values("X-Forwarded-For"), ","); strings.TrimSpace(f) != "" {
 			parts := strings.Split(f, ",")
-			return strings.TrimSpace(parts[len(parts)-1])
+			for i := len(parts) - 1; i >= 0; i-- {
+				if p := strings.TrimSpace(parts[i]); p != "" && (i == 0 || !t.trusts(p)) {
+					return p
+				}
+			}
 		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -102,6 +130,26 @@ func (t *TrustedProxies) ClientIP(r *http.Request) string {
 		return r.RemoteAddr
 	}
 	return host
+}
+
+// limitKey is what the sign-in limit counts under: the address, and for IPv6
+// its /64. An IPv6 subscriber, phone or server holds a whole /64 and can
+// take a new address from it for every guess; counted per address, it could
+// guess without end. A /64 is one subscriber, so nobody else is caught with
+// it. What does not parse as an address is its own key.
+func limitKey(addr string) string {
+	host := addr
+	if h, _, err := net.SplitHostPort(addr); err == nil {
+		host = h
+	}
+	ip := net.ParseIP(strings.Trim(host, "[]"))
+	if ip == nil {
+		return addr
+	}
+	if v4 := ip.To4(); v4 != nil {
+		return v4.String()
+	}
+	return ip.Mask(net.CIDRMask(64, 128)).String() + "/64"
 }
 
 // Limiter slows down password guessing.
@@ -114,17 +162,20 @@ type Limiter struct {
 	attempts map[string][]time.Time
 	max      int
 	window   time.Duration
+	swept    time.Time        // the last time expired addresses were forgotten
+	now      func() time.Time // time.Now; a test's clock
 }
 
 func NewLimiter(max int, window time.Duration) *Limiter {
-	return &Limiter{attempts: map[string][]time.Time{}, max: max, window: window}
+	return &Limiter{attempts: map[string][]time.Time{}, max: max, window: window, now: time.Now}
 }
 
 // Allow records an attempt and reports whether it may proceed.
 func (l *Limiter) Allow(key string) bool {
-	now := time.Now()
+	now := l.now()
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.sweepLocked(now)
 
 	var kept []time.Time
 	for _, t := range l.attempts[key] {
@@ -138,6 +189,41 @@ func (l *Limiter) Allow(key string) bool {
 	}
 	l.attempts[key] = append(kept, now)
 	return true
+}
+
+// Wait is how long until key may try again: zero when it may now, else
+// until enough of its attempts are older than the window.
+func (l *Limiter) Wait(key string) time.Duration {
+	now := l.now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	var kept []time.Time
+	for _, t := range l.attempts[key] {
+		if now.Sub(t) < l.window {
+			kept = append(kept, t)
+		}
+	}
+	if len(kept) < l.max {
+		return 0
+	}
+	return kept[len(kept)-l.max].Add(l.window).Sub(now)
+}
+
+// sweepLocked forgets, at most once per window, the addresses whose last
+// attempt is older than the window. An address was otherwise kept for the
+// life of the process once it had tried, unless it later got the password
+// right: every visitor who ever mistyped, and every address a guesser drew
+// for one attempt, stayed in memory -- without bound on a public server.
+func (l *Limiter) sweepLocked(now time.Time) {
+	if now.Sub(l.swept) < l.window {
+		return
+	}
+	l.swept = now
+	for key, times := range l.attempts {
+		if len(times) == 0 || now.Sub(times[len(times)-1]) >= l.window {
+			delete(l.attempts, key)
+		}
+	}
 }
 
 // Succeeded clears the count after a correct password, so a user who fumbled twice

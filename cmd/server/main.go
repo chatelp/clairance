@@ -5,13 +5,18 @@ import (
 	"flag"
 	"fmt"
 	"github.com/yegors/co-atc/internal/aip"
+	"github.com/yegors/co-atc/internal/api"
 	"github.com/yegors/co-atc/internal/config"
+	"github.com/yegors/co-atc/internal/lifecycle"
+	"github.com/yegors/co-atc/internal/startcheck"
 	"github.com/yegors/co-atc/internal/transcription"
 	"github.com/yegors/co-atc/internal/transcription/phraseology"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 	"syscall"
+	"time"
 
 	"github.com/yegors/co-atc/internal/adsb"
 	"github.com/yegors/co-atc/internal/websocket"
@@ -22,12 +27,41 @@ import (
 //
 //	go build -ldflags "-X main.version=$(git describe --tags --always) -X main.commit=$(git rev-parse --short HEAD)" -o bin/co-atc ./cmd/server
 //
-// A plain go build leaves "dev" and "unknown". The settings panel and the
-// sign-in page show them.
+// A plain go build leaves "dev", and the commit Go itself records in the
+// binary (vcsCommit). The settings panel, the sign-in page and the launcher's
+// health show them.
 var (
 	version = "dev"
 	commit  = "unknown"
 )
+
+// vcsCommit is the commit a plain go build records in the binary, short, with
+// "-dirty" when the tree had changes; "" when there is none (a build outside
+// the repository, or with -buildvcs=false). On 26/10 the launcher wrote the
+// repository's commit for a binary ten days older: only the binary can say
+// what it was built from.
+func vcsCommit(info *debug.BuildInfo) string {
+	if info == nil {
+		return ""
+	}
+	var rev string
+	var dirty bool
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			rev = s.Value
+		case "vcs.modified":
+			dirty = s.Value == "true"
+		}
+	}
+	if len(rev) > 7 {
+		rev = rev[:7]
+	}
+	if rev != "" && dirty {
+		rev += "-dirty"
+	}
+	return rev
+}
 
 // main brings the server up in a fixed order, each step in startup.go and
 // serve.go, waits for a signal and takes it down. The order is the one the
@@ -37,7 +71,17 @@ func main() {
 	// Parse command line flags
 	configPath := flag.String("config", "", "Path to configuration file (optional - will search in configs/ and root directory)")
 	addUser := flag.String("add-user", "", "Print a configuration block for a new account, reading the password without echoing it")
+	statusFD := flag.Int("status-fd", 0, "Write how the start goes, one JSON line per event, to this file descriptor (2: stderr); see docs-fr/36-contrat-lanceur.md")
 	flag.Parse()
+	started := time.Now()
+
+	if commit == "unknown" {
+		if info, ok := debug.ReadBuildInfo(); ok {
+			if c := vcsCommit(info); c != "" {
+				commit = c
+			}
+		}
+	}
 
 	if *addUser != "" {
 		if err := printNewUser(*addUser); err != nil {
@@ -46,6 +90,15 @@ func main() {
 		}
 		return
 	}
+
+	// Whoever starts the server reads its start here, not in its log.
+	if *statusFD != 0 {
+		if err := lifecycle.Open(*statusFD); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+	}
+	lifecycle.Say(lifecycle.Starting, map[string]any{"pid": os.Getpid(), "version": version, "commit": commit, "config": *configPath})
 
 	cfg, resolvedConfigPath := loadConfig(*configPath)
 
@@ -78,14 +131,31 @@ func main() {
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer stopSignals()
 
+	// The companions that are not the sidecar (companions.go): the Mac kept
+	// awake from the start, and the station link's program found before
+	// anything is started, so that a missing one is said at once.
+	keepAwake := startKeepAwake(signalCtx, cfg, log)
+	linkProgram := stationLinkProgram(cfg, log)
+
 	// Create ADS-B components
 	adsbClient := buildADSBClient(cfg, log)
+
+	// Values that can be changed while the server runs, from the settings
+	// panel: read before the startup check, which judges the databases' disk
+	// against the retention in force, and before the first retention pass.
+	runtimeSettings := config.NewRuntime(cfg, *configPath, log)
+
+	// What the server depends on, named before it relies on any of it: a
+	// sidecar that cannot start stops the server just below, and its cause is
+	// then the line above. Nothing missing stops the server here.
+	check := startcheck.Run(startcheck.Inputs{Config: cfg, DBRetentionGB: runtimeSettings.DBRetentionGB(), DBArchiveDir: runtimeSettings.DBArchiveDir()})
+	check.Log(log)
 
 	sttSidecar := startSidecar(signalCtx, cfg, log)
 	defer sttSidecar.Stop()
 
 	// Create SQLite storage
-	runtimeSettings, store := openStorage(cfg, *configPath, log)
+	store := openStorage(cfg, runtimeSettings, log)
 	defer store.aircraft.Close()
 
 	// Create WebSocket server
@@ -95,6 +165,8 @@ func main() {
 	go wsServer.Run()
 
 	adsbService := buildADSBService(cfg, adsbClient, store, wsServer, log)
+	// The runways in use are learnt over an hour: kept across a restart.
+	adsbService.KeepRunwaysIn(filepath.Join(cfg.Storage.SQLiteBasePath, "runways-in-use.json"))
 
 	refService, refAirport, effectiveAirport := loadReference(cfg, runtimeSettings, adsbService, log)
 
@@ -109,7 +181,9 @@ func main() {
 	go runDatabaseRetentionCleanup(ctx, store.dir, store.aircraft.GetDB(), runtimeSettings, log)
 	go runFilePurge(ctx, cfg, log)
 
+	lifecycle.Say(lifecycle.Step, map[string]any{"step": "services"})
 	if err := adsbService.Start(ctx); err != nil {
+		lifecycle.Failed("adsb_service", err)
 		log.Error("Failed to start ADS-B service", logger.Error(err))
 		os.Exit(1)
 	}
@@ -119,6 +193,13 @@ func main() {
 	frequenciesService := startFrequencies(ctx, cfg, adsbService, refService, runtimeSettings, wsServer, store, sttSidecar, log)
 
 	router := buildRouter(cfg, adsbService, frequenciesService, weatherService, refService, wsServer, store, runtimeSettings, sttSidecar, log)
+	router.Handler().SetMissing(check.Missing)
+	// The station link's key, opened before the server answers anyone.
+	linkToken := ""
+	if linkProgram != "" {
+		linkToken = newLinkToken()
+		router.Handler().SetLinkToken(linkToken)
+	}
 
 	// The list of official names around the station (internal/aip, Q55), made
 	// from the settings page, kept beside the databases with the pages it was
@@ -134,13 +215,50 @@ func main() {
 	})
 	router.Handler().KeepAIPNamesUpToDate(ctx)
 
-	servers := serve(cfg, router, log)
+	// What the launcher read in this process's files and in the process
+	// table, said by the server (docs-fr/36-contrat-lanceur.md).
+	executable, _ := os.Executable()
+	workingDir, _ := os.Getwd()
+	router.Handler().SetProcess(api.ProcessInfo{Instance: cfg.Server.Instance, StartedAt: started,
+		Executable: executable, WorkingDir: workingDir, Config: resolvedConfigPath})
+
+	lifecycle.Say(lifecycle.Step, map[string]any{"step": "listen"})
+	servers, listeners, err := serve(cfg, router, log)
+	router.Handler().SetListeners(listeners)
+	if err != nil {
+		// Another server on the primary port: stop what was started, and say
+		// why. Nothing must answer in this one's name.
+		lifecycle.Failed("listen", err)
+		log.Error("Cannot listen on the primary port: is another co-atc running?", logger.Error(err))
+		shutdown(log, nil, weatherService, frequenciesService, sttSidecar, adsbService, cancel, servers, keepAwake)
+		os.Exit(1)
+	}
+
+	if linkProgram != "" {
+		lifecycle.Say(lifecycle.Step, map[string]any{"step": "station_link"})
+	}
+	stationLink := startStationLink(signalCtx, cfg, linkProgram, linkToken, log)
+	router.Handler().AttachCompanions(stationLink, keepAwake)
+
+	readyAt := time.Now()
+	router.Handler().SetReady(readyAt)
+	lifecycle.Say(lifecycle.Ready, map[string]any{"pid": os.Getpid(), "url": listeners[0].URL, "listeners": listeners})
+	log.Info("Ready", logger.String("url", listeners[0].URL), logger.Duration("startup", readyAt.Sub(started)))
 
 	// Wait for one of the signals armed at startup. A signal that arrived while
 	// the services were still coming up is already recorded here.
 	<-signalCtx.Done()
 
-	shutdown(log, weatherService, frequenciesService, sttSidecar, adsbService, cancel, servers)
+	lifecycle.Say(lifecycle.Stopping, nil)
+	// What the accounts still have open ends with the stop, in the owner's
+	// usage journal, before the shutdown closes it (D84).
+	router.Handler().Stopping()
+	shutdown(log, stationLink, weatherService, frequenciesService, sttSidecar, adsbService, cancel, servers, keepAwake)
+	// After the HTTP servers: no request moves an expiry any more.
+	if err := router.Handler().SaveSessions(); err != nil {
+		log.Warn("Sessions could not be written: the last minute of use is lost, the sign-ins are not", logger.Error(err))
+	}
+	lifecycle.Say(lifecycle.Stopped, nil)
 }
 
 // startPlaceNamer builds the namer of the procedures heard, from the list

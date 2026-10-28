@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -36,6 +37,7 @@ type Config struct {
 	FlightPhases   FlightPhasesConfig   `toml:"flight_phases"`   // Flight phase detection settings
 	Weather        WeatherConfig        `toml:"wx"`              // Weather data fetching and caching settings
 	Auth           AuthConfig           `toml:"auth"`            // Who may use this server; see internal/auth
+	StationLink    StationLinkConfig    `toml:"station_link"`    // radio-ctl-sync, run by co-atc; see docs-fr/36-contrat-lanceur.md
 }
 
 // AuthConfig decides who may reach the data.
@@ -49,6 +51,7 @@ type AuthConfig struct {
 	SessionTTLHours   int          `toml:"session_ttl_hours"` // how long a session lives without use
 	MaxAttempts       int          `toml:"max_attempts"`      // wrong passwords allowed per address, per window
 	AttemptWindowMins int          `toml:"attempt_window_minutes"`
+	UsageDays         int          `toml:"usage_days"` // days of each account's usage kept for the owner (D84); 0 keeps none
 	Users             []UserConfig `toml:"users"`
 }
 
@@ -70,10 +73,10 @@ type ServerConfig struct {
 	IdleTimeoutSecs  int    `toml:"idle_timeout_seconds"`  // Maximum duration to wait for the next request when keep-alives are enabled
 	AdditionalPorts  []int  `toml:"additional_ports"`      // Additional HTTP ports to listen on (useful for multiple interfaces)
 
-	// The directory the page is served from; "www" (relative to the working
-	// directory) when empty. Production points it at a snapshot its launcher takes
-	// at start, so that a file edited in the working tree is not in production at
-	// the next page reload (found on 12/10: it was).
+	// A directory to serve the page from instead of the one built into the
+	// binary (package www), to work on the page without rebuilding: "www" serves
+	// the working tree, an edit live at the next reload. Empty: the built-in
+	// page, that of the binary's own commit.
 	StaticDir string `toml:"static_dir"`
 
 	// TLS served by co-atc itself. Leave both empty behind a reverse proxy that
@@ -99,6 +102,34 @@ type ServerConfig struct {
 	// and the archived clip of each transmission: "owner" (the default), or
 	// "all", viewer accounts included. See internal/auth/role.go.
 	AudioReplay string `toml:"audio_replay"`
+
+	// Instance names this server for whoever starts it -- "production", "test"
+	// -- in the launcher's health (docs-fr/36). The launcher recognised
+	// production by the path of its configuration until 26/10.
+	Instance string `toml:"instance"`
+
+	// KeepAwake keeps the Mac from sleeping while the server runs, as the
+	// production script's caffeinate did: co-atc runs `caffeinate -i -w <its
+	// pid>` beside itself. macOS only; elsewhere it is said once and ignored.
+	KeepAwake bool `toml:"keep_awake"`
+}
+
+// StationLinkConfig is the [station_link] section: the link with a radio-ctl
+// station (cmd/radio-ctl-sync), which co-atc starts, keeps running and stops
+// with itself (docs-fr/36-contrat-lanceur.md). Off by default: a server
+// without such a station sees nothing change.
+type StationLinkConfig struct {
+	Enabled bool `toml:"enabled"`
+
+	// Program is radio-ctl-sync; empty looks next to co-atc's own binary, then
+	// on the PATH and where Homebrew installs.
+	Program string `toml:"program"`
+
+	StationURL      string `toml:"station_url"`      // radio-ctl's base URL
+	StationHost     string `toml:"station_host"`     // the Host header radio-ctl expects, if any
+	StreamsURL      string `toml:"streams_url"`      // base URL of the station's Icecast mounts
+	MixID           string `toml:"mix_id"`           // a mixed stream whose label follows the station
+	IntervalSeconds int    `toml:"interval_seconds"` // how often the station is read
 }
 
 // The two answers to server.audio_replay.
@@ -161,9 +192,22 @@ type StorageConfig struct {
 	// server run on demand, days said nothing about what a disk can hold, and a
 	// restart after a week's pause deleted every file at once.
 	DBRetentionGB float64 `toml:"db_retention_gb"`
+	// ArchiveDir, when set, receives each day the retention lets go, gzipped
+	// and checked, before it is deleted (28/10, D85); a directory that cannot
+	// be found deletes nothing. Empty: the days past the retention are deleted.
+	ArchiveDir string `toml:"archive_dir"`
 	// DBRetentionDays is no longer used; kept so an old configuration still
 	// loads, and says so at startup.
 	DBRetentionDays int `toml:"db_retention_days"`
+}
+
+// StationFilesDir is where the page's files that belong to this station are:
+// what is made for one station and cannot be built into the binary -- today
+// the airport layout, written by tools/airport-layout/fetch.py. A directory of
+// its own beside the databases, served as the page's /data/: nothing else of
+// the data directory, the databases least of all, is ever served.
+func (c *Config) StationFilesDir() string {
+	return filepath.Join(c.Storage.SQLiteBasePath, "station")
 }
 
 // DefaultDBRetentionGB is the retention when none is configured: 8 to 11 full
@@ -220,12 +264,12 @@ type TranscriptionConfig struct {
 	AudioArchiveMaxGB float64 `toml:"audio_archive_max_gb"`
 	RawLogMaxDays     int     `toml:"raw_log_max_days"`
 
-	// How the frequencies service decodes each stream into the PCM that is
-	// played and transcribed.
-	FFmpegPath       string `toml:"ffmpeg_path"`        // Path to FFmpeg executable
-	FFmpegSampleRate int    `toml:"ffmpeg_sample_rate"` // Audio sample rate in Hz
-	FFmpegChannels   int    `toml:"ffmpeg_channels"`    // Number of audio channels (1 for mono, 2 for stereo)
-	FFmpegFormat     string `toml:"ffmpeg_format"`      // Audio format (e.g., "s16le" for signed 16-bit little-endian PCM)
+	// SampleRate is the rate, in Hz, of the PCM every source is brought to:
+	// what the page plays as WAV, what the transcription cuts and the sidecar
+	// reads. Always mono 16-bit (internal/audio). Its older name,
+	// ffmpeg_sample_rate, from when ffmpeg decoded the streams, is still read
+	// when written, and said at start (B1 ter).
+	SampleRate int `toml:"sample_rate"`
 }
 
 // BackendLocal is the one transcription and post-processing backend.
@@ -258,10 +302,6 @@ type FrequenciesConfig struct {
 	Sources               []FrequencyConfig `toml:"sources"`                 // List of radio frequencies to monitor
 	BufferSizeKB          int               `toml:"buffer_size_kb"`          // Audio buffer size in kilobytes
 	ReconnectIntervalSecs int               `toml:"reconnect_interval_secs"` // Seconds to wait before reconnecting after stream failure
-
-	// FFmpeg timeout configuration
-	FFmpegTimeoutSecs        int `toml:"ffmpeg_timeout_secs"`         // FFmpeg connection timeout in seconds (0 = no timeout, the default)
-	FFmpegReconnectDelaySecs int `toml:"ffmpeg_reconnect_delay_secs"` // FFmpeg reconnect delay in seconds (default: 2)
 }
 
 // LocalSTTFileConfig is the [transcription.local] section of config.toml.
@@ -308,19 +348,15 @@ type FrequencyConfig struct {
 	// and 28% of English transmissions. Empty falls back to [transcription] language.
 	Language string `toml:"language"`
 
-	// FFmpegReconnect lets ffmpeg reconnect by itself when the stream ends. Unset
-	// means true, as upstream always did. Set it to false for a stream that may
-	// disappear -- ffmpeg would retry it in a loop; co-atc then restarts it after
-	// reconnect_interval_secs instead.
-	FFmpegReconnect *bool `toml:"ffmpeg_reconnect"`
-
-	// FFmpegInputOptions go on ffmpeg's command line before -i, for a source
-	// ffmpeg cannot recognise by itself: raw PCM over UDP needs its format and
-	// rate (["-f", "s16le", "-ar", "48000", "-ac", "1"]); a receiver plugged
-	// into the sound card needs its capture device (["-f", "avfoundation"] on
-	// macOS, "alsa" or "pulse" on Linux, "dshow" on Windows, the device named
-	// by url). Empty for an HTTP stream, which is the common case.
-	FFmpegInputOptions []string `toml:"ffmpeg_input_options"`
+	// PCMRate and PCMChannels describe a source of raw PCM over UDP (url
+	// "udp://127.0.0.1:7355"), as GQRX, SDR++ or rtl_fm send it: signed 16-bit
+	// little-endian samples at PCMRate Hz, PCMChannels of them interleaved, 1
+	// when unset. Nothing in the packets says it, so the source must. Unused
+	// for an MP3 stream over HTTP, which says its own format. They replace
+	// ffmpeg_input_options (["-f", "s16le", "-ar", "48000", "-ac", "1"]),
+	// still read when written, and said at start (B1 ter).
+	PCMRate     int `toml:"pcm_rate"`
+	PCMChannels int `toml:"pcm_channels"`
 
 	// SectorAirport and SectorKind say which aircraft this frequency can be
 	// talking to: those near that airport (ICAO code) within the radius and
@@ -332,11 +368,6 @@ type FrequencyConfig struct {
 
 // SectorKinds are the kinds of frequency a sector can be drawn for.
 var SectorKinds = map[string]bool{"approach": true, "departure": true, "tower": true, "ground": true}
-
-// ReconnectsInFFmpeg reports whether ffmpeg should reconnect by itself.
-func (f FrequencyConfig) ReconnectsInFFmpeg() bool {
-	return f.FFmpegReconnect == nil || *f.FFmpegReconnect
-}
 
 // FlightPhasesConfig contains settings for flight phase detection
 type FlightPhasesConfig struct {
@@ -433,6 +464,10 @@ func Load(path string) (*Config, error) {
 	}
 
 	config.reconcileDuplicates(meta)
+	renamed, err := config.readFFmpegKeys(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode config file: %w", err)
+	}
 
 	// A key nothing reads -- left over from a removed feature, or misspelled --
 	// is said, with its name, and ignored. Never refused: the owner's file still
@@ -453,19 +488,130 @@ func Load(path string) (*Config, error) {
 			gone[key[0]]++
 		}
 	}
+	said := map[string]bool{} // a key of [[frequencies.sources]] comes once per source
 	for _, key := range undecoded {
 		n, inGone := gone[key[0]]
+		name := key.String()
+		if said[name] || renamed[name] {
+			continue
+		}
+		said[name] = true
 		switch {
 		case inGone && len(key) == 1:
 			config.warnf("[%s] is not a section of this version and is ignored with its %d %s: remove it", key[0], n, plural(n, "key"))
 		case inGone:
 			// counted above
+		case ffmpegRetired[name]:
+			config.warnf("%s is ignored: ffmpeg is no longer used, every source is read inside the binary; remove it", name)
 		default:
-			config.warnf("%s is not a configuration key of this version and is ignored: remove it, or check its spelling", key.String())
+			config.warnf("%s is not a configuration key of this version and is ignored: remove it, or check its spelling", name)
 		}
 	}
 
 	return &config, nil
+}
+
+// ffmpegRetired are the keys of ffmpeg, removed with it once the Go decoder
+// was validated (docs-fr/35-plan.md, B1 ter): every source is now read inside
+// the binary, an MP3 stream over HTTP or raw PCM over UDP. They do nothing;
+// a file that still writes them is told why, not that it misspelled them.
+var ffmpegRetired = map[string]bool{
+	"transcription.ffmpeg_path":               true,
+	"transcription.ffmpeg_channels":           true, // every source is mixed to mono
+	"transcription.ffmpeg_format":             true, // always 16-bit PCM
+	"frequencies.ffmpeg_timeout_secs":         true,
+	"frequencies.ffmpeg_reconnect_delay_secs": true,
+	"frequencies.decoder":                     true, // the Go decoder is the only one
+	"frequencies.sources.ffmpeg_reconnect":    true, // the server reconnects, after reconnect_interval_secs
+}
+
+// readFFmpegKeys reads the two ffmpeg keys that still mean something under
+// another name: [transcription] ffmpeg_sample_rate, now sample_rate, and a
+// source's ffmpeg_input_options, which described raw PCM over UDP and is now
+// pcm_rate and pcm_channels. Each is applied when its new name is not
+// written, and the file is told. It returns the keys it handled, which are
+// not said again as keys nothing reads.
+func (c *Config) readFFmpegKeys(path string) (map[string]bool, error) {
+	var old struct {
+		Transcription struct {
+			FFmpegSampleRate *int `toml:"ffmpeg_sample_rate"`
+		} `toml:"transcription"`
+		Frequencies struct {
+			Sources []struct {
+				FFmpegInputOptions []string `toml:"ffmpeg_input_options"`
+				PCMRate            *int     `toml:"pcm_rate"`
+			} `toml:"sources"`
+		} `toml:"frequencies"`
+	}
+	meta, err := toml.DecodeFile(path, &old)
+	if err != nil {
+		return nil, err
+	}
+	handled := map[string]bool{}
+
+	if r := old.Transcription.FFmpegSampleRate; r != nil {
+		handled["transcription.ffmpeg_sample_rate"] = true
+		if meta.IsDefined("transcription", "sample_rate") {
+			c.warnf("transcription.ffmpeg_sample_rate (%d) is ignored: sample_rate is written, and is its new name; remove it", *r)
+		} else {
+			c.Transcription.SampleRate = *r
+			c.warnf("transcription.ffmpeg_sample_rate (%d) is read as transcription.sample_rate: write it so", *r)
+		}
+	}
+
+	for i, s := range old.Frequencies.Sources {
+		if s.FFmpegInputOptions == nil || i >= len(c.Frequencies.Sources) {
+			continue
+		}
+		handled["frequencies.sources.ffmpeg_input_options"] = true
+		src := &c.Frequencies.Sources[i]
+		rate, channels, ok := pcmFromFFmpegOptions(s.FFmpegInputOptions)
+		switch {
+		case s.PCMRate != nil:
+			c.warnf("frequencies.sources %q: ffmpeg_input_options is ignored: pcm_rate is written; remove it", src.ID)
+		case ok:
+			src.PCMRate, src.PCMChannels = rate, channels
+			c.warnf("frequencies.sources %q: ffmpeg_input_options is read as pcm_rate = %d, pcm_channels = %d: write it so",
+				src.ID, rate, channels)
+		default:
+			c.warnf("frequencies.sources %q: ffmpeg_input_options %q is ignored: ffmpeg is no longer used, and only raw 16-bit PCM over UDP is read without it",
+				src.ID, s.FFmpegInputOptions)
+		}
+	}
+	return handled, nil
+}
+
+// pcmFromFFmpegOptions reads the input options ffmpeg was given for raw PCM,
+// ["-f", "s16le", "-ar", "48000", "-ac", "1"], in any order; without -ac,
+// one channel, as ffmpeg took it. Anything else -- a capture device, another
+// sample format, no rate -- is not raw PCM this version reads.
+func pcmFromFFmpegOptions(opts []string) (rate, channels int, ok bool) {
+	channels = 1
+	format := ""
+	if len(opts)%2 != 0 {
+		return 0, 0, false
+	}
+	for i := 0; i < len(opts); i += 2 {
+		v := opts[i+1]
+		var err error
+		switch opts[i] {
+		case "-f":
+			format = v
+		case "-ar":
+			rate, err = strconv.Atoi(v)
+		case "-ac":
+			channels, err = strconv.Atoi(v)
+		default:
+			return 0, 0, false
+		}
+		if err != nil {
+			return 0, 0, false
+		}
+	}
+	if format != "s16le" || rate <= 0 || (channels != 1 && channels != 2) {
+		return 0, 0, false
+	}
+	return rate, channels, true
 }
 
 // reconcileDuplicates gives each value that two sections used to carry one
@@ -566,6 +712,11 @@ func (c *Config) Validate() error {
 	if err := c.validateBackends(); err != nil {
 		return err
 	}
+	// The rate every source is brought to (internal/audio): ffmpeg refused a
+	// rate it could not make; the resampler divides by it.
+	if r := c.Transcription.SampleRate; r < 8000 || r > 48000 {
+		return fmt.Errorf("invalid transcription.sample_rate: %d (8000 to 48000 Hz; 16000 is Whisper's)", r)
+	}
 	if c.Auth.Enabled {
 		named := 0
 		for _, u := range c.Auth.Users {
@@ -581,6 +732,9 @@ func (c *Config) Validate() error {
 		if _, err := auth.NormalizeRole(u.Role); err != nil {
 			return fmt.Errorf("auth.users %q: %w", u.Name, err)
 		}
+	}
+	if c.Auth.UsageDays < 0 {
+		return fmt.Errorf("invalid auth.usage_days: %d (must be >= 0; 0 keeps no usage)", c.Auth.UsageDays)
 	}
 	if c.Transcription.AudioArchiveMaxGB < 0 {
 		return fmt.Errorf("invalid transcription.audio_archive_max_gb: %v (must be >= 0; 0 keeps everything)", c.Transcription.AudioArchiveMaxGB)
@@ -600,6 +754,9 @@ func (c *Config) Validate() error {
 	}
 	if (c.Server.TLSCert == "") != (c.Server.TLSKey == "") {
 		return fmt.Errorf("server.tls_cert and server.tls_key must be set together")
+	}
+	if err := c.validateStationLink(); err != nil {
+		return err
 	}
 
 	if c.PostProcessing.Enabled {
@@ -628,9 +785,12 @@ func (c *Config) Validate() error {
 		portsSeen[p] = true
 	}
 
-	// Validate hardcoded static files directory exists
-	if _, err := os.Stat("www"); os.IsNotExist(err) {
-		return fmt.Errorf("static files directory does not exist: %s", "www")
+	// The page is built in; a directory named in its place must be there, or
+	// every file of the page would be a 404.
+	if dir := c.Server.StaticDir; dir != "" {
+		if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+			return fmt.Errorf("server.static_dir %q is not a directory: name the page's directory, or leave it empty to serve the page built into the binary", dir)
+		}
 	}
 
 	// Validate ADSB config
@@ -738,6 +898,34 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+// validateStationLink checks [station_link] when it is on. The link talks to
+// this server in plain HTTP on the loopback, with a key that only the
+// loopback may use: a server bound to one network address alone, or serving
+// TLS itself, cannot be reached that way.
+func (c *Config) validateStationLink() error {
+	l := c.StationLink
+	if !l.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(l.StationURL) == "" || strings.TrimSpace(l.StreamsURL) == "" {
+		return fmt.Errorf("station_link.station_url and station_link.streams_url are required when station_link.enabled is true")
+	}
+	if l.IntervalSeconds < 1 {
+		return fmt.Errorf("invalid station_link.interval_seconds: %d (must be >= 1)", l.IntervalSeconds)
+	}
+	switch c.Server.Host {
+	case "", "0.0.0.0", "::", "127.0.0.1", "::1", "localhost":
+	default:
+		return fmt.Errorf("station_link needs the server on the loopback, and server.host %q is not: "+
+			"use 127.0.0.1, or 0.0.0.0 to be reached from the network as well", c.Server.Host)
+	}
+	if c.Server.TLSCert != "" {
+		return fmt.Errorf("station_link talks to this server in plain HTTP on the loopback, which server.tls_cert prevents: " +
+			"leave TLS to a reverse proxy, or run radio-ctl-sync yourself")
+	}
+	return nil
+}
+
 // ValidateStation validates the station configuration
 func (c *Config) ValidateStation() error {
 	// Validate Latitude
@@ -780,20 +968,6 @@ func (c *Config) ValidateFrequencies() error {
 	// Validate reconnect interval
 	if c.Frequencies.ReconnectIntervalSecs <= 0 {
 		return fmt.Errorf("invalid reconnect interval: %d", c.Frequencies.ReconnectIntervalSecs)
-	}
-
-	// Validate FFmpeg timeout configuration
-	if c.Frequencies.FFmpegTimeoutSecs < 0 {
-		return fmt.Errorf("invalid ffmpeg_timeout_secs: %d (must be >= 0)", c.Frequencies.FFmpegTimeoutSecs)
-	}
-	if c.Frequencies.FFmpegReconnectDelaySecs < 0 {
-		return fmt.Errorf("invalid ffmpeg_reconnect_delay_secs: %d (must be >= 0)", c.Frequencies.FFmpegReconnectDelaySecs)
-	}
-
-	// Set default values for FFmpeg timeout configuration if not specified
-	// FFmpegTimeoutSecs defaults to 0 (no timeout) - no need to set explicitly
-	if c.Frequencies.FFmpegReconnectDelaySecs == 0 {
-		c.Frequencies.FFmpegReconnectDelaySecs = Defaults().Frequencies.FFmpegReconnectDelaySecs
 	}
 
 	// Validate frequency sources

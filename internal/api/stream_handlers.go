@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,6 +29,50 @@ func (h *Handler) StreamAudio(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clientRemoteAddr := r.RemoteAddr
+
+	// A stream the owner can end by cutting its account off (D83).
+	r, done := h.cuttable(r)
+	defer done()
+
+	// A guest holds two streams of a frequency at most, in any format
+	// (guest.go); a HEAD opens none.
+	if r.Method != http.MethodHead {
+		release, ok := h.guestStream(r, id)
+		if !ok {
+			h.logger.Warn("Refused a guest's stream: two are open already",
+				logger.String("id", id), logger.String("remote_addr", clientRemoteAddr))
+			WriteJSON(w, http.StatusTooManyRequests, map[string]string{"error": fmt.Sprintf(
+				"%d streams of this frequency are open for this account, the most it may hold: close another page or tab that plays it",
+				guestStreamsPerFrequency)})
+			return
+		}
+		defer release()
+	}
+
+	// Who listened to what, for the owner (D84).
+	if r.Method != http.MethodHead {
+		var tracked func()
+		w, tracked = h.soundTracked(w, r, id)
+		defer tracked()
+	}
+
+	// The station's own MP3 when the page asks for it and the stream has it:
+	// what every browser plays, Safari included, at a twenty-fifth of the WAV's
+	// rate (docs-fr/35-plan.md, D2 bis). Otherwise the WAV stream, as before.
+	switch r.URL.Query().Get("format") {
+	case "mp3":
+		if mp3, ok := h.frequenciesService.MP3Stream(id); ok {
+			h.streamRelayed(w, r, id, mp3, "audio/mpeg", 0)
+			return
+		}
+	case "ulaw":
+		// The decoded sound in mu-law, for a page that plays it itself
+		// through Web Audio (www/live-player.js; D2 ter).
+		if ulaw, rate, ok := h.frequenciesService.ULawStream(id); ok {
+			h.streamRelayed(w, r, id, ulaw, "audio/basic", rate)
+			return
+		}
+	}
 
 	// Set binary streaming headers
 	w.Header().Set("Content-Type", "audio/wav")
@@ -187,4 +232,43 @@ func (h *Handler) StreamAudio(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+// streamRelayed sends a frequency's relayed sound (MP3 frames, or mu-law
+// with its rate in X-Sample-Rate) until the browser leaves or the stream
+// stops, flushing each read so that the sound is not held back.
+func (h *Handler) streamRelayed(w http.ResponseWriter, r *http.Request, id string, mp3 io.ReadCloser, contentType string, rate int) {
+	defer mp3.Close()
+	w.Header().Set("Content-Type", contentType)
+	if rate > 0 {
+		w.Header().Set("X-Sample-Rate", strconv.Itoa(rate))
+	}
+	w.Header().Set("Cache-Control", "no-cache, no-store")
+	if r.Method == http.MethodHead {
+		return
+	}
+	go func() {
+		<-r.Context().Done()
+		mp3.Close() // ends the copy below when the browser leaves
+	}()
+	flusher, _ := w.(http.Flusher)
+	buf := make([]byte, 4096)
+	start, written := time.Now(), 0
+	for {
+		n, err := mp3.Read(buf)
+		if n > 0 {
+			if _, werr := w.Write(buf[:n]); werr != nil {
+				break
+			}
+			written += n
+			if flusher != nil {
+				flusher.Flush()
+			}
+		}
+		if err != nil {
+			break
+		}
+	}
+	h.logger.Info("Relayed stream ended", logger.String("id", id), logger.String("type", contentType), logger.String("remote_addr", r.RemoteAddr),
+		logger.Int("bytes", written), logger.String("duration", time.Since(start).Round(time.Second).String()))
 }

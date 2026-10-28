@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/yegors/co-atc/internal/audio"
 	"github.com/yegors/co-atc/internal/storage/sqlite"
@@ -70,6 +71,12 @@ func NewTranscriptionManager(
 // takes to transcribe, over every frequency; false until one has been.
 func (m *TranscriptionManager) MeanTranscriptionSeconds() (float64, bool) {
 	return m.timing.Mean()
+}
+
+// Activity returns when a frequency last sent a transmission to the sidecar
+// and when one last came back as text; zero times for what has not happened.
+func (m *TranscriptionManager) Activity(frequencyID string) (sent, transcribed time.Time) {
+	return m.timing.Activity(frequencyID)
 }
 
 // StartTranscriptionWithExternalAudio starts transcription for a frequency using an external audio processor

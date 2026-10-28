@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/go-chi/chi/v5"
 	"io"
@@ -27,19 +28,25 @@ type SetupState struct {
 	Needed       bool   `json:"needed"`        // the first-run question has no answer yet
 	LocalOnly    bool   `json:"local_only"`    // the server is bound to loopback
 	LocalAllowed bool   `json:"local_allowed"` // ...and no proxy is declared in front of it
-	Host         string `json:"host"`
-	File         string `json:"file"` // where an account would be written
+	Host         string `json:"host,omitempty"`
+	File         string `json:"file,omitempty"` // where an account would be written
 }
 
 // GetSetupStatus says whether anything needs setting up. Public: the page has to
 // be able to ask before anyone can sign in.
+//
+// The bind address and the accounts file's path are said only while the
+// question is open, which is when the page shows them: once set up, this
+// route answers anyone who reaches the server, and the path names the
+// owner's home directory.
 func (h *Handler) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 	st := SetupState{
 		Needed:       h.auth.NeedsSetup(),
 		LocalOnly:    isLoopback(h.config.Server.Host),
 		LocalAllowed: h.auth.LocalAllowed(),
-		Host:         h.config.Server.Host,
-		File:         h.auth.AccountsFile(),
+	}
+	if st.Needed {
+		st.Host, st.File = h.config.Server.Host, h.auth.AccountsFile()
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(st)
@@ -50,6 +57,18 @@ func (h *Handler) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) PostSetup(w http.ResponseWriter, r *http.Request) {
 	if !h.auth.NeedsSetup() {
 		http.Error(w, "already set up", http.StatusConflict)
+		return
+	}
+	// Reaching this page means being on the machine only when nothing stands
+	// between the two. A server bound to 127.0.0.1 behind a proxy on the same
+	// machine is reached from wherever the proxy serves: the first visitor
+	// would have made the owner's account, or -- the proxy undeclared --
+	// chosen to run without sign-in for the whole Internet.
+	if forwardedByAProxy(r) {
+		h.logger.Warn("Refused the first-run page through a proxy",
+			logger.String("from", h.auth.Proxies().ClientIP(r)))
+		http.Error(w, fmt.Sprintf("Set this server up from the machine it runs on (http://127.0.0.1:%d/), "+
+			"or create an account there with: co-atc -add-user <name>", h.config.Server.Port), http.StatusForbidden)
 		return
 	}
 

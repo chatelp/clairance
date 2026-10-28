@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"encoding/base64"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -50,7 +52,7 @@ func TestGarbageHashRefused(t *testing.T) {
 
 func TestSessionLifecycle(t *testing.T) {
 	s := NewStore(time.Hour)
-	sess, err := s.Create("pierre")
+	sess, err := s.Create("pierre", RoleOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +67,7 @@ func TestSessionLifecycle(t *testing.T) {
 
 func TestExpiredSessionRefused(t *testing.T) {
 	s := NewStore(time.Millisecond)
-	sess, _ := s.Create("pierre")
+	sess, _ := s.Create("pierre", RoleOwner)
 	time.Sleep(5 * time.Millisecond)
 	if _, ok := s.Lookup(sess.Token); ok {
 		t.Error("an expired session is still valid")
@@ -367,5 +369,66 @@ func TestConfiguredUsersStillObeyEnabled(t *testing.T) {
 	}
 	if s.Enabled() {
 		t.Error("auth.enabled = false with users in the config must stay off")
+	}
+}
+
+// Behind two trusted proxies -- a CDN, then Traefik -- the browser is the
+// first address from the right that is not a trusted proxy's: not the CDN's,
+// which every visitor would then share, and not whatever the browser wrote
+// itself further left. A proxy that adds a header line of its own instead of
+// appending is read the same way.
+func TestTheBrowserIsTheFirstUntrustedAddressFromTheRight(t *testing.T) {
+	p, err := NewTrustedProxies([]string{"192.0.2.1", "198.51.100.0/24"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		lines []string
+		want  string
+	}{
+		{[]string{"203.0.113.5"}, "203.0.113.5"},                         // one proxy
+		{[]string{"203.0.113.5, 198.51.100.20"}, "203.0.113.5"},          // the CDN, then Traefik
+		{[]string{"6.6.6.6, 203.0.113.5, 198.51.100.20"}, "203.0.113.5"}, // the browser's own invention
+		{[]string{"6.6.6.6", "203.0.113.5"}, "203.0.113.5"},              // a second line, not appended
+		{[]string{"198.51.100.7, 198.51.100.20"}, "198.51.100.7"},        // nothing but proxies: the farthest
+		{[]string{"2001:db8::1, 198.51.100.20"}, "2001:db8::1"},          // IPv6
+		{[]string{" 203.0.113.5 ,, 198.51.100.20 "}, "203.0.113.5"},      // spaces, an empty element
+	} {
+		r := httptest.NewRequest("GET", "/", nil)
+		r.RemoteAddr = "192.0.2.1:5000"
+		for _, l := range c.lines {
+			r.Header.Add("X-Forwarded-For", l)
+		}
+		if got := p.ClientIP(r); got != c.want {
+			t.Errorf("X-Forwarded-For %q: %q, want %q", c.lines, got, c.want)
+		}
+	}
+}
+
+// An unknown name costs what a wrong password does because both verify an
+// Argon2id hash of the same parameters: the decoy's are HashPassword's.
+// Raising the cost without the decoy would make an unknown name answer
+// faster, and the form would tell which names exist (measured on 26/10 with
+// the decoy as it is: 115 ms median for an unknown name, 116-120 ms for a
+// wrong password, 21 tries each).
+func TestTheDecoyHashCostsWhatARealOneDoes(t *testing.T) {
+	real, err := HashPassword("a password of some length")
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := func(h string) string {
+		parts := strings.Split(h, "$")
+		if len(parts) != 6 {
+			t.Fatalf("not a PHC hash: %q", h)
+		}
+		salt, err1 := base64.RawStdEncoding.DecodeString(parts[4])
+		key, err2 := base64.RawStdEncoding.DecodeString(parts[5])
+		if err1 != nil || err2 != nil {
+			t.Fatalf("undecodable hash %q", h)
+		}
+		return fmt.Sprintf("%s %s %s salt %d key %d", parts[1], parts[2], parts[3], len(salt), len(key))
+	}
+	if d, r := params(decoyHash), params(real); d != r {
+		t.Errorf("the decoy is %s, a real hash %s", d, r)
 	}
 }

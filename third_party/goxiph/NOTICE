@@ -1,0 +1,95 @@
+goxiph
+Copyright (c) 2026, the goxiph authors.
+
+This product includes software developed by third parties, listed below with
+the portions of goxiph derived from them.
+
+--------------------------------------------------------------------------
+
+internal/celt adapts the following from the reference implementation published
+in RFC 6716:
+
+  laplace.go  the Laplace entropy coder, from celt/laplace.c
+  energy.go   the coarse energy probability model and prediction
+              coefficients, from celt/quant_bands.c
+  alloc.go    the static allocation, per-band cap and log-width tables,
+              from celt/modes.c and celt/static_modes_float.h
+  interp.go   the allocation interpolation and fine/shape split,
+              from celt/rate.c
+  spreading.go  the spreading rotation and collapse mask, from celt/vq.c,
+              and the spreading decision distribution, from celt/celt.c
+  transforms.go  the Haar and Hadamard reshaping, the bit-exact cosine and
+              log-tangent, the split angle resolution and the noise
+              generator, from celt/bands.c and celt/rate.h
+
+  pulsecache.go  the pseudo-pulse scale, the fixed-point logarithm and the
+              pulse cost cache, from celt/rate.c, celt/rate.h and celt/cwrs.c
+  bands.go    the band splitting recursion, the split angle distributions,
+              the stereo merge and the band loop, from celt/bands.c
+  tf.go       the time-frequency resolution decoding and its selection
+              table, from celt/celt.c
+  denorm.go   the band mean energies, denormalisation and anti-collapse,
+              from celt/bands.c and celt/quant_bands.c
+  mdct.go     the inverse transform and its window, from celt/mdct.c and
+              celt/modes.c
+  synthesis.go  the post-filter and de-emphasis, from celt/celt.c
+  frame.go    the frame parameter ordering, from celt/celt.c
+
+  internal/celt/testdata/gen_mdct.c links against the reference itself to
+  generate the vectors the inverse transform is checked against.
+
+  internal/celt/testdata/gen_bitexact.c reproduces four of those functions
+  from the same source, to generate the vectors they are checked against.
+
+  Copyright 1994-2011 IETF Trust, Xiph.Org, Skype Limited, Octasic,
+                      Jean-Marc Valin, Timothy B. Terriberry,
+                      CSIRO, Gregory Maxwell, Mark Borgerding,
+                      Erik de Castro Lopo. All rights reserved.
+
+  Licensed under the BSD 3-Clause License. See RFC 6716 for the full text.
+
+internal/silk transcribes the SILK constant tables of RFC 6716 section 4.2
+from the same reference implementation, under the same licence. The
+transcription is performed by internal/testutil/silktables and checked back
+against the reference by the package's conformance test.
+
+internal/silk/testdata/gen_silk.c links against that reference to generate
+the vectors the decoder is checked against.
+
+RFC 6716 names this coder and describes its role but does not state the
+procedure, so the reference implementation is its only normative statement.
+
+mp3 recovers its constant tables from minimp3, by Lion (lieff), released into
+the public domain under CC0 1.0 Universal. CC0 asks for no attribution; this
+records the derivation because the project's own policy is that every source is
+named.
+
+MP3 has no freely readable specification — ISO/IEC 11172-3 and 13818-3 are sold,
+and MPEG-2.5 was never standardised at all — and minimp3 is the only
+permissively licensed implementation there is. What was taken is the standard's
+data rather than minimp3's code:
+
+  tables.go   the thirty-two Huffman tables, the two quadruple tables, the
+              scale factor band layouts and the scale factor sizing tables.
+              Recovered by internal/testutil/mp3tables, which walks minimp3's
+              packed lookups over every bit pattern they can consume and records
+              what comes out, then writes the codes as a binary tree. Checked
+              before it is written: every table must be a complete prefix code
+              and the tree must reproduce its own codes.
+
+  window.go   the five-hundred-and-twelve-tap synthesis window, which minimp3
+              does not hold either — it keeps it folded into an arrangement of
+              its own. Recovered by measurement: one impulse in one subband
+              gives that subband's response, and the response is the window
+              modulated by a known cosine. Thirty-two subbands give thirty-two
+              readings of each tap, agreeing to two parts in a million.
+
+  mp3/testdata  the oracles the decoder is checked against, produced by running
+              a traced minimp3 over the compliance bitstreams it distributes.
+              Measurements of its behaviour, not its source.
+
+  Copyright: none claimed. CC0 1.0 Universal, see
+  https://github.com/lieff/minimp3.
+
+id3 is written from the format's public documentation and takes nothing from
+any implementation.

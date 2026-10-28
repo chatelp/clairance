@@ -43,6 +43,7 @@
     
     <!-- 3) Shared app clients -->
     <script defer src="websocket-client.js"></script>
+    <script defer src="live-player.js"></script>
     <script defer src="audio-client.js"></script>
 
     <!-- 4) Map foundation (core primitives and perf metrics) -->
@@ -677,6 +678,121 @@
                                         @click="busy = true; fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'same-origin' })
                                             .finally(() => location.reload())">Sign out</button>
                             </div>
+                            <!-- Accounts (D83, 27/10): the owner's alone -- the list answers 403 to
+                                 anyone else, and the part stays hidden. See accounts-panel.js. -->
+                            <div x-data="accountsPanel()" x-init="load()" x-show="loaded" x-cloak class="flex flex-col gap-3">
+                                <div class="cl-field">
+                                    <span class="cl-field__label cursor-help" data-help-title="Accounts"
+                                          data-help="Who may sign in to this server. An admin sees and changes everything, these accounts included; a viewer reads, and hears the audio only if the server allows it. Changes apply at once, without a restart.">Accounts</span>
+                                    <button class="cl-btn" x-show="!adding" @click="startAdding()" :disabled="busy">Add an account</button>
+                                </div>
+                                <template x-for="a in accounts" :key="a.name">
+                                    <div class="flex flex-col gap-1 py-2" style="border-top: var(--border-width-default) solid var(--color-border-subtle);">
+                                        <span class="cl-row">
+                                            <b class="cl-mono" x-text="a.name"></b>
+                                            <span class="cl-badge cursor-help" x-text="roleLabel(a.role)"
+                                                  data-help-title="Role" data-help="admin: sees and changes everything, these accounts included. viewer: reads, changes nothing, and hears the audio only if the server allows it (audio_replay)."></span>
+                                            <span class="cl-age" x-show="a.name === you">you</span>
+                                        </span>
+                                        <span class="cl-age whitespace-normal" x-text="facts(a)"></span>
+                                        <span class="cl-row flex-wrap" x-show="a.name !== you || a.source === 'file'">
+                                            <button class="cl-btn cl-btn--quiet cursor-help" x-show="a.name !== you" :disabled="busy" @click="cut(a.name)"
+                                                    data-help-title="Cut access" data-help="Signs this account out everywhere at once: its pages lose their connection and their sound stops. The password is kept, so it can sign in again; give it a new password to keep it out.">Cut access</button>
+                                            <button class="cl-btn cl-btn--quiet" x-show="a.source === 'file' && passwordFor !== a.name" :disabled="busy" @click="startPassword(a.name)">New password</button>
+                                            <button class="cl-btn cl-btn--quiet cursor-help" x-show="a.source === 'file' && a.name !== you" :disabled="busy" @click="remove(a.name)"
+                                                    data-help-title="Remove" data-help="Deletes the account: it is signed out at once and can no longer sign in. The last admin cannot be removed.">Remove</button>
+                                        </span>
+                                        <template x-if="passwordFor === a.name">
+                                            <span class="cl-row flex-wrap">
+                                                <input class="cl-input" type="password" x-model="newPassword" autocomplete="new-password"
+                                                       :placeholder="'New password, ' + minPassword + ' characters or more'" :aria-label="'New password for ' + a.name"
+                                                       @keydown.enter="setPassword()">
+                                                <button class="cl-btn cl-btn--primary" :disabled="busy || newPassword.length < minPassword" @click="setPassword()">Set</button>
+                                                <button class="cl-btn cl-btn--quiet" @click="passwordFor = ''; newPassword = ''">Cancel</button>
+                                            </span>
+                                        </template>
+                                    </div>
+                                </template>
+                                <template x-if="adding">
+                                    <div class="flex flex-col gap-2 max-w-sm">
+                                        <input class="cl-input" x-model="form.name" placeholder="User name" aria-label="New account's user name"
+                                               autocomplete="off" autocapitalize="none" spellcheck="false">
+                                        <input class="cl-input" type="password" x-model="form.password" aria-label="New account's password"
+                                               :placeholder="'Password, ' + minPassword + ' characters or more'" autocomplete="new-password">
+                                        <span class="cl-row" role="radiogroup" aria-label="Role">
+                                            <label class="cl-check cl-check--radio" role="radio" tabindex="0" :class="form.role === 'viewer' ? 'is-on' : ''"
+                                                   :aria-checked="String(form.role === 'viewer')" @click.prevent="form.role = 'viewer'" @keydown.space.prevent="form.role = 'viewer'">
+                                                <span class="cl-check__box"></span>viewer
+                                            </label>
+                                            <label class="cl-check cl-check--radio" role="radio" tabindex="0" :class="form.role === 'owner' ? 'is-on' : ''"
+                                                   :aria-checked="String(form.role === 'owner')" @click.prevent="form.role = 'owner'" @keydown.space.prevent="form.role = 'owner'">
+                                                <span class="cl-check__box"></span>admin
+                                            </label>
+                                        </span>
+                                        <span class="cl-row">
+                                            <button class="cl-btn cl-btn--primary" @click="add()"
+                                                    :disabled="busy || !form.name.trim() || form.password.length < minPassword">Create</button>
+                                            <button class="cl-btn cl-btn--quiet" @click="stopAdding()">Cancel</button>
+                                        </span>
+                                    </div>
+                                </template>
+                                <span class="cl-inline-error" x-show="error" x-text="error"></span>
+                                <span class="cl-field__help" x-show="note && !error" x-text="note"></span>
+                            </div>
+                            <!-- Usage (D84, 27/10): what each account did, the owner's alone like
+                                 the accounts above. See usage-panel.js. -->
+                            <div x-data="usagePanel()" x-init="load()" x-show="loaded" x-cloak class="flex flex-col gap-3">
+                                <div class="cl-field">
+                                    <span class="cl-field__label cursor-help" data-help-title="Usage"
+                                          data-help="What each account did: the pages it had open, the frequencies it listened to, the clips it played again, and what interrupted it. Kept on this server for the number of days below, read by the admin alone; no address is written. Set by usage_days in config.toml.">Usage</span>
+                                    <button class="cl-btn cl-btn--quiet" @click="load()" :disabled="busy">Refresh</button>
+                                </div>
+                                <span class="cl-field__help" x-show="!enabled">Not kept: usage_days is 0 in config.toml.</span>
+                                <template x-if="enabled">
+                                    <div class="flex flex-col gap-3">
+                                        <span class="cl-field__help" x-text="'The last 7 days; ' + days + ' days are kept.'"></span>
+                                        <div class="flex flex-col gap-1">
+                                            <span class="cl-field__label cursor-help" data-help-title="Now"
+                                                  data-help="Who has a page open right now, and which frequencies they hear. Refreshed every 15 seconds while the settings are open.">Now</span>
+                                            <span class="cl-age" x-show="now.length === 0">Nobody here.</span>
+                                            <template x-for="p in now" :key="p.user">
+                                                <span class="cl-row flex-wrap"><b class="cl-mono" x-text="p.user"></b><span class="cl-age whitespace-normal" x-text="nowLine(p)"></span></span>
+                                            </template>
+                                        </div>
+                                        <span class="cl-age" x-show="accounts.length === 0">Nobody signed in these 7 days.</span>
+                                        <template x-for="a in accounts" :key="a.user">
+                                            <div class="flex flex-col gap-1 py-2" style="border-top: var(--border-width-default) solid var(--color-border-subtle);">
+                                                <span class="cl-row flex-wrap">
+                                                    <b class="cl-mono" x-text="a.user"></b>
+                                                    <span class="cl-age" x-text="'last seen ' + lastSeen(a)"></span>
+                                                </span>
+                                                <span class="cl-age whitespace-normal" x-text="weekLine(a)"></span>
+                                                <div class="flex items-end gap-1 cursor-help" role="img" :aria-label="'Each day of the week for ' + a.user"
+                                                     data-help-title="A bar a day" data-help="The last 7 days, today on the right. The pale bar is the time a page was open, the coloured one the time the sound was on, both against the busiest day. Hover a bar for its figures.">
+                                                    <template x-for="b in bars(a)" :key="b.date">
+                                                        <div class="flex flex-col items-center gap-0.5" :title="b.title" style="width: 1.5rem;">
+                                                            <div class="relative w-full overflow-hidden" style="height: 2rem;">
+                                                                <div class="absolute bottom-0 inset-x-0 rounded-sm" :style="'height:' + b.connected + '%; background: var(--color-border-default);'"></div>
+                                                                <div class="absolute bottom-0 inset-x-0 rounded-sm" :style="'height:' + b.listening + '%; background: var(--color-accent-fill);'"></div>
+                                                            </div>
+                                                            <span class="cl-age" x-text="b.label"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                                <template x-if="a.interruptions.length">
+                                                    <div class="flex flex-col gap-0.5">
+                                                        <span class="cl-age cursor-help" data-help-title="Interruptions"
+                                                              data-help="What cut this account's page or sound: the server stopping (a restart), the station's stream ending, or the connection breaking and coming back. A page left to sleep is not counted. 'Back in' is how long the page or the sound took to return on its own.">Interruptions</span>
+                                                        <template x-for="i in a.interruptions" :key="i.at + i.kind + (i.freq || '')">
+                                                            <span class="cl-age whitespace-normal" x-text="interruptionLine(i)"></span>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
                             <template x-if="state">
                                 <div class="contents">
                                     <!-- Access: the first-run question, answerable again. Switching
@@ -734,7 +850,7 @@
                             <h3>System</h3>
                             <template x-if="state">
                                 <div class="contents">
-                                    <!-- Editable: the only two things here that change without a restart. -->
+                                    <!-- Editable: the only things here that change without a restart. -->
                                     <div class="cl-field">
                                         <span class="cl-field__label cursor-help" data-help-title="Log level"
                                               data-help="How much the server writes to its log: debug is everything, error only what went wrong. info is the usual.">Log level</span>
@@ -749,12 +865,22 @@
                                          it, today's never. -->
                                     <div class="cl-field">
                                         <span class="cl-field__label cursor-help" data-help-title="Databases kept"
-                                              data-help="A size, not a number of days: the oldest days are deleted past it, today's never. Lowering it asks first.">Keep databases up to</span>
+                                              data-help="A size, not a number of days: past it the oldest days leave this disk, today's never. They are copied to the archive below first when one is set, and kept while it cannot be found; without one they are deleted. Lowering it asks first.">Keep databases up to</span>
                                         <span class="cl-row">
                                             <input type="number" min="1" max="1000" step="1" class="cl-input text-right" style="width: 72px;" aria-label="Gigabytes"
                                                    x-model.number="draft.db_retention_gb" @change="save()">
                                             <span class="cl-age">GB</span>
                                         </span>
+                                    </div>
+                                    <!-- The database archive (28/10, D85): where a day goes before it
+                                         leaves this disk. Checked by the server when it changes. -->
+                                    <div class="cl-field max-md:grid-cols-1">
+                                        <span class="cl-field__label cursor-help" data-help-title="Database archive"
+                                              data-help="Where a day goes before it leaves this disk: copied there, compressed and checked against the original, then deleted here. An absolute path to an existing folder the server can write, outside the databases' own, usually on an external disk; the server never creates it. While it cannot be found nothing is deleted, and this disk keeps growing. Empty: no archive, the days past the size are deleted.">Archive old databases to</span>
+                                        <input type="text" class="cl-input" style="width: 22rem; max-width: 100%;" aria-label="Archive folder"
+                                               placeholder="none: deleted past the size" autocomplete="off" autocapitalize="none" spellcheck="false"
+                                               x-model="draft.db_archive_dir" @change="save()">
+                                        <span class="whitespace-normal" style="grid-column: 1 / -1;" :class="archiveWarn() ? 'cl-light cl-light--warn' : 'cl-field__help'" role="status" x-text="archiveLine()"></span>
                                     </div>
                                 </div>
                             </template>
@@ -1096,7 +1222,13 @@
                                                     <button class="cl-seg__item" :aria-pressed="$store.atc.settings.proceduresKind === 'SID'" @click="$store.atc.setProceduresKind('SID')"
                                                             data-help-title="Departures" data-help="The published departures (SID) of the runways in use: from the runway to the point an aircraft leaves by.">Departures</button>
                                                 </div>
-                                                <span class="cl-field__source" x-text="$store.atc.procedureLayer.text"></span>
+                                                <div class="cl-seg" role="group" aria-label="Runways">
+                                                    <button class="cl-seg__item" :aria-pressed="$store.atc.settings.proceduresScope !== 'all'" @click="$store.atc.setProceduresScope('inUse')"
+                                                            data-help-title="Runways in use" data-help="Only the routes of the runways in use, as the station sees them land and take off. Learnt again after each start of the server: until then, some may be missing.">Runways in use</button>
+                                                    <button class="cl-seg__item" :aria-pressed="$store.atc.settings.proceduresScope === 'all'" @click="$store.atc.setProceduresScope('all')"
+                                                            data-help-title="All runways" data-help="Every published route of the kind, whatever runway is in use. Departures change a lot. Arrivals hardly do: those of the other runways mostly fly the same tracks, under other names (Paris, 26/10: 103 routes instead of 52, three more lines on the map).">All</button>
+                                                </div>
+                                                <span class="cl-field__source" x-text="$store.atc.procedureLayer.text + ' · ' + $store.atc.procedureLayer.routes.length + ($store.atc.procedureLayer.routes.length === 1 ? ' route' : ' routes')"></span>
                                             </div>
                                         </template>
                                     </div>
@@ -1872,6 +2004,8 @@
     <script defer src="store/sky.js"></script>
     <script defer src="store/procedures.js"></script>
     <script defer src="store/probable.js"></script>
+    <script defer src="accounts-panel.js"></script>
+    <script defer src="usage-panel.js"></script>
     <script defer src="server-settings.js"></script>
     <script defer src="app.js"></script>
     <!-- Alpine starts after every script above has registered its stores and

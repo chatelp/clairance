@@ -78,6 +78,10 @@ func (f *UserFile) Path() string { return f.path }
 // rather than shadowing one silently: two accounts with one name is a question
 // about which password works, and nobody should have to find out by trying.
 func (f *UserFile) Add(name, hash string) error {
+	return f.add(name, hash, "")
+}
+
+func (f *UserFile) add(name, hash, role string) error {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return fmt.Errorf("a user needs a name")
@@ -90,13 +94,56 @@ func (f *UserFile) Add(name, hash string) error {
 			return fmt.Errorf("an account named %q already exists in %s", name, f.path)
 		}
 	}
-	f.Users = append(f.Users, UserRecord{Name: name, PasswordHash: hash, CreatedAt: nowRFC3339()})
+	f.Users = append(f.Users, UserRecord{Name: name, PasswordHash: hash, CreatedAt: nowRFC3339(), Role: role})
 	if err := f.save(); err != nil {
 		// Not written, so not added: a later save must not persist it by accident.
 		f.Users = f.Users[:len(f.Users)-1]
 		return err
 	}
 	return nil
+}
+
+// AddWithRole is Add for an account created from the owner's panel, written
+// with its role in the same write: an account on disk for a moment without
+// it would be an owner.
+func (f *UserFile) AddWithRole(name, hash, role string) error {
+	if role == RoleOwner {
+		role = "" // absent means owner, as in every file written before roles
+	}
+	return f.add(name, hash, role)
+}
+
+// Remove takes an account out and writes the file, or changes nothing.
+func (f *UserFile) Remove(name string) error {
+	for i, u := range f.Users {
+		if strings.TrimSpace(u.Name) == name {
+			prev := append([]UserRecord(nil), f.Users...)
+			f.Users = append(f.Users[:i:i], f.Users[i+1:]...)
+			if err := f.save(); err != nil {
+				f.Users = prev
+				return err
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("no account named %q in %s", name, f.path)
+}
+
+// SetHash replaces an account's password hash and writes the file, or
+// changes nothing.
+func (f *UserFile) SetHash(name, hash string) error {
+	for i, u := range f.Users {
+		if strings.TrimSpace(u.Name) == name {
+			prev := f.Users[i].PasswordHash
+			f.Users[i].PasswordHash = hash
+			if err := f.save(); err != nil {
+				f.Users[i].PasswordHash = prev
+				return err
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("no account named %q in %s", name, f.path)
 }
 
 // SetAccess records how the server is to be reached, or changes nothing if it

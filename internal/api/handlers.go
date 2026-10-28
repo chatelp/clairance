@@ -13,9 +13,12 @@ import (
 	"github.com/yegors/co-atc/internal/auth"
 	"github.com/yegors/co-atc/internal/config"
 	"github.com/yegors/co-atc/internal/frequencies"
+	"github.com/yegors/co-atc/internal/lifecycle"
 	"github.com/yegors/co-atc/internal/reference"
+	"github.com/yegors/co-atc/internal/startcheck"
 	"github.com/yegors/co-atc/internal/storage/sqlite"
 	"github.com/yegors/co-atc/internal/transcription"
+	"github.com/yegors/co-atc/internal/usage"
 	"github.com/yegors/co-atc/internal/weather"
 	"github.com/yegors/co-atc/internal/websocket"
 	"github.com/yegors/co-atc/pkg/logger"
@@ -36,9 +39,21 @@ type Handler struct {
 	audioArchive         *audioarchive.Archive      // the sidecar's clips, nil without one
 	status               statusCache                // the receiver as reported, the sidecar as last read
 	vitals               vitalsCache                // the sign-in page's figures, see vitals_handlers.go
+	healthDetail         healthDetailCache          // the launcher's health, see health_detail_handlers.go
+	guestStreams         streamSlots                // the streams each guest holds, see guest.go
+	missing              []startcheck.Missing       // what the startup check found missing; see SetMissing
+	process              processState               // what main says of the process, see process.go
 
 	// Who is asking. See internal/auth and auth_handlers.go.
 	auth *auth.Service
+	// The audio streams each account has open, for the owner to end
+	// (accounts_handlers.go).
+	live liveStreams
+	// What each account did, for the owner (usage_handlers.go, D84); nil
+	// with auth.usage_days = 0.
+	usage *usage.Journal
+	// The key of the station link co-atc started; see link_token.go.
+	linkToken string
 
 	// Operational state for the settings panel. See server_handlers.go.
 	runtime       *config.Runtime
@@ -72,6 +87,7 @@ func NewHandler(adsbService *adsb.Service, frequenciesService *frequencies.Servi
 	// how a server ends up open.
 	userFile, err := auth.LoadUserFile(config.ConfigPath)
 	if err != nil {
+		lifecycle.Failed("auth", err)
 		logger.Error(fmt.Sprintf("Failed to read accounts: %v", err))
 		os.Exit(1)
 	}
@@ -87,8 +103,18 @@ func NewHandler(adsbService *adsb.Service, frequenciesService *frequencies.Servi
 		AttemptWindow:  time.Duration(orDefault(config.Auth.AttemptWindowMins, 15)) * time.Minute,
 	})
 	if err != nil {
+		lifecycle.Failed("auth", err)
 		logger.Error(fmt.Sprintf("Failed to build authentication: %v", err))
 		os.Exit(1)
+	}
+	// Sessions are kept across restarts (fiche S). A file that cannot be read
+	// costs a sign-in, not the server: it starts with none, and says so.
+	if kept, dropped, err := authService.Sessions().Restored(); err != nil {
+		logger.Warn(fmt.Sprintf("Sessions could not be read back, everyone signs in again; "+
+			"the file is replaced at the next sign-in: %v", err))
+	} else if kept+dropped > 0 {
+		logger.Info(fmt.Sprintf("Sessions read back: %d kept, %d set aside (expired, or their account changed), from %s",
+			kept, dropped, authService.Sessions().Path()))
 	}
 	if authService.LocalRefused() {
 		// Chosen when the server was reachable from this machine only; it no
@@ -102,8 +128,14 @@ func NewHandler(adsbService *adsb.Service, frequenciesService *frequencies.Servi
 			"can reach it and sign-in stays on (%s)", why, authService.AccountsFile()))
 	}
 
+	usageJournal := openUsage(authService, config.Auth.UsageDays)
+	if wsServer != nil {
+		wsServer.SetPresence(pagePresence(usageJournal))
+	}
+
 	return &Handler{
 		auth:                 authService,
+		usage:                usageJournal,
 		valueStorage:         valueStorage,
 		startedAt:            time.Now(),
 		dbSampleAt:           time.Now(),

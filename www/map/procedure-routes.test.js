@@ -66,6 +66,16 @@ test('the layer: the configuration in use, said; nothing while it is not known; 
     assert.equal(R.layer(all, [{ code: 'EGLL' }], 'SID').text, R.OUTSIDE);
 });
 
+test('the layer, every runway: all the routes of the kind, whatever is in use, even before it is known', () => {
+    const all = [okasi, okasiEast, enori];
+    const every = R.layer(all, [lfpg('26L')], 'SID', 'all');
+    assert.equal(every.state, 'shown');
+    assert.deepEqual(every.routes, [okasi, okasiEast]);
+    assert.equal(every.text, 'LFPG, every runway');
+    assert.deepEqual(R.layer(all, [{ code: 'LFPG', runway_in_use: [] }], 'SID', 'all').routes, [okasi, okasiEast]);
+    assert.equal(R.layer(all, [{ code: 'EGLL' }], 'SID', 'all').text, R.OUTSIDE);
+});
+
 test('a name goes away from the route', () => {
     // A corner: the route comes from the west and leaves to the south; the
     // name goes north-east (screen y down).

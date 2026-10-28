@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -31,6 +32,7 @@ type Service struct {
 	store   *Store
 	proxies *TrustedProxies
 	limiter *Limiter
+	trace   *Trace
 
 	// What enabled is decided from, kept because the choice can now change
 	// while the server runs; see resolve.
@@ -46,6 +48,13 @@ var ErrLocalNotAllowed = errors.New("this server can be reached from other machi
 
 // ErrNoAccount refuses sign-in being required when there is nobody to sign in as.
 var ErrNoAccount = errors.New("no account exists yet: create one")
+
+// Why SignIn refuses. The caller tells the client neither: a wrong name and a
+// wrong password are one error, and the limit is said only in the trace.
+var (
+	ErrTooManyAttempts    = errors.New("too many attempts")
+	ErrInvalidCredentials = errors.New("invalid credentials")
+)
 
 // Config is what the service needs from the configuration file.
 type Config struct {
@@ -118,9 +127,17 @@ func NewService(cfg Config) (*Service, error) {
 		store:         NewStore(cfg.SessionTTL),
 		proxies:       proxies,
 		limiter:       NewLimiter(max, window),
+		trace:         NewTrace(tracePath(cfg.UserFile)),
 		configEnabled: cfg.Enabled,
 		localAllowed:  cfg.Loopback && len(cfg.TrustedProxies) == 0,
 	}
+	// A session read back is kept only for an account that still exists with
+	// the role it was issued with: removing an account, or making an owner a
+	// viewer, ends its sessions at the next start.
+	s.store.open(besideUserFile(cfg.UserFile, SessionFile), func(user, role string) bool {
+		r, ok := roles[user]
+		return ok && r == role
+	})
 	s.resolve()
 	return s, nil
 }
@@ -175,6 +192,29 @@ func (s *Service) Enabled() bool {
 
 func (s *Service) Sessions() *Store         { return s.store }
 func (s *Service) Proxies() *TrustedProxies { return s.proxies }
+func (s *Service) Trace() *Trace            { return s.trace }
+
+// HasAccount says whether a name is an account's. For the trace, after a
+// sign-in has been answered -- never to decide how to answer one.
+func (s *Service) HasAccount(name string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	_, ok := s.users[strings.TrimSpace(name)]
+	return ok
+}
+
+// tracePath is where the sign-in trace is kept: beside the accounts file,
+// and nowhere -- in memory only -- without one.
+func tracePath(f *UserFile) string { return besideUserFile(f, TraceFile) }
+
+// besideUserFile is a file kept next to the accounts, as the sign-in trace and
+// the sessions are; "" -- in memory only -- without an accounts file.
+func besideUserFile(f *UserFile, name string) string {
+	if f == nil || f.Path() == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(f.Path()), name)
+}
 
 // SignIn checks a password and issues a session.
 //
@@ -182,9 +222,9 @@ func (s *Service) Proxies() *TrustedProxies { return s.proxies }
 // same Argon2id cost: telling them apart would turn the login form into a way to
 // enumerate accounts.
 func (s *Service) SignIn(r *http.Request, name, password string) (*Session, error) {
-	ip := s.proxies.ClientIP(r)
-	if !s.limiter.Allow(ip) {
-		return nil, fmt.Errorf("too many attempts")
+	key := limitKey(s.proxies.ClientIP(r))
+	if !s.limiter.Allow(key) {
+		return nil, ErrTooManyAttempts
 	}
 
 	s.mu.RLock()
@@ -194,14 +234,24 @@ func (s *Service) SignIn(r *http.Request, name, password string) (*Session, erro
 		// Verify against a throwaway hash so an unknown name costs the same time as
 		// a known one.
 		VerifyPassword(password, decoyHash)
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, ErrInvalidCredentials
 	}
 	if !VerifyPassword(password, hash) {
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, ErrInvalidCredentials
 	}
 
-	s.limiter.Succeeded(ip)
-	return s.store.Create(strings.TrimSpace(name))
+	s.limiter.Succeeded(key)
+	s.mu.RLock()
+	role := s.roles[strings.TrimSpace(name)]
+	s.mu.RUnlock()
+	return s.store.Create(strings.TrimSpace(name), role)
+}
+
+// RetryAfter is how long the address r comes from waits before its next
+// sign-in is tried: zero when it may try now. The limit is the address's,
+// not an account's, so saying it tells nothing of who has one.
+func (s *Service) RetryAfter(r *http.Request) time.Duration {
+	return s.limiter.Wait(limitKey(s.proxies.ClientIP(r)))
 }
 
 // decoyHash is a real Argon2id hash of a value nobody knows, used only to spend the
@@ -209,12 +259,28 @@ func (s *Service) SignIn(r *http.Request, name, password string) (*Session, erro
 const decoyHash = "$argon2id$v=19$m=65536,t=3,p=2$AAAAAAAAAAAAAAAAAAAAAA$kFYJ0kYOQ0aH7VbTlSJ8YZm1LcAqvJLHhWpFkYhqQ2M"
 
 // SessionFrom returns the session a request carries, if any.
+//
+// A session is only as good as its account: one whose account is gone, or no
+// longer has the role it was issued with, is ended here rather than honoured.
+// The rule the start applies to sessions read back, applied on every request,
+// since accounts can now change while the server runs.
 func (s *Service) SessionFrom(r *http.Request) (*Session, bool) {
 	c, err := r.Cookie(CookieName)
 	if err != nil {
 		return nil, false
 	}
-	return s.store.Lookup(c.Value)
+	sess, ok := s.store.Lookup(c.Value)
+	if !ok {
+		return nil, false
+	}
+	s.mu.RLock()
+	role, known := s.roles[sess.User]
+	s.mu.RUnlock()
+	if !known || role != sess.Role {
+		s.store.Revoke(c.Value)
+		return nil, false
+	}
+	return sess, true
 }
 
 // SetCookie installs the session cookie.
@@ -257,11 +323,18 @@ func (s *Service) Require(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if _, ok := s.SessionFrom(r); !ok {
+		sess, ok := s.SessionFrom(r)
+		if !ok {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(`{"error":"authentication required"}`))
 			return
+		}
+		// The cookie follows the slid expiry, once a day. Not on a WebSocket
+		// upgrade: its answer is written by the upgrader, without this header,
+		// and the renewal would be spent for a day.
+		if r.Header.Get("Upgrade") == "" && s.store.CookieDue(sess.Token) {
+			s.SetCookie(w, r, sess)
 		}
 		next.ServeHTTP(w, r)
 	})

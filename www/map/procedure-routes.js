@@ -154,12 +154,24 @@
 
     // What the layer draws for one followed airport: its routes of a kind
     // serving the runways in use, and the row's words. state: 'outside',
-    // 'unknown' (no runway in use yet) or 'shown'.
-    function layer(routes, airports, kind) {
+    // 'unknown' (no runway in use yet) or 'shown'. scope 'all': every route
+    // of the kind, whatever runway is in use (the owner, 26/10: the runways
+    // in use are learnt again after each start, and the layer was then
+    // missing half of them).
+    function layer(routes, airports, kind, scope) {
         const shown = (airports || []).filter((a) => covered(a.code));
         if (!shown.length) return { state: 'outside', text: OUTSIDE, routes: [] };
         const out = [];
         const said = [];
+        if (scope === 'all') {
+            for (const a of shown) {
+                const rs = (routes || []).filter((r) => r.airport === a.code && r.kind === kind);
+                if (!rs.length) continue;
+                out.push(...rs);
+                said.push(a.code);
+            }
+            return { state: 'shown', text: `${said.join(' · ') || 'No route'}, every runway`, routes: out };
+        }
         for (const a of shown) {
             const ends = inUse(a);
             if (!ends.length) continue;

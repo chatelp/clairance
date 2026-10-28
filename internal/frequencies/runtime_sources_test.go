@@ -24,10 +24,7 @@ func newSourcesService(t *testing.T) (*Service, string) {
 	}
 	c := &cfg.Config{}
 	c.Server.Port = 8000
-	c.Transcription.FFmpegPath = "ffmpeg"
-	c.Transcription.FFmpegSampleRate = 16000
-	c.Transcription.FFmpegChannels = 1
-	c.Transcription.FFmpegFormat = "s16le"
+	c.Transcription.SampleRate = 16000
 	c.Frequencies.ReconnectIntervalSecs = 3600
 	c.Frequencies.Sources = []cfg.FrequencyConfig{{ID: "mix", Name: "Configured mix", URL: gone.URL + "/aero.mp3"}}
 	s := NewService(c, log, nil, nil, nil, nil)
@@ -36,9 +33,8 @@ func newSourcesService(t *testing.T) (*Service, string) {
 }
 
 func channel(base, id string) cfg.FrequencyConfig {
-	no := false
 	return cfg.FrequencyConfig{ID: id, Name: "Channel " + id, FrequencyMHz: 125.825,
-		URL: base + "/aero-" + id + ".mp3", Language: "en", FFmpegReconnect: &no}
+		URL: base + "/aero-" + id + ".mp3", Language: "en"}
 }
 
 func processorOf(s *Service, id string) *StreamProcessor {

@@ -1,0 +1,12 @@
+# Local speech-to-text sidecar for Clairance, faster-whisper engine (CTranslate2):
+# Linux x86-64, an NVIDIA GPU or the processor (README.md). Python 3.12 or later.
+# The versions it was tested with, on the processor, with Python 3.12 and 3.13.
+faster-whisper==1.2.1
+ctranslate2==4.8.4
+# The voice gate, the same as on the Mac. It needs torch, on the processor only.
+silero-vad==6.2.3
+torch==2.14.1
+fastapi==0.162.0
+uvicorn==0.54.0
+numpy==2.5.4
+scipy==1.18.1

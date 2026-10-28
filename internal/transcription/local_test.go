@@ -112,10 +112,21 @@ func TestOnlyTranscribedTransmissionsAreTimed(t *testing.T) {
 	if _, ok := p.MeanTranscriptionSeconds(); ok {
 		t.Fatal("a rejection was timed")
 	}
+	// Sent, not transcribed: what the launcher's health reads as a frequency
+	// whose transmissions come back empty.
+	if sent, done := timing.Activity("124350"); sent.IsZero() || !done.IsZero() {
+		t.Fatalf("after a rejection: sent %v, transcribed %v", sent, done)
+	}
 	answer = `{"text":"air france one two three","language":"en"}`
 	p.send([]byte{0, 0, 0, 0}, 16000, time.Now())
 	if m, ok := p.MeanTranscriptionSeconds(); !ok || m < 0.02 || m > 5 {
 		t.Errorf("after one transcription of about 20 ms: %v %v", m, ok)
+	}
+	if sent, done := timing.Activity("124350"); done.IsZero() || done.Before(sent) {
+		t.Errorf("after a transcription: sent %v, transcribed %v", sent, done)
+	}
+	if sent, done := timing.Activity("other"); !sent.IsZero() || !done.IsZero() {
+		t.Errorf("a frequency that sent nothing: %v %v", sent, done)
 	}
 }
 

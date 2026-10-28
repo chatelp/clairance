@@ -18,6 +18,7 @@ import (
 	"golang.org/x/crypto/argon2"
 
 	"github.com/yegors/co-atc/internal/adsb"
+	"github.com/yegors/co-atc/internal/audio/audiotest"
 	"github.com/yegors/co-atc/internal/auth"
 	"github.com/yegors/co-atc/internal/config"
 	"github.com/yegors/co-atc/internal/frequencies"
@@ -31,7 +32,8 @@ import (
 // day: an ADS-B service fed by a fake tar1090, the day's SQLite database, the
 // frequencies service, the WebSocket hub, accounts, live settings. Nothing
 // reaches the network: the fake receiver and the fake sidecar are httptest
-// servers, and audio, when asked for, is a tone ffmpeg generates itself.
+// servers, and audio, when asked for, is a tone sent over UDP on the loopback
+// or an MP3 recording served over HTTP.
 //
 // access_test.go keeps its smaller fixture, which is enough for the first-run
 // page; this one is for the data routes behind the lock.
@@ -128,20 +130,24 @@ func newFakeTar1090(t *testing.T) *fakeTar1090 {
 	return f
 }
 
-// tone is a source ffmpeg generates itself, in real time, like
-// internal/frequencies does in its own tests.
-const tone = "sine=frequency=440:sample_rate=16000"
-
-var toneOptions = []string{"-re", "-f", "lavfi"}
+// toneRate is the rate of the tone a stack can carry: raw PCM over UDP on the
+// loopback, in real time (internal/audio/audiotest), as an SDR program sends
+// it. It replaced the tone ffmpeg generated when ffmpeg went (B1 ter).
+const toneRate = 16000
 
 type stackOptions struct {
-	host      string   // bind address; "127.0.0.1" when empty
-	proxies   []string // server.trusted_proxies
-	noAccount bool     // local-only, nothing to sign in as
-	viewer    bool     // a second account, viewerUser, with the viewer role
-	tone      bool     // a configured frequency carrying audio; needs ffmpeg
-	sidecar   string   // health URL of a transcription sidecar; none when empty
-	idle      bool     // started without transcription, as main does when nothing asks for it
+	host      string        // bind address; "127.0.0.1" when empty
+	proxies   []string      // server.trusted_proxies
+	noAccount bool          // local-only, nothing to sign in as
+	viewer    bool          // a second account, viewerUser, with the viewer role
+	tone      bool          // a configured frequency carrying a tone, raw PCM over UDP
+	goMP3     bool          // a frequency serving MP3 over HTTP
+	sidecar   string        // health URL of a transcription sidecar; none when empty
+	idle      bool          // started without transcription, as main does when nothing asks for it
+	static    string        // server.static_dir; the page built into the binary when empty
+	origins   []string      // server.allowed_origins
+	adsbEvery time.Duration // how often the receiver is read after the first time; an hour when zero
+	usage     bool          // the owner's usage journal, 30 days, beside the accounts (D84)
 }
 
 type stack struct {
@@ -185,6 +191,8 @@ func newStack(t *testing.T, o stackOptions) *stack {
 	cfg.Server.AdditionalPorts = []int{8001}
 	cfg.Server.ReadTimeoutSecs = 5
 	cfg.Server.TrustedProxies = o.proxies
+	cfg.Server.StaticDir = o.static
+	cfg.Server.AllowedOrigins = o.origins
 	cfg.ADSB = config.ADSBConfig{SourceType: adsb.SourceTypeTar1090, Tar1090BaseURL: tar.srv.URL,
 		FetchIntervalSecs: 3600, SignalLostTimeoutSecs: 60}
 	cfg.Station = config.StationConfig{Latitude: stationLat, Longitude: stationLon, ElevationFeet: 400,
@@ -192,19 +200,20 @@ func newStack(t *testing.T, o stackOptions) *stack {
 	cfg.Storage = config.StorageConfig{Type: "sqlite", SQLiteBasePath: filepath.Join(dir, "db"), DBRetentionGB: 20}
 	cfg.Logging = config.LoggingConfig{Level: "error", Format: "console"}
 	cfg.Transcription.Backend = config.BackendLocal
-	cfg.Transcription.FFmpegPath = "ffmpeg"
-	cfg.Transcription.FFmpegSampleRate = 16000
-	cfg.Transcription.FFmpegChannels = 1
-	cfg.Transcription.FFmpegFormat = "s16le"
+	cfg.Transcription.SampleRate = 16000
 	cfg.Frequencies.ReconnectIntervalSecs = 3600
 	cfg.Frequencies.Sources = []config.FrequencyConfig{
 		{ID: "mix", Name: "Configured mix", Airport: "LFPG", FrequencyMHz: 125.825, URL: gone.URL + "/aero.mp3", Order: 2},
 	}
-	if o.tone {
-		reconnect := false
+	if o.goMP3 {
 		cfg.Frequencies.Sources = append(cfg.Frequencies.Sources, config.FrequencyConfig{
-			ID: "tone", Name: "Tone", FrequencyMHz: 118.7, URL: tone, Order: 1,
-			FFmpegInputOptions: toneOptions, FFmpegReconnect: &reconnect,
+			ID: "station", Name: "Station", FrequencyMHz: 124.35, URL: mp3Server(t) + "/aero-124350.mp3", Order: 3,
+		})
+	}
+	if o.tone {
+		cfg.Frequencies.Sources = append(cfg.Frequencies.Sources, config.FrequencyConfig{
+			ID: "tone", Name: "Tone", FrequencyMHz: 118.7, URL: audiotest.UDPTone(t, toneRate), Order: 1,
+			PCMRate: toneRate,
 		})
 	}
 	cfg.FlightPhases = config.FlightPhasesConfig{
@@ -233,7 +242,10 @@ func newStack(t *testing.T, o stackOptions) *stack {
 	go ws.Run()
 
 	client := adsb.NewClient(cfg.ADSB, stationLat, stationLon, 5*time.Second, log)
-	adsbSvc := adsb.NewService(client, store, time.Hour, log, cfg.Station, cfg.ADSB, cfg.FlightPhases, ws)
+	if o.adsbEvery == 0 {
+		o.adsbEvery = time.Hour
+	}
+	adsbSvc := adsb.NewService(client, store, o.adsbEvery, log, cfg.Station, cfg.ADSB, cfg.FlightPhases, ws)
 	ws.SetMessageHandler(adsb.NewWebSocketHandler(adsbSvc, log))
 	ctx, cancel := context.WithCancel(context.Background())
 	if err := adsbSvc.Start(ctx); err != nil {
@@ -255,7 +267,7 @@ func newStack(t *testing.T, o stackOptions) *stack {
 			freqs.SetTranscriptionGate(sidecar.Ensure)
 		}
 	}
-	if o.tone {
+	if o.tone || o.goMP3 {
 		if err := freqs.Start(ctx); err != nil {
 			t.Fatal(err)
 		}
@@ -290,6 +302,10 @@ func newStack(t *testing.T, o stackOptions) *stack {
 		startedAt: time.Now(), dbSampleAt: time.Now(),
 	}
 	h.AttachRuntime(rt, db, sidecar)
+	if o.usage {
+		h.usage = openUsage(svc, 30)
+		ws.SetPresence(pagePresence(h.usage))
+	}
 	r := &Router{handler: h, middleware: NewMiddleware(log), config: cfg, logger: log}
 	routes := r.Routes()
 	srv := httptest.NewServer(routes)

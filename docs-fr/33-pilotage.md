@@ -1,6 +1,6 @@
 # Pilotage — stratégie, chantiers, jalons, décisions attendues
 
-*Dernière mise à jour : 20/10/2026 (revue du 20/10).*
+*Dernière mise à jour : 26/10/2026, 16 h 05 (fiches O et N fusionnées, pistes en service gardées, couche des procédures, Safari).*
 
 *Le document du chef d'orchestre. Tenu par la session Clairance, mis à jour à chaque livraison
 d'une session, à chaque décision du propriétaire et à chaque jalon franchi. Ouvert le 12/10/2026
@@ -30,6 +30,7 @@ la mémoire des décisions dans `05-decisions.md` ; ici, la vue d'ensemble, cour
 |---|---|---|---|---|
 | **Clairance** (session principale, chef d'orchestre) | le produit : code, mesures, documents, coordination | paliers 0 à 5 de l'audit faits ; migration du design en production depuis le 15/10 ; Q55 à Q57 en production le 16/10 ; mouvement des avions (D79, D80, troisième famille de sauts corrigée le 16/10) ; revue des documents du 20/10 | l'analyse des mesures de la nuit du 16 au 17/10 (non faite) ; les prérequis « installable ailleurs » | — |
 | **Clairance - Design** (branche `design-suite` depuis Q56/Q57 ; index `docs-fr/design/README.md`) | identité, nom, système de design, maquettes, fiches de composants, relecture des livraisons de l'interface | **migration close côté design le 15/10** (étapes 0 à 13, plan `04-migration.md`, relues conformes) ; identité (05), esquisses (07, D77), système de composants (08, artefact https://claude.ai/artifact/Ut6hWDRRUcWC58HHz6UP2K), quatorze écrans finaux (09, D78, galerie https://claude.ai/artifact/2gZSBGbTkEySxThbNRYhMF) ; depuis le 16/10, les fiches de Q56 (`ProcedureRoute`) et de Q57 (étiquette, sorties possibles), relues après construction ; référence figée `design-reference-2026-10-13` ; les captures de la carte réelle restent hors dépôt (D75) | les fiches que demande le propriétaire | relire chaque livraison de l'interface sur l'instance d'essai avant qu'elle parte en production |
+| **Plan lanceur de Clairance** (depuis le 24/10 ; branche `lanceur`, arbre `.claude/worktrees/lanceur` ; mission dans `docs-fr/34-lanceur.md`) | le lanceur de la barre des menus, devenu poste de surveillance : gardien, tableau de bord natif, poste de commande ; en Swift, sur `tools/menubar/` seulement ; forme confiée à la session design (« Clairance natif macOS ») | **étape 1a fusionnée dans `local` le 24/10** (14c39e6) : lancement délégué au lanceur, instances repérées par PID, instances d'essai à échéance ; route de santé du serveur livrée (`/api/v1/health/detail`, 3307610) ; Q59 tranchée en (b), fiche design 10 validée | **étape 1b livrée le 25/10** (938f8c3) : gardien, notifications, icône à six états, Dock ; mesuré sur un banc d'essai (coupure ADS-B vue en 49 à 54 s, coupure audio en 64 s, co-atc tué en 4 s, arrêt demandé muet). Reste : une journée normale de production sans fausse alerte, après la relance par le propriétaire. Icône d'application définitive du design intégrée le 25/10 (3b6ed5f) | mesurer le temps entre une coupure provoquée et la notification (cible : moins de 2 min), et zéro fausse alerte sur une journée normale |
 | **Whisper-lab** (`~/Dev/Aero/whisper-lab`, privé) | reconnaissance : modèles, corpus, mesures, GPU | précision par niveau d'indices mesurée (borne haute) ; Kyutai écarté (28/09) ; a proposé Q55 (15/10) ; bases du ciel témoin copiées par le labo (D82, 16/10) ; état depuis le 16/10 non relevé ici | tirage au hasard de la précision quand l'annotation aura avancé (jalon du labo) | la mesure de non-régression du modèle converti, le jour du portage |
 | **ATC-scribe communauté** (`~/Dev/Aero/atc-scribe-communaute`, privé, dépôt `chatelp/atc-scribe-communaute`) | cadre légal, existant, communautés françaises, prérequis, recommandation | étude livrée le 12/10 (`SYNTHESE.md`, fiches 01 à 05) ; premier pas tranché le 13/10 avec le propriétaire (voir « Faits ») ; en veille | — (reprend sur question de Pierre) | le P0 de la fiche 04 entre dans le jalon « installable ailleurs » |
 | **Station radio** (session de la station) | la station : réception, chaîne VHF, captations | en veille au dernier relevé (12/10) ; `radio-ctl-sync` rapporte l'état au bandeau | — | prévenue à chaque bascule d'écoute |
@@ -116,12 +117,59 @@ la mémoire des décisions dans `05-decisions.md` ; ici, la vue d'ensemble, cour
 
 ### En cours
 
+**Le plan détaillé, par blocs, avec étapes, dépendances et mesures de sortie : `35-plan.md`** (26/10).
+**Soir du 26/10, décisions du propriétaire** : production relancée à 17:02:06 (pistes gardées, fiches O et N en
+service) ; ami le 28/10, invité aux adresses masquées et aux flux limités ; `/vitals` public ; connexion de 30 jours ;
+ensuite **le lanceur, puis le serveur autonome** ; 61 $ de crédit cloud à déléguer dès maintenant.
+Fiches cloud P (invité), Q (page dans le binaire, bilan au démarrage) et R (contrat du lanceur, côté serveur)
+lancées puis intégrées le soir même ; en production à la relance du 27/10. La moitié Swift du contrat (C3)
+revient à l'agent du lanceur, après le 28/10.
+Préparé pour le 27/10 : la bascule audio sur la branche `b1-ter` ; A3 avec l'agent du lanceur ; la relance en trois
+temps (A3, nouveau co-atc, bascule audio), une cause par relance. La page intégrée attendra que la page se stabilise.
+**27/10 au matin** : fiche S intégrée et vérifiée sur le Mac : les sessions survivent à une relance ; l'ami ne
+retapera plus son mot de passe à chaque mise à jour. Elle part avec la relance 2. Au passage, une panique rare à
+l'arrêt corrigée. Puis, à la demande du propriétaire, les flux des ports annexes reçoivent le cookie (ebfd2ce),
+vérifié dans Chrome ; même relance. Et « someone is speaking » fréquences coupées (98f675a) : la mesure du
+serveur arrivait mais était jetée par la page ; correctif de page seulement, en ligne dès la relance 1 (chaque démarrage recopie `www/`).
+**27/10, 13:17 : N5 passé**, goxiph validé (journal, base, lanceur et relevé Icecast de la station) : ffmpeg sera abandonné à la relance 3 avec `b1-ter` et le passage à 16 kHz, comme décidé le 26/10.
+**27/10, 13:50 : relance 1 faite**, A3 en production (le porteur sur sa propre copie), même co-atc ; la page du jour (98f675a) part avec. Restent la relance 2 (nouveau co-atc) et la relance 3 (`b1-ter`, 16 kHz).
+**27/10, 13:53 : relance 2 faite**, le nouveau co-atc (84db233) en production, essayé d'abord sur 8020 ; les connexions survivent désormais aux relances. Reste la relance 3 (`b1-ter`, 16 kHz, ffmpeg retiré).
+**27/10, 14:01 : relance 3 faite**, ffmpeg retiré, production à 16 kHz (749d489) ; la connexion du propriétaire a survécu à la relance (fiche S). Les trois relances du jour sont faites. Suite : le compte de l'ami le 28/10. « someone is speaking » fréquences coupées confirmé par le propriétaire en production.
+**27/10, 15:00 : A4 et A5 clos** : aucune fausse alerte en 26 h 50 ; Q57 tient (réserve : la sortie à 15 NM en configuration ouest, 70 %) ; mouvement des avions mieux que la référence ; mémoire du sidecar bornée. Le bloc A est fini.
+**27/10, 15:30 : les comptes se gèrent depuis la page** (D83, demande du propriétaire) : panneau « Accounts » réservé au propriétaire, couper l'accès sans relance, cookie renouvelé et 90 jours au plus. Vérifié sur l'instance d'essai ; **en production depuis la relance de 15:37** (be6221b), connexions gardées. **16:59 : compte de l'invité créé par le propriétaire depuis le panneau, audio ouvert aux viewers** (`audio_replay = "all"`, relance 5, 9 s de coupure) : D4 fait. **17:10 : D5 fait** — montant 383 à 423 Mbit/s (un invité des deux fréquences : 128 kbit/s, rectifié à 17:40), sonde Kuma n°26 sur la santé publique ; limite : Kuma partage la machine du mandataire, sa chute n'alerte pas. **17:20 : l'invité s'est connecté de chez lui et a eu le son** (constat du propriétaire ; trace : première connexion à 17:19) — objectif du bloc D atteint, un jour avant la date prévue. **19:45 : suivi d'usage par compte fait** (D84 ; partie « Usage » des réglages, pour le propriétaire), vérifié sur l'instance d'essai, **en production depuis la relance 6 de 20:13**. **19:50 : incident** — une instance d'essai a vidé l'archive audio de la production (42 970 extraits, 16 Go, 28/09 → 26/10, perte définitive) ; essais désormais sans purge, garde produit à décider. **20:50 : arrêt lent corrigé** (df4875f : l'arrêt termine les requêtes en cours et nomme celles qui résistent) ; non reproduit sur l'essai, à confirmer à la prochaine relance (confirmé le 28/10 à 11:29 : arrêt en 1 s). **21:10 : doc des comptes et de l'accès distant** — `37-comptes-et-acces-distant.md` et README (partie « Open it to a friend », diagramme du chemin d'accès, section du mandataire remise à jour). **28/10, 08:46 : relance 7** (correctif de l'arrêt lent en production ; effet visible à la prochaine relance) ; le lanceur a disparu pendant l'arrêt, cause non trouvée. **11:25 : place disque** — `runs/` nettoyé (3,2 Go à la Corbeille), bases du 23/09 au 18/10 archivées sur le Crucial X8 (7,6 → 1,3 Go, vérifiées) ; à venir : rétention à 6 Go, rétention qui archive (D85).
+**Fin du 26/10** : plus de relance aujourd'hui sauf panne (propriétaire). Faits l'après-midi : la page joue le son
+elle-même (Q63), Safari compris depuis 16:45 (reprise au clic, rééchantillonnage dans la page) et l'iPhone
+depuis 17:20 ; la couche des
+procédures avec le choix « pistes en service / toutes » ; les pistes en service gardées d'une relance à l'autre (A7,
+en production à la relance du 27/10 après N5). Le 27/10 vers 13 h 10 : jugement de N5, puis 16 kHz, retrait de
+ffmpeg, de SRT et de la carte son. Fiches cloud O (ouverture publique, trace des connexions) et N (sidecar sur
+Linux) relues, vérifiées sur le Mac et fusionnées : en production à la même relance. Au propriétaire : six constats
+de la fiche O à trancher (05, Q62), puis le compte de l'ami (D4).
+**Ordre des chantiers, accepté par le propriétaire le 26/10** :
+1. le faux « Production did not start » du lanceur (agent du lanceur), puis une journée de production sans
+   fausse alerte ;
+2. une journée de mesures sur la production : justesse réelle de Q57, mémoire du sidecar, sauts ;
+3. **Q60, le serveur auto-contenu** : d'abord la mesure du décodage audio en Go, puis la page dans le
+   binaire, l'environnement propre du sidecar, le script de production absorbé ;
+4. **Q61, le contrat entre le lanceur et le serveur** ; les étapes 2 et 3 du lanceur l'attendent ;
+5. **Q62, l'accès à distance pour un proche** (ajouté le 26/10) : un usage de la période de tests restreints, pas
+   une fonctionnalité ; audio compris ; par Internet derrière le Traefik du propriétaire ; mené **en parallèle** de
+   B1 (décisions du 26/10) ;
+6. en parallèle d'ici le 5/11, le crédit cloud (94 $) sur ce qui se vérifie sans station ni audio réel ;
+7. puis le jalon « installable ailleurs » (avertissement légal, guide), et plus loin l'interface en/fr, le
+   rapprochement instruction/réponse, Q51, le corpus simulé, le premier pas public.
+
+0. **Le lanceur en poste de surveillance** (doc 34, 24/10) : agent dédié, étape 1 (le gardien) d'abord.
+   Côté serveur, la route de santé est faite (3307610). Étape 1a fusionnée (14c39e6) ; porteur livré (e71e4bd,
+   Q59) ; gardien de l'étape 1b livré (938f8c3, 25/10). À faire par le propriétaire : démarrer la vraie production
+   par le nouveau lanceur, en prévenant la station ; la journée sans fausse alerte se mesure ensuite. Ce qui doit précéder la prochaine relance de la
+   production : rien ; elle portera la route dès qu'elle sera relancée sur un binaire reconstruit.
 1. **Les prérequis pour être installable ailleurs** (communauté, question 4) → liste hiérarchisée →
    chantier technique dans cette session (voir « À venir »).
 2. **À regarder à l'usage par le propriétaire** : le fond clair IGN/OSM et le téléphone (versés avec la
    migration) ; les étiquettes entre 34 et 48 NM autour de l'approche de Roissy, où les avions qui comptent
    sont serrés (laissé tel quel pour une soirée, choix du propriétaire, 15/10).
-3. **L'analyse des mesures de la nuit du 16 au 17/10** (`runs/mesures/nuit-2026-10-16/` : relevé de la
+3. ~~**L'analyse des mesures de la nuit du 16 au 17/10**~~ — **retirée le 26/10** : la production était sourde, rien à en tirer. (`runs/mesures/nuit-2026-10-16/` : relevé de la
    production toutes les 5 min, instance d'essai avec flux par tranches de 55 min) : **pas encore faite**. Constat de
    la revue du 20/10, de visu sur les fichiers, non analysé : la production était sourde à partir de 23 h 05
    (voir « Les risques suivis »), le total de transmissions du relevé reste figé à 8 109 de 23 h 08 à minuit, et
@@ -211,7 +259,17 @@ A, B et C relancées par erreur le 13/10 puis arrêtées n'ont laissé aucune br
    Chaque fiche demande d'abord une relecture ici et une soirée d'écoute pour tout ce qui se voit ; lancer tard laisse peu de
    temps à l'intégration.
 
+11. ~~**Qui porte la production quand le lanceur se ferme**~~ (Q59) — **tranchée le 24/10 : (b)**, la production
+   portée à part du menu. **Porteur mesuré et livré le 24/10** (e71e4bd) : une instance à part de `Clairance.app`
+   (`open -n`) ; l'agent launchd est écarté, faute de réseau local. L'étape 1a est fusionnée (14c39e6) et la fiche
+   design 10 est validée.
+
 ## Les risques suivis
+
+- **Deux liaisons avec la station** (trouvé par l'agent du lanceur, 25/10) : le script d'un démarrage manqué
+  restait vivant à attendre son co-atc, et le démarrage réussi suivant de `production.command` aurait lancé une
+  seconde liaison `radio-ctl-sync`. Le lanceur l'arrête désormais ; le risque demeure pour qui lance
+  `production.command` à la main deux fois de suite. Raison de plus pour ne démarrer que par le lanceur.
 
 - ~~**Latence de transcription**~~ — **réduite le 14/10 au soir** (D81 et correctif du sidecar).
   Avant, sur l'instance d'essai : 9,2 s de la requête à la première lecture en médiane, 16,4 s au

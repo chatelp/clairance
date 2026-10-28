@@ -26,11 +26,15 @@ class AudioClient {
         this.userSetVolumes = {};
         this.lastSignificantAudioTime = {};
         this.secondsSinceLastAudio = {};
+        // What the server says of each frequency (noteServerActivity): the
+        // same "someone is speaking" in every browser, listened to or not.
+        this.serverActivity = {};
 
         this.defaultVolume = 1.0;
         this.visualizationTargetFps = 30;
-        // The analyser sits before the mute gain, so it sees the same signal
-        // whether a frequency is muted or not: one threshold, one multiplier.
+        // The analyser hears a frequency while it plays here; a muted one, and
+        // any in Safari, which plays a live stream past Web Audio, take their
+        // activity from the server (noteServerActivity).
         this.significantAudioThreshold = 0.10;
         this.visualizerMultiplier = 150;
     }
@@ -41,9 +45,17 @@ class AudioClient {
      */
     initAudioContext() {
         if (!this.audioContext) {
+            // On an iPhone, Web Audio is "ambient" sound: the silent switch
+            // mutes it, where an <audio> element plays through. Declared as
+            // playback, it plays as a radio does (Safari 16.4+; 26/10, no
+            // sound on the owner's iPhone).
+            try {
+                if (navigator.audioSession) navigator.audioSession.type = 'playback';
+            } catch (e) { /* not this browser */ }
             try {
                 this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 console.log("AudioContext initialized.");
+                this._watchContext(this.audioContext);
             } catch (e) {
                 console.error("Web Audio API is not supported.", e);
             }
@@ -69,7 +81,16 @@ class AudioClient {
         console.log(`Preparing frequency: ${frequencyId}`);
         this.initAudioContext();
 
-        const audioElement = document.createElement('audio');
+        // The page plays the stream itself where it can (live-player.js): it
+        // starts at once and measures what it plays, in every browser. An
+        // <audio> element otherwise.
+        // Safari too, since its sound resumes at a click (_resumeOnGesture)
+        // and the page resamples it (live-player.js), 26/10. ?player=element
+        // in the page's address forces the <audio> element, to try a browser.
+        const forced = new URLSearchParams(window.location.search).get('player');
+        const live = window.LiveStreamPlayer && window.LiveStreamPlayer.supported() && this.audioContext &&
+            forced !== 'element';
+        const audioElement = live ? new window.LiveStreamPlayer(this.audioContext) : document.createElement('audio');
         // Streams are spread over the server's additional ports, a different
         // origin from the page: "anonymous" sends no cookie there, and with
         // sign-in required every stream was refused while the transcriptions,
@@ -83,7 +104,7 @@ class AudioClient {
             this.userSetVolumes[frequencyId] = kept === null ? this.defaultVolume : kept;
         }
 
-        const streamUrl = this._buildStreamUrl(frequency);
+        const streamUrl = this._buildStreamUrl(frequency, live ? 'ulaw' : 'mp3');
         if (!streamUrl) {
             console.error(`prepareFrequency: invalid stream URL for ${frequencyId}`);
             return;
@@ -197,6 +218,52 @@ class AudioClient {
     }
 
     /**
+     * Follow whether the page's sound actually runs. The page plays through
+     * this context (live-player.js), which a browser suspends until a gesture
+     * and an iPhone suspends again when the page goes to the background or a
+     * call comes: while frequencies are listened to, a stopped context says
+     * so ("Click anywhere to resume listening") and the next gesture resumes
+     * it, instead of a silence with no word; the tab's icon lights only while
+     * it runs (favicon-state.js, design review of 26/10).
+     */
+    _watchContext(context) {
+        const update = () => {
+            const running = context.state === 'running';
+            this.store.audioRunning = running;
+            if (running || !this.store.radiosStarted || !this.store.anyUnmuted) {
+                if (running) this.store.resumeListeningPending = false;
+                return;
+            }
+            this.store.resumeListeningPending = true;
+            this._resumeOnGesture(context);
+        };
+        context.onstatechange = update;
+        update();
+    }
+
+    /**
+     * Resume the context at each gesture until it runs. Safari lets a context
+     * resume from click, touchend or keydown, not from pointerdown (26/10: the
+     * banner stayed after a click, and the page's own player never sounded
+     * there); and a gesture whose resume is refused must not be the last one
+     * tried.
+     */
+    _resumeOnGesture(context) {
+        if (this._gestureResume) return;
+        const events = ['pointerdown', 'click', 'touchend', 'keydown'];
+        const onGesture = () => {
+            if (context.state === 'running') {
+                events.forEach((e) => document.removeEventListener(e, onGesture, true));
+                this._gestureResume = null;
+                return;
+            }
+            context.resume().catch(() => {});
+        };
+        this._gestureResume = onGesture;
+        events.forEach((e) => document.addEventListener(e, onGesture, true));
+    }
+
+    /**
      * Create analyser pipeline for a given frequency.
      * @param {string} frequencyId
      * @param {HTMLAudioElement} audioElement
@@ -214,7 +281,7 @@ class AudioClient {
         delete this.gainNodes[frequencyId];
 
         try {
-            const sourceNode = this.audioContext.createMediaElementSource(audioElement);
+            const sourceNode = audioElement.isLivePlayer ? audioElement.output : this.audioContext.createMediaElementSource(audioElement);
             this.sourceNodes[frequencyId] = sourceNode;
 
             const analyserNode = this.audioContext.createAnalyser();
@@ -245,11 +312,11 @@ class AudioClient {
     /**
      * Silence or restore a frequency's output.
      *
-     * The mute is a gain after the analyser: the level bar keeps the whole
-     * signal and the output is silent. Upstream lowered the element's volume
-     * to 0.01 instead, so that the bar still had something to show, which left
-     * a muted channel audible at -40 dB under the others (04/10). Without Web
-     * Audio there is no gain node, and the element itself goes to 0.
+     * The mute is the gain after the analyser and the element's own mute:
+     * Safari plays a live stream past Web Audio, where the gain alone muted
+     * nothing (26/10). The level of a muted channel comes from the server.
+     * Upstream lowered the element's volume to 0.01 instead, which left a
+     * muted channel audible at -40 dB under the others (04/10).
      * @param {string} frequencyId
      */
     /**
@@ -293,6 +360,11 @@ class AudioClient {
         if (audioElement) {
             const volume = this.userSetVolumes[frequencyId] === undefined ? this.defaultVolume : this.userSetVolumes[frequencyId];
             audioElement.volume = (gainNode || unmuted) ? volume : 0;
+            // And the element itself: Safari plays a live stream straight out,
+            // past the gain, which then muted nothing (26/10). "someone is
+            // speaking" no longer needs the muted channels' sound: the server
+            // says it (noteServerActivity).
+            audioElement.muted = !unmuted;
         }
     }
 
@@ -346,25 +418,57 @@ class AudioClient {
                 this.lastSignificantAudioTime[frequencyId] = Date.now();
             }
 
-            // The thread's level meter (LevelMeter, migration step 6): five bars,
-            // 2 to 14 px, from the same level; drawn here, at the meter's own pace,
-            // so the store is not touched thirty times a second.
-            const meter = document.querySelector(`[data-level-for="${frequencyId}"]`);
-            if (meter) {
-                const level = Math.min(1, audioLevel * this.visualizerMultiplier / 100);
-                const shape = [0.55, 0.9, 0.7, 1, 0.6];
-                for (let i = 0; i < meter.children.length && i < shape.length; i++) {
-                    const bar = meter.children[i];
-                    const was = parseFloat(bar.style.height) || 2;
-                    const target = 2 + 12 * level * shape[i];
-                    bar.style.height = (was * 0.4 + target * 0.6).toFixed(1) + 'px';
-                }
+            // The thread's level meter, from Web Audio when it hears something;
+            // otherwise the server's level draws it (noteServerActivity), which
+            // is what Safari gets.
+            if (audioLevel > 0) {
+                this._drawMeter(frequencyId, Math.min(1, audioLevel * this.visualizerMultiplier / 100));
             }
 
             this.visualizationFrameIds[frequencyId] = requestAnimationFrame(renderFrame);
         };
         
         this.visualizationFrameIds[frequencyId] = requestAnimationFrame(renderFrame);
+    }
+
+    /**
+     * The thread's level meter (LevelMeter, migration step 6): five bars, 2 to
+     * 14 px; drawn here, at the meter's own pace, so the store is not touched
+     * thirty times a second.
+     * @param {string} frequencyId
+     * @param {number} level 0 to 1
+     */
+    _drawMeter(frequencyId, level) {
+        const meter = document.querySelector(`[data-level-for="${frequencyId}"]`);
+        if (!meter) return;
+        const shape = [0.55, 0.9, 0.7, 1, 0.6];
+        for (let i = 0; i < meter.children.length && i < shape.length; i++) {
+            const bar = meter.children[i];
+            const was = parseFloat(bar.style.height) || 2;
+            const target = 2 + 12 * level * shape[i];
+            bar.style.height = (was * 0.4 + target * 0.6).toFixed(1) + 'px';
+        }
+    }
+
+    /**
+     * Someone speaking on a frequency, or not, as the server measures it on
+     * the audio it decodes, with the level, four times a second while it
+     * lasts (internal/audio, activity.go). It keeps "someone is speaking" and
+     * the meter alive where Web Audio hears nothing -- Safari plays a live
+     * stream without routing it there -- and for a frequency not listened to.
+     */
+    noteServerActivity(frequencyId, speaking, level) {
+        const id = this._normalizeFrequencyId(frequencyId);
+        if (!id) return;
+        // A frequency the page plays itself is measured on what it plays,
+        // in time with the voice; the server's word, seconds ahead of it, is
+        // for the others.
+        const el = this.audioElements[id]?.element;
+        if (el && el.isLivePlayer && !el.paused && el.readyState) return;
+        this.serverActivity[id] = { speaking: !!speaking, at: Date.now() };
+        if (!speaking) return;
+        this.lastSignificantAudioTime[id] = Date.now();
+        this._drawMeter(id, Math.max(0, Math.min(1, Number(level) || 0)));
     }
 
     /**
@@ -471,6 +575,14 @@ class AudioClient {
             return;
         }
 
+        // The server's activity too: a frequency not listened to here still
+        // says when someone last spoke on it.
+        Object.keys(this.serverActivity).forEach(frequencyId => {
+            if (!this.audioElements[frequencyId]?.element && this.lastSignificantAudioTime[frequencyId]) {
+                const seconds = Math.floor((Date.now() - this.lastSignificantAudioTime[frequencyId]) / 1000);
+                storeSecondsSinceLastAudio[frequencyId] = `${seconds}s`;
+            }
+        });
         Object.keys(this.audioElements).forEach(frequencyId => {
             if (this.audioElements[frequencyId]?.element && this.lastSignificantAudioTime[frequencyId]) {
                 const seconds = Math.floor((Date.now() - this.lastSignificantAudioTime[frequencyId]) / 1000);
@@ -486,14 +598,19 @@ class AudioClient {
      * @param {{stream_port?: number|string, stream_url?: string}} frequency
      * @returns {string|null}
      */
-    _buildStreamUrl(frequency) {
+    _buildStreamUrl(frequency, format = 'mp3') {
         const streamPath = typeof frequency?.stream_url === 'string' ? frequency.stream_url : '';
         if (!streamPath) {
             return null;
         }
 
+        // No port from the server (a browser behind a proxy, which reaches
+        // only the address it serves): the stream comes from the page's own
+        // origin, whose port is empty on 443.
         const streamPort = frequency.stream_port || window.location.port;
-        const base = `${window.location.protocol}//${window.location.hostname}:${streamPort}`;
+        const base = streamPort
+            ? `${window.location.protocol}//${window.location.hostname}:${streamPort}`
+            : window.location.origin;
 
         let url;
         try {
@@ -501,6 +618,11 @@ class AudioClient {
         } catch {
             return null;
         }
+
+        // The decoded sound in mu-law for the page's own player, the
+        // station's MP3 for an <audio> element; the WAV stream where the
+        // server has neither. Safari does not play an endless WAV stream (26/10).
+        url.searchParams.set('format', format);
 
         if (url.href.includes('CLIENT_ID')) {
             return url.href.replace('CLIENT_ID', encodeURIComponent(this.store.clientID));

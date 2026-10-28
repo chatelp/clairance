@@ -153,6 +153,13 @@
                 this.handleFrequencyStatusChange(data);
             });
 
+            // Someone speaking on a frequency, measured by the server on the
+            // audio it decodes: the same in every browser, and for a page that
+            // does not listen (Safari plays a live stream without Web Audio).
+            wsClient.addEventListener('frequency_activity', (data) => {
+                if (audioClient && data) audioClient.noteServerActivity(data.frequency_id, data.speaking, data.level);
+            });
+
             // A source added or removed while the server runs -- a station that
             // publishes one stream per channel changes them as it switches.
             wsClient.addEventListener('frequencies_changed', () => {

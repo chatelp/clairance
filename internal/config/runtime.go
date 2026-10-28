@@ -47,6 +47,18 @@ type RuntimeSettings struct {
 	// AIPNames is how the list of official names (internal/aip, Q55) is kept.
 	// Absent from a file saved before it existed, which then means off.
 	AIPNames *AIPNamesSettings `json:"aip_names,omitempty"`
+
+	// DBArchive is where the retention copies a day before deleting it
+	// (28/10, D85), set by the owner from the panel. Absent means [storage]
+	// archive_dir; an empty Dir, no archive.
+	DBArchive *DBArchiveSettings `json:"db_archive,omitempty"`
+}
+
+// DBArchiveSettings name the database archive. Dir is absolute, an existing
+// directory the server can write, outside the databases' own; the server
+// never makes it.
+type DBArchiveSettings struct {
+	Dir string `json:"dir"`
 }
 
 // AIPNamesSettings say whether the server makes the list again by itself when
@@ -266,6 +278,7 @@ type Runtime struct {
 	mu          sync.RWMutex
 	settings    RuntimeSettings
 	path        string
+	dataDir     string // the daily databases', which an archive must stay out of
 	log         *logger.Logger
 	airportHook *ReferenceAirportHook
 }
@@ -284,9 +297,11 @@ func NewRuntime(cfg *Config, configPath string, log *logger.Logger) *Runtime {
 			LogLevel:         cfg.Logging.Level,
 			ReferenceAirport: normalizeAirport(cfg.Station.AirportCode),
 		},
-		path: filepath.Join(filepath.Dir(configPath), RuntimeSettingsFile),
-		log:  log.Named("runtime-settings"),
+		path:    filepath.Join(filepath.Dir(configPath), RuntimeSettingsFile),
+		dataDir: cfg.Storage.SQLiteBasePath,
+		log:     log.Named("runtime-settings"),
 	}
+	r.settings.DBArchive = &DBArchiveSettings{Dir: cfg.Storage.ArchiveDir}
 	defaults := DefaultMatchingRules(cfg.PostProcessing.MinDigits)
 	r.settings.Matching = &defaults
 	vitals := DefaultVitals()
@@ -329,6 +344,10 @@ func NewRuntime(cfg *Config, configPath string, log *logger.Logger) *Runtime {
 	if saved.Vitals != nil {
 		v := *saved.Vitals
 		r.settings.Vitals = &v
+	}
+	if saved.DBArchive != nil {
+		d := *saved.DBArchive
+		r.settings.DBArchive = &d
 	}
 	if saved.AIPNames != nil {
 		a := *saved.AIPNames
@@ -387,6 +406,10 @@ func (r *Runtime) Settings() RuntimeSettings {
 		v := *s.Vitals
 		s.Vitals = &v
 	}
+	if s.DBArchive != nil {
+		d := *s.DBArchive
+		s.DBArchive = &d
+	}
 	if s.AIPNames != nil {
 		a := *s.AIPNames
 		s.AIPNames = &a
@@ -429,6 +452,53 @@ func (r *Runtime) Matching() MatchingRules {
 	return r.settings.Matching.clone()
 }
 
+// DBArchiveDir is where the retention archives a day before deleting it, ""
+// for none; read on every pass, like the retention.
+func (r *Runtime) DBArchiveDir() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if r.settings.DBArchive == nil {
+		return ""
+	}
+	return r.settings.DBArchive.Dir
+}
+
+// CheckArchiveDir says whether dir can receive the database archive: absolute,
+// an existing directory the server can write into, and not the databases' own
+// directory nor inside it. "" is no archive, and passes. The server never
+// makes the directory: under /Volumes, an unplugged disk would leave a folder
+// on the internal one.
+func CheckArchiveDir(dir, dataDir string) error {
+	if dir == "" {
+		return nil
+	}
+	if !filepath.IsAbs(dir) {
+		return fmt.Errorf("the archive must be an absolute path, got %q", dir)
+	}
+	dir = filepath.Clean(dir)
+	info, err := os.Stat(dir)
+	if err != nil {
+		return fmt.Errorf("the archive %s cannot be found (is its disk plugged in?)", dir)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("the archive %s is not a directory", dir)
+	}
+	if dataDir != "" {
+		if data, err := filepath.Abs(dataDir); err == nil {
+			if rel, err := filepath.Rel(data, dir); err == nil && (rel == "." || !strings.HasPrefix(rel, "..")) {
+				return fmt.Errorf("the archive cannot be the databases' own directory %s, nor inside it", data)
+			}
+		}
+	}
+	probe, err := os.CreateTemp(dir, ".clairance-write-test-*")
+	if err != nil {
+		return fmt.Errorf("the archive %s cannot be written: %v", dir, err)
+	}
+	probe.Close()
+	os.Remove(probe.Name())
+	return nil
+}
+
 // DBRetentionGB is read on every retention tick rather than captured once, so a
 // change from the panel takes effect on the next pass.
 func (r *Runtime) DBRetentionGB() float64 {
@@ -453,6 +523,21 @@ func (r *Runtime) Apply(next RuntimeSettings) error {
 	if next.Matching == nil {
 		return fmt.Errorf("matching rules missing")
 	}
+	// The archive is checked only when it changes: an unplugged disk must not
+	// stop the other settings from being saved.
+	if next.DBArchive == nil {
+		next.DBArchive = &DBArchiveSettings{Dir: r.DBArchiveDir()}
+	}
+	archive := DBArchiveSettings{Dir: strings.TrimSpace(next.DBArchive.Dir)}
+	if archive.Dir != "" {
+		archive.Dir = filepath.Clean(archive.Dir)
+	}
+	if archive.Dir != r.DBArchiveDir() {
+		if err := CheckArchiveDir(archive.Dir, r.dataDir); err != nil {
+			return err
+		}
+	}
+	next.DBArchive = &archive
 	if a := next.AIPNames; a != nil && a.Naming != "" {
 		if _, ok := PlaceFloors[a.Naming]; !ok {
 			return fmt.Errorf("aip_names.naming must be surer, measured or more, got %q", a.Naming)
@@ -524,6 +609,7 @@ func (r *Runtime) Apply(next RuntimeSettings) error {
 
 	r.log.Info("Runtime settings changed",
 		logger.Float64("db_retention_gb", next.DBRetentionGB),
+		logger.String("db_archive_dir", next.DBArchive.Dir),
 		logger.String("log_level", next.LogLevel),
 		logger.String("reference_airport", next.ReferenceAirport),
 		logger.String("also_airports", strings.Join(next.AlsoAirports, ",")),

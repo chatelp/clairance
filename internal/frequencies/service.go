@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -50,8 +51,7 @@ func NewStreamProcessor(
 	ctx context.Context,
 	id string,
 	audioURL string,
-	ffmpegReconnect bool,
-	inputOptions []string,
+	pcm audio.PCMInput,
 	client *Client,
 	config *cfg.Config,
 	logger *logger.Logger,
@@ -60,15 +60,9 @@ func NewStreamProcessor(
 
 	// Create audio processor
 	audioConfig := audio.CentralProcessorConfig{
-		FFmpegPath:               config.Transcription.FFmpegPath,
-		SampleRate:               config.Transcription.FFmpegSampleRate,
-		Channels:                 config.Transcription.FFmpegChannels,
-		Format:                   config.Transcription.FFmpegFormat,
-		ReconnectDelay:           time.Duration(config.Frequencies.ReconnectIntervalSecs) * time.Second,
-		FFmpegTimeoutSecs:        config.Frequencies.FFmpegTimeoutSecs,
-		FFmpegReconnectDelaySecs: config.Frequencies.FFmpegReconnectDelaySecs,
-		NoFFmpegReconnect:        !ffmpegReconnect,
-		InputOptions:             inputOptions,
+		SampleRate:     config.Transcription.SampleRate,
+		ReconnectDelay: time.Duration(config.Frequencies.ReconnectIntervalSecs) * time.Second,
+		PCM:            pcm,
 	}
 
 	audioProcessor, err := audio.NewCentralAudioProcessor(
@@ -302,7 +296,7 @@ func (sp *StreamProcessor) AddClient(clientID string) *ClientStreamReader {
 
 	// A page keeps one client id for its life. Asking again after its stream
 	// ended, it was handed its old shared reader back, still at the position it
-	// stopped at: up to the whole buffer behind live (87 s at 24 kHz; 2 s
+	// stopped at: up to the whole buffer behind live (131 s at 16 kHz; 2 s
 	// measured after a 1.5 s gap). A new client starts at live.
 	sp.audioProcessor.RemoveReader(clientID)
 
@@ -526,9 +520,9 @@ func NewService(
 			SegmentPrerollMs:  config.Transcription.Local.SegmentPrerollMs,
 			SilenceThreshold:  config.Transcription.Local.SilenceThreshold,
 		},
-		Language:         config.Transcription.Language,
-		FFmpegSampleRate: config.Transcription.FFmpegSampleRate,
-		LogDir:           config.Transcription.LogDir,
+		Language:   config.Transcription.Language,
+		SampleRate: config.Transcription.SampleRate,
+		LogDir:     config.Transcription.LogDir,
 	}
 
 	postProcessingConfig := transcription.PostProcessingConfig{
@@ -620,8 +614,7 @@ func (s *Service) startSource(freqConfig *cfg.FrequencyConfig) bool {
 		s.ctx,
 		id,
 		freqConfig.URL,
-		freqConfig.ReconnectsInFFmpeg(),
-		freqConfig.FFmpegInputOptions,
+		PCMInputOf(*freqConfig),
 		s.client,
 		s.config,
 		s.logger,
@@ -638,6 +631,7 @@ func (s *Service) startSource(freqConfig *cfg.FrequencyConfig) bool {
 
 	// Set status callback to broadcast status changes via WebSocket
 	processor.audioProcessor.SetStatusCallback(s.broadcastFrequencyStatus)
+	processor.audioProcessor.SetActivityCallback(s.config.Transcription.Local.SilenceThreshold, s.broadcastFrequencyActivity)
 
 	err = processor.Start()
 	if err != nil {
@@ -937,8 +931,7 @@ func (s *Service) GetAudioStream(ctx context.Context, id string, clientID string
 				s.ctx,
 				id,
 				freqConfig.URL,
-				freqConfig.ReconnectsInFFmpeg(),
-				freqConfig.FFmpegInputOptions,
+				PCMInputOf(*freqConfig),
 				s.client,
 				s.config,
 				s.logger,
@@ -950,6 +943,7 @@ func (s *Service) GetAudioStream(ctx context.Context, id string, clientID string
 				return nil, "", fmt.Errorf("failed to create stream processor: %w", err)
 			}
 
+			processor.audioProcessor.SetActivityCallback(s.config.Transcription.Local.SilenceThreshold, s.broadcastFrequencyActivity)
 			err = processor.Start()
 			if err != nil {
 				s.streamsMu.Unlock()
@@ -1114,4 +1108,22 @@ func (s *Service) broadcastFrequencyStatus(frequencyID string, status audio.Conn
 	}
 
 	s.wsServer.Broadcast(message)
+}
+
+// broadcastFrequencyActivity tells every page that someone is speaking on a
+// frequency, or has stopped, and the level while they speak (internal/audio,
+// activity.go): the page's "someone is speaking" and its level meter, the
+// same in every browser and for a page that does not listen.
+func (s *Service) broadcastFrequencyActivity(frequencyID string, speaking bool, level float64) {
+	if s.wsServer == nil {
+		return
+	}
+	s.wsServer.Broadcast(&websocket.Message{
+		Type: websocket.MessageTypeFrequencyActivity,
+		Data: map[string]interface{}{
+			"frequency_id": frequencyID,
+			"speaking":     speaking,
+			"level":        math.Round(level*100) / 100,
+		},
+	})
 }

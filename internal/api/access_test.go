@@ -234,3 +234,39 @@ func TestLocalIsRefusedWhereOthersCanReachTheServer(t *testing.T) {
 		t.Error("the refusal left the data open")
 	}
 }
+
+// The first-run page answers nobody who comes through a proxy, declared or
+// not: on a server bound to 127.0.0.1 with a proxy on the same machine, the
+// first visitor from the Internet would otherwise have created the owner's
+// account -- or, the proxy undeclared, chosen to run without sign-in. From
+// the machine itself it answers as before.
+func TestTheFirstRunPageAnswersNobodyThroughAProxy(t *testing.T) {
+	post := func(s *server, body string, forwarded bool) int {
+		req := httptest.NewRequest("POST", "/api/v1/setup", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.RemoteAddr, req.Host = "127.0.0.1:50000", "127.0.0.1:8000"
+		if forwarded {
+			req.Header.Set("X-Forwarded-For", "203.0.113.9")
+			req.Header.Set("X-Forwarded-Proto", "https")
+		}
+		rec := httptest.NewRecorder()
+		s.routes.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	account := `{"mode":"account","username":"intruder","password":"0123456789abc"}`
+
+	for _, proxies := range [][]string{{"127.0.0.1"}, nil} { // declared, and not
+		s := startServer(t, t.TempDir(), "127.0.0.1", proxies...)
+		for _, body := range []string{`{"mode":"local"}`, account} {
+			if code := post(s, body, true); code != http.StatusForbidden {
+				t.Errorf("proxies %v, %s through the proxy: %d, want 403", proxies, body, code)
+			}
+		}
+		if !s.setupNeeded() {
+			t.Errorf("proxies %v: an answer through the proxy was taken", proxies)
+		}
+		if code := post(s, `{"mode":"account","username":"pierre","password":"correcthorsebattery"}`, false); code != http.StatusOK {
+			t.Errorf("proxies %v, from the machine itself: %d, want 200", proxies, code)
+		}
+	}
+}

@@ -4,7 +4,7 @@ import types
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from device import backend_name  # noqa: E402
+from device import backend_name, limit_cache, memory  # noqa: E402
 
 
 def fake_mlx(core: types.ModuleType | None):
@@ -56,6 +56,41 @@ class BackendNameTest(unittest.TestCase):
         fake_mlx(None)
         self.assertEqual(backend_name(), "mlx")
 
+
+
+
+class MemoryTest(unittest.TestCase):
+    def tearDown(self):
+        for name in ("mlx", "mlx.core"):
+            sys.modules.pop(name, None)
+
+    def test_the_cache_is_bounded_when_mlx_can(self):
+        core = types.ModuleType("mlx.core")
+        got = []
+        core.set_cache_limit = lambda n: got.append(n) or 0
+        fake_mlx(core)
+        self.assertEqual(limit_cache(1.5), int(1.5 * (1 << 30)))
+        self.assertEqual(got, [int(1.5 * (1 << 30))])
+
+    def test_no_bound_asked_or_none_possible(self):
+        core = types.ModuleType("mlx.core")
+        core.set_cache_limit = lambda n: self.fail("called")
+        fake_mlx(core)
+        self.assertIsNone(limit_cache(0))
+        fake_mlx(types.ModuleType("mlx.core"))  # an MLX without the call
+        self.assertIsNone(limit_cache(1))
+        fake_mlx(None)  # no MLX at all
+        self.assertIsNone(limit_cache(1))
+
+    def test_memory_in_megabytes(self):
+        core = types.ModuleType("mlx.core")
+        core.get_active_memory = lambda: 8 << 30
+        core.get_cache_memory = lambda: 512 << 20
+        core.get_peak_memory = lambda: 9 << 30
+        fake_mlx(core)
+        self.assertEqual(memory(), {"active_mb": 8192, "cache_mb": 512, "peak_mb": 9216})
+        fake_mlx(None)
+        self.assertEqual(memory(), {})
 
 if __name__ == "__main__":
     unittest.main()

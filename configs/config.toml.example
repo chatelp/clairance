@@ -14,17 +14,25 @@ trusted_proxies = []
 # server cannot know (a VPN address, a proxy that rewrites Host) is logged when refused; "*" is refused.
 # allowed_origins = []                      # e.g. ["http://100.101.102.103:8000"]
 audio_replay = "owner"                      # who listens to the streams and the archived clips: "owner", or "all" (viewers too)
-# static_dir = "www"                        # the page; a snapshot copy for an instance that must not see edits
+# static_dir = "www"                        # serve the page from this directory instead of the one built into the binary
 # tls_cert and tls_key serve HTTPS with no proxy at all; leave them out behind one.
+# keep_awake = true                         # macOS: the Mac does not sleep while the server runs (caffeinate)
+# instance = "production"                   # this server's name for the launcher (docs-fr/36-contrat-lanceur.md)
 
 [auth]
 enabled = false                             # off on purpose: nobody cloning this may be locked out of their own receiver
 # When host is not 127.0.0.1 the first visit asks for an account; or co-atc -add-user <name>
 # prints a [[auth.users]] block (name, Argon2id password_hash) to paste here. A session lives
-# 720 h unused; 8 wrong passwords per address per 15 min. Restarting ends every session.
+# 720 h unused; 8 wrong passwords per address (an IPv6 /64) per 15 min. Restarting ends every session.
 # An account is an owner unless it says role = "viewer" (here or in users.json): a viewer reads
 # the map, the aircraft and the transcriptions, changes nothing, and is given the audio only
-# when [server] audio_replay = "all".
+# when [server] audio_replay = "all", two streams of a frequency at most; it is not told the
+# streams' addresses nor the server's paths. Every sign-in, refused or not, is traced in signins.jsonl
+# beside the accounts (two files of 1 MB at most); the owner reads the last ones at /api/v1/signins.
+# What each account did -- the pages it had open, the frequencies it listened to, the clips it
+# played again, and how each ended -- is kept in usage.jsonl beside the accounts, for the owner
+# alone (Settings > Account > Usage, /api/v1/usage). No address is written there.
+# usage_days = 30                           # days of it kept; 0 keeps none
 
 [station]
 latitude = 43.6777                          # the receiver, decimal degrees (example: Toronto Pearson)
@@ -42,9 +50,9 @@ tar1090_base_url = "http://192.168.1.166/tar1090/data/"   # where tar1090 serves
 # aircraft is signal_lost after 60 s. The source is probed at startup.
 
 [frequencies]
-# A source is anything ffmpeg reads: Icecast or LiveATC over HTTP, SRT (ffmpeg built with
-# libsrt), raw PCM over UDP from an SDR program, a receiver on the sound card. An 8 KB buffer,
-# a reconnect after 5 s. LiveATC asks not to redistribute its streams.
+# A source is an MP3 stream over HTTP (Icecast, LiveATC) or raw PCM over UDP from an SDR
+# program; both are read inside the server, nothing to install. An 8 KB buffer, a reconnect
+# after 5 s. LiveATC asks not to redistribute its streams.
 
 [[frequencies.sources]]
 id = "cyyz_twr"                             # unique; names the stream in the database and the API
@@ -75,42 +83,23 @@ url = "https://s1-bos.liveatc.net/cyyz8"
 order = 5
 transcribe_audio = false
 
-# SRT from RTLSDR-Airband, read by ffmpeg itself (built with libsrt; Homebrew's is).
-[[frequencies.sources]]
-id = "cyyz_lcl"
-airport = "CYYZ"
-name = "Local"
-frequency_mhz = 133.7
-url = "srt://192.168.1.166:42069"
-order = 6
-transcribe_audio = true
-
-# Raw PCM over UDP, as GQRX, SDR++ or rtl_fm send it: ffmpeg must be told the format first.
+# Raw PCM over UDP, as GQRX, SDR++ or rtl_fm send it: signed 16-bit little-endian, at the rate
+# the program sends (GQRX: 48000), 1 or 2 channels mixed to one. Nothing in the packets says it.
 #[[frequencies.sources]]
 #id = "sdr_udp"
 #name = "SDR++ network sink"
 #frequency_mhz = 118.7
-#url = "udp://127.0.0.1:7355"
-#ffmpeg_input_options = ["-f", "s16le", "-ar", "48000", "-ac", "1"]
-#order = 7
-#transcribe_audio = true
-
-# A receiver on the sound card: the capture device is the input. macOS "-f", "avfoundation"
-# with url ":0" (ffmpeg -f avfoundation -list_devices true -i ""); Linux "-f", "alsa" with
-# url "hw:1" or "-f", "pulse" with "default"; Windows "-f", "dshow" with "audio=Line In".
-#[[frequencies.sources]]
-#id = "scanner"
-#name = "Scanner line-in"
-#frequency_mhz = 118.7
-#url = ":0"
-#ffmpeg_input_options = ["-f", "avfoundation"]
-#order = 8
+#url = "udp://127.0.0.1:7355"                # the address and port to listen on
+#pcm_rate = 48000
+#pcm_channels = 1
+#order = 6
 #transcribe_audio = true
 
 [transcription]
 # Local, on this machine: whole transmissions are posted to the sidecar in sidecar/, which
-# honours upstream's docs/LOCAL-STT.md; no key, no audio leaves the host. ffmpeg decodes
-# each stream to 24 kHz mono s16le. language = "en" serves a source that names none.
+# honours upstream's docs/LOCAL-STT.md; no key, no audio leaves the host. Each stream is
+# brought to mono 16-bit PCM at sample_rate, 16 kHz by default, Whisper's own rate.
+# language = "en" serves a source that names none.
 log_dir = "data/transcriptions"             # raw/{date}_{frequency}.log, append-only; empty to disable
 # Swept at start and every hour, never today's files; 0 keeps everything. The archive of clips
 # (--save-audio below, or audio_archive_dir) loses its oldest clips past the size; its manifests stay.
@@ -128,6 +117,8 @@ command = []                                # empty: a sidecar you run yourself 
 # (1-2 GB a day on two frequencies), which the page then lets you listen to again, line by line.
 # Details in sidecar/README.md and docs-fr/05-decisions.md.
 # command = ["python3", "sidecar/whisper_server.py", "--preload", "--second-opinion"]
+# Linux (faster-whisper, NVIDIA GPU or processor), with CTranslate2 models (sidecar/README.md):
+# command = ["python3", "sidecar/whisper_server.py", "--model-en", "models/whisper-large-v3-atco2-asr-ct2", "--preload"]
 # audio_archive_dir = ""                    # where those clips are; empty: the --save-audio of command
 #
 # Cutting the stream into transmissions: 600 ms of silence ends one, under 400 ms is dropped,
@@ -142,10 +133,25 @@ enabled = true                              # the phraseology grammar against li
 [storage]
 sqlite_base_path = "data"                   # one co-atc-YYYY-MM-DD.db a day
 db_retention_gb = 20                        # 8 to 11 full days (1.8 GB a day measured, 2.6 at the busiest); the panel can change it
+# archive_dir = "/Volumes/External/clairance-archive"  # each day past the retention is copied here, gzipped and
+#                                           # checked, before it is deleted; never created by the server, and
+#                                           # while it cannot be found nothing is deleted
 
 [logging]
 level = "info"                              # debug, info, warn, error; changeable from the settings panel
 file = "runs/co-atc.log"                    # empty: stdout. One file a day, 100 MB at most, 7 kept (17 MB a day measured)
+
+[station_link]
+# For a radio-ctl station only (docs-fr/36-contrat-lanceur.md): co-atc runs cmd/radio-ctl-sync, which
+# follows the channels the station has on the air and reports its state; started again when it dies,
+# stopped with co-atc, it signs in with a key co-atc makes at each start, never with a password.
+# enabled = true
+# station_url = "http://station.lan"        # radio-ctl
+# station_host = ""                         # the Host header radio-ctl expects, if any
+# streams_url = "http://audio.lan"          # base URL of the station's Icecast mounts
+# interval_seconds = 10                     # how often the station is read
+# mix_id = ""                               # a mixed stream whose label follows the station
+# program = ""                              # empty: radio-ctl-sync next to co-atc (go build -o bin/radio-ctl-sync ./cmd/radio-ctl-sync)
 
 [reference]
 # OurAirports and tar1090-db files under assets/ (scripts/download_assets.sh): aircraft.csv,

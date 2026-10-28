@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -317,4 +318,25 @@ func TestRotateToAnUnusablePathLeavesTheHandleWorking(t *testing.T) {
 	}
 	// Still usable: a failed rotation is not allowed to take the server down.
 	insert(t, db, "aaa001")
+}
+
+// A timer still running as the server stops queries a closed database: it
+// gets an error, not a nil-pointer panic that made the process exit in error.
+func TestACallAfterCloseIsAnErrorNotAPanic(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "co-atc-2026-10-27.db"), testLog(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Query("SELECT 1"); !errors.Is(err, sql.ErrConnDone) {
+		t.Errorf("Query after Close: %v", err)
+	}
+	if _, err := db.Exec("SELECT 1"); !errors.Is(err, sql.ErrConnDone) {
+		t.Errorf("Exec after Close: %v", err)
+	}
+	if _, err := db.Begin(); !errors.Is(err, sql.ErrConnDone) {
+		t.Errorf("Begin after Close: %v", err)
+	}
 }

@@ -14,6 +14,12 @@
 // It only reads the station, and never switches it. With -mix-id, the label of
 // the mixed stream co-atc already reads follows the station's selection too.
 // When co-atc requires sign-in: -user, and the password in COATC_PASSWORD.
+//
+// co-atc can also run it itself ([station_link], docs-fr/36-contrat-lanceur.md).
+// It then passes COATC_SPAWNED=1 and, in COATC_LINK_TOKEN, a key made at its
+// start that opens the routes this program calls, from this machine only: no
+// account and no password are needed, and this program stops when co-atc is
+// gone.
 package main
 
 import (
@@ -59,12 +65,22 @@ type stationState struct {
 // receiverReport is what co-atc's PUT /api/v1/receiver takes: the station's
 // mode mapped onto co-atc's receiver states, its own words for the rest.
 type receiverReport struct {
-	State  string `json:"state"`
-	Label  string `json:"label,omitempty"`
-	Title  string `json:"title,omitempty"`
-	Since  string `json:"since,omitempty"`
-	Mode   string `json:"mode,omitempty"`
-	Detail string `json:"detail,omitempty"`
+	State    string            `json:"state"`
+	Label    string            `json:"label,omitempty"`
+	Title    string            `json:"title,omitempty"`
+	Since    string            `json:"since,omitempty"`
+	Mode     string            `json:"mode,omitempty"`
+	Detail   string            `json:"detail,omitempty"`
+	Channels []receiverChannel `json:"channels,omitempty"`
+}
+
+// receiverChannel is one channel on the air, for whoever watches co-atc: the
+// launcher read them from the station itself until 26/10 (docs-fr/36).
+type receiverChannel struct {
+	ID          string  `json:"id"`
+	Designation string  `json:"designation,omitempty"`
+	MHz         float64 `json:"mhz,omitempty"`
+	Stream      bool    `json:"stream"`
 }
 
 // report maps radio-ctl's modes: "chaine" is the airband chain on the air,
@@ -77,10 +93,18 @@ func report(st stationState) receiverReport {
 	if state == "" {
 		state = "unknown"
 	}
-	return receiverReport{
+	rep := receiverReport{
 		State: state, Label: st.Label, Title: st.Selection.Title,
 		Since: st.Since, Mode: st.Mode, Detail: st.Detail,
 	}
+	for _, c := range st.Selection.Channels {
+		if c.ID == "" {
+			continue
+		}
+		rep.Channels = append(rep.Channels, receiverChannel{ID: c.ID, Designation: c.Designation, MHz: c.MHz,
+			Stream: c.Stream != "" && (c.Present == nil || *c.Present)})
+	}
+	return rep
 }
 
 type channel struct {
@@ -150,7 +174,6 @@ type source struct {
 	Order           int     `json:"order"`
 	TranscribeAudio bool    `json:"transcribe_audio"`
 	Language        string  `json:"language"`
-	FFmpegReconnect bool    `json:"ffmpeg_reconnect"`
 	SectorAirport   string  `json:"sector_airport,omitempty"`
 	SectorKind      string  `json:"sector_kind,omitempty"`
 }
@@ -183,9 +206,6 @@ func wanted(st stationState, cat catalogue, streams string) map[string]source {
 			Order:           int(c.MHz*1000 + 0.5),
 			TranscribeAudio: t || !known,
 			Language:        language(c.Language),
-			// A channel's mount disappears when the station stops listening to
-			// it; ffmpeg's own reconnection would retry its 404 in a loop.
-			FFmpegReconnect: false,
 			SectorAirport:   sectorTable[c.ID][0],
 			SectorKind:      sectorTable[c.ID][1],
 		}
@@ -254,17 +274,29 @@ func plan(want map[string]source, have []listed, sent map[string]source) (set []
 
 type syncer struct {
 	station, stationHost, streams, coatc, mixID, user string
+	token                                             string // COATC_LINK_TOKEN, from the co-atc that started us
 	http                                              *http.Client
 	sent                                              map[string]source
 	lastVersion                                       int
 	lastErr                                           string
 	lastReportErr                                     string
+	// A co-atc from before 26/10 refuses a report that lists the channels
+	// (it takes no field it does not know): they are left out from then on.
+	noChannels bool
 }
 
 // sendReport tells co-atc the receiver's state. Never in the way of the sources:
 // a co-atc without the endpoint, or a failure, is said once in the log.
 func (s *syncer) sendReport(rep receiverReport) {
+	if s.noChannels {
+		rep.Channels = nil
+	}
 	err := s.coatcCall("PUT", "/api/v1/receiver", rep, nil)
+	if err != nil && rep.Channels != nil && strings.Contains(err.Error(), `unknown field "channels"`) {
+		s.noChannels = true
+		rep.Channels = nil
+		err = s.coatcCall("PUT", "/api/v1/receiver", rep, nil)
+	}
 	msg := ""
 	if err != nil {
 		msg = err.Error()
@@ -305,6 +337,9 @@ func (s *syncer) coatcCall(method, path string, body any, into any) error {
 	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	if s.token != "" {
+		req.Header.Set("Authorization", "Bearer "+s.token)
 	}
 	err = s.do(req, into)
 	if err != nil && strings.Contains(err.Error(), "401") && s.user != "" {
@@ -417,6 +452,12 @@ func main() {
 	jar, _ := cookiejar.New(nil)
 	s.http = &http.Client{Timeout: 10 * time.Second, Jar: jar}
 	s.sent = map[string]source{}
+	s.token = os.Getenv("COATC_LINK_TOKEN")
+	if os.Getenv("COATC_SPAWNED") == "1" {
+		// co-atc dates every line it logs for us.
+		log.SetFlags(0)
+		watchParent(time.Second)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -447,4 +488,25 @@ func main() {
 		case <-time.After(*interval):
 		}
 	}
+}
+
+// watchParent stops this program when the co-atc that started it is gone. co-atc
+// stops it on every ordinary exit, but cannot when it is killed outright, and a
+// link left behind would go on setting the sources of whichever co-atc next
+// answers on that port -- the sidecar does the same for its port. Only when
+// co-atc says it started us: a link started by hand under nohup keeps running
+// when its terminal closes.
+func watchParent(every time.Duration) {
+	parent := os.Getppid()
+	if parent == 1 {
+		return // orphaned already
+	}
+	go func() {
+		for range time.Tick(every) {
+			if os.Getppid() != parent {
+				log.Printf("co-atc (pid %d) is gone, stopping", parent)
+				os.Exit(0)
+			}
+		}
+	}()
 }

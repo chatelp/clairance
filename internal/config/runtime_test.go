@@ -335,3 +335,61 @@ func TestTheVitalsSettingIsOnByDefaultAndKept(t *testing.T) {
 		t.Error("a file saved before the setting existed turned the vitals off")
 	}
 }
+
+// The database archive set from the panel (D85): absolute, found, a directory
+// that can be written, outside the databases'; never made; kept across a
+// restart; and an unplugged disk does not stop the other settings from being
+// saved.
+func TestTheDatabaseArchiveIsCheckedWhenItChanges(t *testing.T) {
+	dir := t.TempDir()
+	r := newRuntimeIn(t, dir)
+	r.dataDir = filepath.Join(dir, "data")
+	os.MkdirAll(r.dataDir, 0o755)
+	if r.DBArchiveDir() != "" {
+		t.Fatalf("an archive by default: %q", r.DBArchiveDir())
+	}
+	set := func(archive string) error {
+		s := r.Settings()
+		s.DBArchive = &DBArchiveSettings{Dir: archive}
+		return r.Apply(s)
+	}
+	file := filepath.Join(dir, "a-file")
+	os.WriteFile(file, nil, 0o644)
+	missing := filepath.Join(dir, "unplugged", "archive")
+	for _, bad := range []string{"relative/archive", missing, file, r.dataDir, filepath.Join(r.dataDir, "archive")} {
+		if bad == filepath.Join(r.dataDir, "archive") {
+			os.MkdirAll(bad, 0o755)
+		}
+		if err := set(bad); err == nil {
+			t.Errorf("%q accepted as the archive", bad)
+		}
+	}
+	if _, err := os.Stat(filepath.Dir(missing)); !os.IsNotExist(err) {
+		t.Error("the archive's directory was made")
+	}
+
+	archive := t.TempDir()
+	if err := set(archive + "/"); err != nil {
+		t.Fatal(err)
+	}
+	if r.DBArchiveDir() != archive {
+		t.Errorf("archive %q, want %q", r.DBArchiveDir(), archive)
+	}
+	if again := newRuntimeIn(t, dir); again.DBArchiveDir() != archive {
+		t.Errorf("after a restart: %q", again.DBArchiveDir())
+	}
+
+	// Unplugged: the other settings still save, and the archive stays.
+	os.Remove(archive)
+	s := r.Settings()
+	s.LogLevel = "warn"
+	if err := r.Apply(s); err != nil {
+		t.Errorf("a change of log level with the archive unplugged: %v", err)
+	}
+	if r.DBArchiveDir() != archive {
+		t.Errorf("the archive changed to %q", r.DBArchiveDir())
+	}
+	if err := set(""); err != nil || r.DBArchiveDir() != "" {
+		t.Errorf("no archive: %v, %q", err, r.DBArchiveDir())
+	}
+}

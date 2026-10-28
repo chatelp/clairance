@@ -5,9 +5,11 @@
 Runways, taxiways, aprons, terminals and helipads (not hangars) within a radius
 of the station, as ways and multipolygon relations, from the Overpass API; written
 as a compact GeoJSON file that the web interface loads from
-/data/airport-layout.geojson. The file belongs to one station and is not
-committed: each installation generates its own, so the repository redistributes
-no OpenStreetMap data (ODbL).
+/data/airport-layout.geojson. The server serves it from station/ in its data
+directory ([storage] sqlite_base_path), where this writes it by default: the
+page is built into the server, and a file that belongs to one station cannot be.
+It is not committed: each installation generates its own, so the repository
+redistributes no OpenStreetMap data (ODbL).
 
 Usage, from the repository root (Python 3.11+, standard library only):
 
@@ -33,7 +35,6 @@ AEROWAYS = ("runway", "taxiway", "apron", "terminal", "helipad")
 AREA_AEROWAYS = ("apron", "terminal", "helipad")  # a closed way of these is an area
 PROPERTIES = ("aeroway", "ref", "name", "width", "surface")
 METRES_PER_NM = 1852
-REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def overpass_query(lat, lon, radius_m):
@@ -155,13 +156,24 @@ def station_position(config_path):
         sys.exit(f"{config_path}: [station] latitude and longitude are required")
 
 
+def default_output(config_path):
+    """Where the server serves the layout from: station/ in its data directory,
+    [storage] sqlite_base_path ("data" when unset), relative to the directory the
+    server runs in, as the server reads it."""
+    with open(config_path, "rb") as f:
+        storage = tomllib.load(f).get("storage", {})
+    return os.path.join(storage.get("sqlite_base_path") or "data", "station", "airport-layout.geojson")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--config", required=True, help="co-atc config.toml (its [station] section)")
     parser.add_argument("--radius-nm", type=float, default=35.0, help="radius around the station (default 35)")
-    parser.add_argument("--output", default=os.path.join(REPO, "www", "data", "airport-layout.geojson"),
-                        help="GeoJSON file to write (default www/data/airport-layout.geojson)")
+    parser.add_argument("--output", help="GeoJSON file to write (default: station/airport-layout.geojson "
+                                          "in the configuration's sqlite_base_path, where the server serves it)")
     args = parser.parse_args(argv)
+    if not args.output:
+        args.output = default_output(args.config)
 
     lat, lon = station_position(args.config)
     started = time.monotonic()

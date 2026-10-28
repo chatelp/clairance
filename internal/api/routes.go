@@ -13,6 +13,7 @@ import (
 	"github.com/yegors/co-atc/internal/auth"
 	"github.com/yegors/co-atc/internal/config"
 	"github.com/yegors/co-atc/internal/frequencies"
+	"github.com/yegors/co-atc/internal/lifecycle"
 	"github.com/yegors/co-atc/internal/reference"
 	"github.com/yegors/co-atc/internal/storage/sqlite"
 	"github.com/yegors/co-atc/internal/weather"
@@ -56,6 +57,7 @@ func newOrigins(cfg *config.Config, log *logger.Logger) *auth.Origins {
 	ports := append([]int{cfg.Server.Port}, cfg.Server.AdditionalPorts...)
 	o, err := auth.NewOrigins(cfg.Server.Host, ports, cfg.Server.AllowedOrigins)
 	if err != nil {
+		lifecycle.Failed("origins", err)
 		log.Error(fmt.Sprintf("Failed to build the allowed origins: %v", err))
 		os.Exit(1)
 	}
@@ -93,6 +95,9 @@ func (r *Router) Routes() http.Handler {
 		// anyone needs to sign in, and health has to answer a probe that has no
 		// credentials to offer.
 		router.Get("/health", r.handler.GetHealth)
+		// The launcher's health: this machine without a session, or the
+		// owner's session; 403 to anyone else. See health_detail_handlers.go.
+		router.Get("/health/detail", r.handler.GetHealthDetail)
 		router.Get("/auth/status", r.handler.GetAuthStatus)
 		router.Post("/auth/login", r.handler.PostLogin)
 		router.Post("/auth/logout", r.handler.PostLogout)
@@ -111,10 +116,14 @@ func (r *Router) Routes() http.Handler {
 		// its own, which is what lets its middleware be declared after the public
 		// routes above -- chi refuses a Use() that follows a route on the same mux.
 		router.Group(func(router chi.Router) {
-			router.Use(r.handler.Auth().Require)
+			// A session, or the key of the station link co-atc started, on the
+			// link's routes alone; see link_token.go.
+			router.Use(r.handler.RequireSignIn)
 			// A viewer account reads, and is not given the audio; see
 			// auth_handlers.go.
 			router.Use(r.handler.ViewerGuard)
+			// Nor where the house's things are: addresses, paths (guest.go).
+			router.Use(r.handler.GuestView)
 
 			// Aircraft routes
 			router.Get("/aircraft", r.handler.GetAllAircraft)
@@ -162,6 +171,17 @@ func (r *Router) Routes() http.Handler {
 			// Local-only or sign-in, switched from the same panel. In this group so
 			// that turning sign-in off takes a session whenever it is on.
 			router.Put("/access", r.handler.PutAccess)
+			// Who signed in, who was refused, from where, and what each account
+			// did once in (D84): the owner's only (ownerRoutes, auth_handlers.go).
+			router.Get("/signins", r.handler.GetSignIns)
+			router.Get("/usage", r.handler.GetUsage)
+			// The accounts, managed by the owner while the server runs (D83):
+			// reading is in ownerRoutes, writing a viewer never may.
+			router.Get("/accounts", r.handler.GetAccounts)
+			router.Post("/accounts", r.handler.PostAccount)
+			router.Delete("/accounts/{name}", r.handler.DeleteAccount)
+			router.Put("/accounts/{name}/password", r.handler.PutAccountPassword)
+			router.Post("/accounts/{name}/cut", r.handler.PostAccountCut)
 			// The list of official names around the station (Q55): its state, and
 			// making it again, which reaches the SIA's site.
 			router.Get("/aip-names", r.handler.GetAIPNames)
@@ -186,13 +206,10 @@ func (r *Router) Routes() http.Handler {
 		})
 	})
 
-	// The page, from server.static_dir, or www/ next to the working directory.
-	staticDir := "www"
-	if r.config != nil && r.config.Server.StaticDir != "" {
-		staticDir = r.config.Server.StaticDir
-	}
-	staticHandler := NewStaticFileHandler(staticDir, r.logger)
-	router.Handle("/*", staticHandler)
+	// The page, built into the binary or from server.static_dir, and the
+	// station's own files under /data/.
+	page, _ := pageFiles(r.config)
+	router.Handle("/*", NewStaticFileHandler(page, stationFiles(r.config), r.logger))
 
 	return router
 }

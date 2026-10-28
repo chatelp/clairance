@@ -121,6 +121,16 @@ class Main(unittest.TestCase):
             self.assertNotIn(" ", text)
             self.assertEqual(json.loads(text)["features"][0]["properties"]["ref"], "09/27")
 
+    def test_by_default_the_layout_goes_where_the_server_serves_it(self):
+        with tempfile.TemporaryDirectory() as d:
+            config = os.path.join(d, "config.toml")
+            with open(config, "w") as f:
+                f.write("[station]\nlatitude = 48.81\nlongitude = 2.05\n")
+            self.assertEqual(fetch.default_output(config), os.path.join("data", "station", "airport-layout.geojson"))
+            with open(config, "a") as f:
+                f.write("[storage]\nsqlite_base_path = \"/srv/clairance\"\n")
+            self.assertEqual(fetch.default_output(config), "/srv/clairance/station/airport-layout.geojson")
+
     def test_a_config_without_station_is_refused(self):
         with tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False) as f:
             f.write("[other]\n")

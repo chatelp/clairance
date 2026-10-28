@@ -36,7 +36,7 @@ func within(t *testing.T, ch <-chan readResult, d time.Duration, what string) re
 }
 
 // Writing never waits for a reader: a browser that stops reading must not
-// stall the transcription reading the same stream, nor ffmpeg behind them.
+// stall the transcription reading the same stream, nor the decoder behind them.
 func TestASlowReaderDoesNotHoldBackTheOthers(t *testing.T) {
 	mr := newTestMultiReader(t)
 	fast := mr.CreateReader("transcription")

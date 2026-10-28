@@ -68,7 +68,8 @@
         get procedureLayer() {
             const R = window.ProcedureRoutes;
             if (!R) return { state: 'unknown', text: '', routes: [] };
-            return R.layer(this.procedureRoutes, this.followedAirports, this.settings.proceduresKind === 'SID' ? 'SID' : 'STAR');
+            return R.layer(this.procedureRoutes, this.followedAirports, this.settings.proceduresKind === 'SID' ? 'SID' : 'STAR',
+                this.settings.proceduresScope === 'all' ? 'all' : 'inUse');
         },
 
         drawProcedureLayer() {
@@ -77,10 +78,18 @@
             const on = !!this.settings.showProcedures;
             const routes = on ? this.procedureLayer.routes : [];
             const ends = (code) => R.inUse((this.followedAirports || []).find((a) => a.code === code));
-            this.mapManager.setProcedureLayer(routes, (r) => R.runwaysFor(r, ends(r.airport)));
+            // Every runway: each route said with all its runways.
+            const all = this.settings.proceduresScope === 'all';
+            this.mapManager.setProcedureLayer(routes, (r) => all ? (r.runways || []) : R.runwaysFor(r, ends(r.airport)));
         },
 
         toggleProcedures() {
+            this.saveSettings();
+            this.drawProcedureLayer();
+        },
+
+        setProceduresScope(scope) {
+            this.settings.proceduresScope = scope === 'all' ? 'all' : 'inUse';
             this.saveSettings();
             this.drawProcedureLayer();
         },

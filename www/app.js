@@ -31,8 +31,9 @@ function generateUUID() {
     });
 }
 
-// Base API URL - dynamically use the current port
-const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:${window.location.port}/api/v1`;
+// The API and the WebSocket on the page's own origin: its scheme, name and port
+// as the browser has them, which behind an HTTPS proxy is https and no port.
+const API_BASE_URL = `${window.location.origin}/api/v1`;
 
 // Configuration
 const CONFIG = {
@@ -44,7 +45,9 @@ const CONFIG = {
     airspaceOverlayGeoJsonUrl: '',
     defaultZoom: 10,
     dataUrl: `${API_BASE_URL}/aircraft`,
-    wsUrl: `ws://${window.location.hostname}:${window.location.port}/api/v1/ws`, // WebSocket URL
+    // wss on an HTTPS page: a browser refuses a plain ws:// connection from one,
+    // which behind the owner's proxy left the page without aircraft or feed (26/10).
+    wsUrl: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/v1/ws`,
     useRealData: true,
     useSampleData: true,
     rangeRings: [5, 10, 25, 50, 100],
@@ -165,6 +168,7 @@ document.addEventListener('alpine:init', () => {
             // The published routes layer (Q56): off by default; arrivals first.
             showProcedures: JSON.parse(localStorage.getItem('showProcedures')) ?? false,
             proceduresKind: localStorage.getItem('proceduresKind') === 'SID' ? 'SID' : 'STAR',
+            proceduresScope: localStorage.getItem('proceduresScope') === 'all' ? 'all' : 'inUse',
             // The probable runway and exit on the labels (Q57): on by default.
             showProbable: JSON.parse(localStorage.getItem('showProbable')) ?? true,
             showAirspaceBoundaries: JSON.parse(localStorage.getItem('showAirspaceBoundaries')) ?? false,
@@ -259,6 +263,7 @@ document.addEventListener('alpine:init', () => {
             localStorage.setItem('showAltitudeLegend', this.settings.showAltitudeLegend);
             localStorage.setItem('showProcedures', this.settings.showProcedures);
             localStorage.setItem('proceduresKind', this.settings.proceduresKind);
+            localStorage.setItem('proceduresScope', this.settings.proceduresScope);
             localStorage.setItem('showProbable', this.settings.showProbable);
             localStorage.setItem('showAirspaceBoundaries', this.settings.showAirspaceBoundaries);
             localStorage.setItem('airspaceOpacity', this.settings.airspaceOpacity);

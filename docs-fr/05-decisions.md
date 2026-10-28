@@ -2041,6 +2041,10 @@ Le genre de défaut qu'aucun test ne trouve quand on n'a pas pensé à redémarr
 > **Au passage** : les sessions vivent en mémoire et ne survivent pas à un redémarrage.
 > C'est cohérent — une session est un jeton de présence, pas une donnée — mais ça veut
 > dire qu'on se reconnecte après chaque mise à jour du binaire.
+>
+> *Note du 27/10 : plus vrai depuis la fiche S (plan 35, D5). Les sessions sont gardées dans
+> `configs/sessions.json`, empreintes SHA-256 seulement. Pour déconnecter tout le monde : arrêter le serveur et
+> effacer ce fichier, ou retirer le compte (ses sessions tombent au démarrage).*
 
 ### D38 — `git add -A` sur un dépôt qui porte maintenant de l'état *(21/09)*
 
@@ -4921,6 +4925,132 @@ système de design : la séquence d'arrivée calculée dans le store pour tous l
 (la PAR la relit), les gabarits français des consignes, puis la migration elle-même
 (`04-migration.md`).
 
+### D86 — Les réglages en pages groupées, mis en forme par l'agent design *(28/10)*
+
+> **Décision du propriétaire, 28/10**, sur l'analyse `38-reglages-analyse.md` : « des settings multi-pages,
+> et pas une longue liste dans une colonne étroite, ce serait mieux », puis, aux questions : organisation
+> retenue « mais à retravailler avec l'agent design » ; viewer : son navigateur, son compte, Listening en
+> lecture ; réglages expérimentaux sous « Advanced » ; renommages : tous.
+
+Ce qui est décidé :
+
+- **Une page à la fois, en trois groupes** : *Mon navigateur* (Display, avec les diagnostics repliés ;
+  Account), *Station* (Listening, qui absorbe Regional data ; Matching, préréglages puis « Advanced »),
+  *Administration* (Access : qui peut ouvrir, comptes, chiffres publics ; Usage ; Server : journal,
+  taille, archive, rapports). Page élargie, deux colonnes là où c'est utile ; liste puis détail sur
+  téléphone. **La mise en forme est confiée à l'agent design**, qui propose avant tout code.
+- **Un viewer** voit Display, Account et Listening en lecture ; la page lit le rôle, le serveur reste
+  l'autorité.
+- **« Accept one digit off » et « First two digits »** passent sous « Advanced ».
+- **Renommages** : « Measured » → « Standard » ; « Station console on the sign-in page » → « Live
+  figures on the sign-in page » ; « Log level » → « Log detail » ; un seul mot pour le rôle admin
+  partout dans l'interface.
+- Une règle d'aide : la phrase sous le champ dit quoi, la bulle dit pourquoi ou la mesure.
+
+### D85 — La rétention archive au lieu d'effacer, et le plafond local passe à 6 Go *(28/10)*
+
+> **Décision du propriétaire, 28/10**, après l'enquête sur la place disque (le disque interne du Mac
+> presque plein ; `32-audit-produit.md`, « État » 28/10 11:25) : archiver les vieilles bases plutôt que
+> les perdre, garder environ une semaine en local, compresser en gzip, et ne rien effacer quand le
+> disque d'archive manque.
+
+Le constat, mesuré : une base journalière, c'est plus de 99 % de positions ADS-B (≈ 0,8 Go par jour
+plein aujourd'hui), le serveur ne lit que celle du jour, et les jours passés ne servent qu'aux outils de
+mesure et au labo. La rétention de D65 (20 Go) les effaçait sans trace au-delà du plafond.
+
+Ce qui est décidé :
+
+- **Le plafond local passe de 20 à 6 Go** (≈ 7 jours), réglé depuis le panneau par le propriétaire.
+- **`[storage] archive_dir`** : quand il est réglé, un jour qui ne tient plus sous le plafond est
+  **copié en gzip** dans ce dossier (la base, et son `-wal` s'il n'est pas vide), la copie est **relue et
+  comparée** à l'original (SHA-256, ajouté à `SHA256SUMS` dans le dossier), et seulement alors la base
+  locale est effacée. Vide, la rétention efface comme avant (D65), pour qui n'a pas de disque d'archive.
+- **gzip plutôt que zstd** : intégré à Go, sans dépendance, lisible partout ; facteur 4,2 mesuré sur le
+  15/10, contre 4,9 pour zstd.
+- **Disque d'archive absent** (dossier introuvable) : rien n'est effacé, le dépassement est dit au journal
+  et au démarrage ; le disque interne dépasse le plafond le temps que le disque revienne. Le dossier
+  n'est jamais créé par le serveur (sous `/Volumes`, un disque absent laisserait sinon un dossier sur le
+  disque interne).
+- **Avec un dossier d'archive, la première passe se fait après le démarrage**, et non avant : archiver
+  plusieurs jours peut prendre des minutes, qui retarderaient la production.
+- Pour la production : `archive_dir = "/Volumes/Crucial X8/clairance-archive/bases"`, à côté de l'archive
+  faite à la main le 28/10 (zstd, 23/09 au 18/10). Pas de seconde copie (choix du propriétaire).
+
+**Fait le 28/10** (4f69da5, 7afc9b1) : tests (archive vérifiée puis effacement, WAL compris ; archive introuvable : rien d'effacé, rien de créé ; copie existante identique gardée, différente jamais écrasée ; contrôle de démarrage), instance d'essai démarrée avec une archive absente (nommée dans la santé détaillée, non créée, rien d'effacé). Plafond à 6 Go réglé par le propriétaire le 28/10 vers 11:40. **En production depuis le 28/10 à 11:29** (relance 8, cdaf1a3), `archive_dir` réglé dans `configs/config.toml` ; première passe : 7 journées archivées puis retirées (23/09 → 02/10), 4,05 Go libérés, `data/` 9,2 → 5,5 Go.
+
+**Complément du 28/10, demande du propriétaire** : « il faut que la sauvegarde des bases clairance et leur
+destination soit configurable par l'utilisateur (admin) dans le gui ». La destination se règle depuis
+Réglages › System, à côté du plafond, par l'admin seul (comme tout réglage du serveur) ; vide, pas
+d'archive. Elle s'enregistre avec les autres réglages du panneau (`runtime-settings.json`) et s'applique à
+la passe suivante, sans relance ; `[storage] archive_dir` n'est plus que la valeur de départ. Un chemin
+n'est accepté que **absolu, existant, dossier, inscriptible**, et hors du dossier des bases ; le serveur ne
+le crée jamais. Il n'est vérifié que quand il change : un disque débranché n'empêche pas d'enregistrer les
+autres réglages. Le panneau montre l'état de l'archive : trouvée ou non, ce qu'elle contient, la place libre
+sur son disque. **Sans archive, ce qui dépasse le plafond est effacé** (précision du propriétaire), et c'est dit
+en avertissement : voyant orange sous le champ (« No archive: the databases past N GB are deleted for
+good »), confirmation demandée quand on retire l'archive, et chaque effacement écrit en avertissement au
+journal. Fait le 28/10 (deux commits « the database archive is set from the settings » et « the archive
+folder in Settings > System »), vérifié dans Chrome sur l'instance d'essai ; en production à la prochaine
+relance.
+
+### D84 — Un suivi d'usage par compte, pour le propriétaire *(27/10)*
+
+> **Décision du propriétaire, 27/10**, après la première écoute de l'invité : « il y a moyen de
+> renforcer le suivi d'usage coté backend ? […] avec stats et autre quand on est admin dans
+> l'interface web ? », puis « ok pour 30 jours et actif par défaut, vas-y ».
+
+Le constat : le serveur savait qui s'était connecté (trace de la fiche O) et la dernière requête de
+chaque compte, mais pas ce que chacun avait fait ; un flux son de 32 min relayé par le mandataire le
+27/10 à 17:31 ne pouvait être attribué ni au propriétaire ni à l'invité.
+
+Ce qui est décidé :
+
+- **Un journal d'usage par compte**, `usage.jsonl` à côté des comptes : chaque page ouverte
+  (WebSocket : ouverture, fin, et pourquoi — fermée, perdue, accès coupé, serveur arrêté), chaque
+  flux son (fréquence, début, durée, octets, pourquoi il a fini), chaque extrait réécouté. Aucune
+  adresse en plus de celles que garde déjà la trace des connexions.
+- **30 jours gardés**, effacés au-delà ; **actif par défaut**, réglable par `[auth] usage_days`
+  (0 le coupe) ; rien n'est noté quand la connexion est désactivée, puisqu'il n'y a pas de compte.
+- **Une partie « Usage » dans les réglages, du seul propriétaire** : qui est là en ce moment et ce
+  qu'il écoute ; par compte, sur 7 jours, le temps connecté, le temps d'écoute par fréquence, les
+  réécoutes, la dernière visite, une barre par jour ; les interruptions vues par chaque compte
+  (page ou son coupés par un arrêt du serveur ou perdus, et le délai de reprise).
+
+**Fait le 27/10** (4e0705f, 80c80f9, 0476353) : `internal/usage`, crochet de présence du WebSocket,
+flux comptés à l'écriture, `GET /api/v1/usage` réservé au propriétaire (401 sans session, 403 pour
+un viewer), partie « Usage » sous « Accounts ». Vérifié dans Chrome sur l'instance d'essai : un
+compte viewer d'essai vu « page open 11 s · listening to essai1, essai2 », puis sa semaine comptée.
+**En production depuis le 27/10 à 20:13** (relance 6, abb28b9).
+
+### D83 — Les comptes se gèrent depuis la page, par le propriétaire *(27/10)*
+
+> **Décision du propriétaire, 27/10**, à la relecture des constats de la fiche O : « ok pour 1 et 2,
+> je propose qu'on fasse dès à présent le tableau de gestion de compte accessible pour mon compte
+> (chatelp) qui doit être admin ».
+
+Ce qui est décidé :
+
+- **La session** (constat 1 de la fiche O) : le cookie suit la session glissante, renouvelé au plus
+  une fois par jour, et un **plafond absolu de 90 jours** après la connexion, au-delà duquel on se
+  reconnecte quoi qu'il arrive. La durée glissante reste 30 jours (décidé le 26/10).
+- **Couper l'accès sans relance** (constat 2 de la fiche O) : ses sessions sont révoquées, et son
+  WebSocket et ses flux encore ouverts sont fermés aussitôt.
+- **Un panneau « Accounts »** dans la section Account des réglages, visible du seul propriétaire
+  (le rôle `owner`, « admin » dans les mots du propriétaire ; `chatelp` l'est déjà : un compte sans
+  rôle écrit est propriétaire). Il liste les comptes (nom, rôle, création, sessions ouvertes,
+  dernière activité, dernière connexion d'après la trace de la fiche O) et permet de créer un
+  compte (le propriétaire tape le mot de passe, 10 caractères au moins), d'en changer le mot de
+  passe, de couper son accès, de le retirer. Garde-fous : on ne se retire ni ne se coupe soi-même,
+  on ne retire pas le dernier propriétaire, un compte écrit à la main dans `config.toml` est montré
+  mais ne se modifie pas depuis la page (le programme ne réécrit jamais ce fichier).
+- **Correctif contribuable** : une session dont le compte n'existe plus, ou n'a plus le rôle avec
+  lequel elle a été ouverte, est refusée (elle valait propriétaire faute de rôle connu).
+
+Conséquence pour le compte de l'ami (D4, plan 35) : il pourra être créé depuis la page plutôt que par
+`co-atc -add-user`. En production à la prochaine relance, pas avant.
+
+**Fait le 27/10** (1ea56f6, 81d86a3, e7f5e6f, 550ab52, 079ea4e), vérifié dans Chrome sur l'instance d'essai ; en production depuis le 27/10 à 15:37 (be6221b).
+
 ### D82 — L'archive audio de production plafonnée à 60 Go, le ciel témoin mis à l'abri *(16/10)*
 
 Le propriétaire voyait son disque se remplir. Mesuré le 16/10 : sur le Mac, Clairance occupe
@@ -5265,7 +5395,231 @@ rien jusqu'au rechargement. **Vérifié** dans un navigateur sur une instance d'
 ports annexes en 200, son ouvert sur la tuile cliquée, source ajoutée en cours de route branchée
 sans rechargement. Sans cookie, le même flux répond 401 : c'était l'ancien comportement.
 
+### Q63 — Comment la page joue le son *(26/10 — **tranchée par le propriétaire : la page joue le son elle-même, en μ-law**)*
+
+**Le constat (26/10, mesuré)** : la page confiait chaque fréquence à un élément `<audio>`, et chaque navigateur
+traitait le flux en direct à sa façon. Un flux WAV sans fin : Safari (Mac et iPhone) ne le lit pas. Le MP3 de la
+station : Chromium attend **17,4 s** avant de le jouer (le flux est trop peu dense pour sa détection) ; Safari le joue
+**sans passer par Web Audio**, si bien que le bouton son ne coupait rien et que « someone is speaking » restait muet ;
+et les temps que donne le navigateur sont faux pour un MP3 à débit variable, si bien que l'activité mesurée par le
+serveur ne pouvait pas être remise en phase avec la voix (le propriétaire : « en avance, et parfois absent »).
+
+**Les voies** : (A) accepter l'écart ; (B) repérer les trames entre serveur et page ; (C) la page joue le son
+elle-même. **Décidé : C**, puis, pour le format, **C2** plutôt que C1 (le MP3 décodé dans la page, avec WebCodecs ou
+une bibliothèque WebAssembly sous LGPL) : le serveur envoie le son décodé en **G.711 μ-law** à la fréquence du flux
+(64 kb/s à 8 kHz, le codage du téléphone, fait pour la voix AM de la bande aviation), la page le décode avec une table
+et le joue par Web Audio avec 0,3 s de réserve.
+
+**Livré le 26/10** (4d15c1e, en production à 15:15:43) : `internal/audio/ulaw.go`, `?format=ulaw` ; `www/live-player.js`,
+qui prend la place de l'élément `<audio>` dans `audio-client.js` ; un navigateur sans corps de réponse lisible garde
+l'élément et le MP3. Mesuré sur la station par une instance d'essai : le son part dans la première seconde (17 s
+avant), l'analyseur suit la voix (environ 110 pendant la parole, 0 dans les silences), réserve de 0,3 à 1,8 s.
+
+**Safari, après la livraison (26/10)** : le propriétaire n'a plus de son dans Safari sur Mac avec ce lecteur, alors
+que WebKit 18.2 le joue (Playwright, analyseur jusqu'à 0,29). Cause non trouvée : **Safari garde l'élément `<audio>`
+et le MP3 pour l'instant** (d80e2c4), avec les défauts relevés plus haut ; `?player=live` ou `?player=element` force
+l'un ou l'autre (ea2b2f6) pour essayer. Le téléphone reste à mesurer.
+**Cause trouvée le même jour** (623d132, c50787c) : Safari ne reprend pas un contexte audio sur `pointerdown`, et
+la page n'essayait qu'au premier geste ; puis Safari rééchantillonnait chaque morceau à 8 kHz séparément (un
+cliquetis à chaque jointure, mesuré dans WebKit). La page reprend le son à chaque geste (click, touchend, keydown)
+et rééchantillonne elle-même, en continu. **Safari est revenu au lecteur de la page**, son confirmé par le
+propriétaire. **L'iPhone aussi, le même jour** (cbf7ecf) : la page déclare son son comme lecture
+(`navigator.audioSession.type = 'playback'`), son confirmé par le propriétaire. Reste : l'écran verrouillé.
+
+### Q62 — L'accès à distance pour un proche, et ce qu'il demande à la production *(26/10 — audio ouvert à l'ami ; **ouvert sur Internet derrière le Traefik du propriétaire** ; page d'abord)*
+
+**La demande du propriétaire** (26/10) : donner à un ami l'accès à sa production à distance, de préférence
+par le lanceur installé sur le Mac de l'ami, avec une adresse de production distante ; d'où la gestion des
+comptes et la sécurisation de l'accès.
+
+**L'existant, relevé le 26/10** : des comptes avec deux rôles (`owner`, `viewer` : un viewer lit, sans
+l'audio ni les écritures, fiche I du 13/10) ; des sessions par cookie (256 bits, expiration glissante,
+révocation par compte) ; une limite des essais de mot de passe ; des mandataires de confiance explicites.
+Ni jeton d'API, ni second facteur. La production écoute sur `0.0.0.0:8000` à `8004` en HTTP, sur le réseau
+local, avec un seul compte (propriétaire). Tailscale est installé sur le Mac. `audio_replay = "owner"` par défaut.
+
+**Le cadre légal** (étude de la session communauté, `01-cadre-legal.md`, `05-recommandation.md`) : rediffuser
+de l'audio réel est exclu ; l'exemption d'« usage domestique » du RGPD tombe avec un nombre indéfini de
+personnes (CJUE, Lindqvist), ce qu'un ami nommé n'est pas, mais la divulgation à un tiers (art. 226-15)
+reste un point non tranché. À poser à la session communauté avant d'ouvrir quoi que ce soit, en particulier
+pour l'audio.
+
+**À trancher** : le chemin réseau (partage du nœud Tailscale, ou exposition publique derrière TLS) ; le
+vecteur (la page dans un navigateur, ou le lanceur en mode client distant, qui demande alors des jetons
+par compte, des routes adaptées au rôle viewer, et une signature Developer ID avec notarisation pour
+s'installer sans contournement de Gatekeeper) ; l'audio pour un viewer distant.
+
+**Décidé par le propriétaire le 26/10** : l'audio est ouvert à l'ami aussi. Ce n'est **pas une fonctionnalité à
+part entière** : c'est un usage utile pendant la période de tests restreints, pour un proche nommé. Il pèse
+donc sur la mise en place (partage Tailscale, compte nominatif, `audio_replay`, relecture de ce que voit ce
+compte), pas sur la feuille de route. Le point légal de l'étude (la divulgation à un tiers, art. 226-15, non
+tranchée ; la rediffusion d'audio réel exclue pour le produit) est noté ; le propriétaire décide en connaissance
+de cause, pour un cercle restreint et le temps des essais.
+
+**Décidé par le propriétaire le 26/10 (questions posées en clair)** : l'accès passe **par Internet**, derrière le
+mandataire Traefik qui tourne déjà sur une autre machine de son réseau (il y sert d'autres services avec leurs
+certificats), et non par Tailscale. Conséquences, qui deviennent des étapes du plan (doc 35, bloc D) : déclarer ce
+mandataire dans `trusted_proxies` (pour lire la bonne adresse du client et le HTTPS) ; faire passer les flux audio
+par la même adresse que la page (aujourd'hui la page les demande sur les ports 8001 à 8004, injoignables derrière
+un mandataire unique) ; durcir ce qui devient public (connexion, limite des essais, routes ouvertes sans session,
+WebSocket) **avant** l'ouverture ; tracer les connexions. Limite connue : cette machine est sur un onduleur qui
+saute (deux redémarrages le 19/10) ; quand elle tombe, l'accès distant tombe avec elle.
+
+**D1 fait le 26/10, fermé** (doc 35) : la route existe, derrière une barrière temporaire du mandataire, retirée
+seulement à l'ouverture. Constat : le domaine du propriétaire passe par le proxy de Cloudflare ; le serveur voit
+l'adresse de Cloudflare, pas celle du client, ce qui pèse sur la limite des essais et le journal des connexions
+(fiche O). Point non vérifié : ce que les conditions de Cloudflare disent d'un flux audio passé par son proxy
+(environ 384 kb/s par fréquence écoutée, en audio non compressé).
+
+**D3 fait le 26/10 par la fiche O** (cloud, relue et fusionnée : 6fa8dd5 ; en production à la relance du 27/10).
+Dix défauts corrigés, chacun avec un test rouge avant : la page ne répond plus qu'à GET et HEAD et ne sert aucun
+fichier caché ; dix secondes au plus pour envoyer les en-têtes ; l'adresse du client lue de droite à gauche dans
+`X-Forwarded-For` ; la limite des essais comptée par /64 en IPv6, et qui oublie ; plus de premier compte créé à
+travers un mandataire ; `/setup/status` ne donne plus de chemin ; le viewer ne voit plus les noms des comptes ; un
+message WebSocket borné à 64 Kio. Qui peut quoi derrière le mandataire est figé route par route
+(`internal/api/testdata/access.txt`). **D4, la trace, faite aussi** : chaque connexion, réussie ou refusée, dans
+`configs/signins.jsonl` (0600, ignoré par git), lue par le propriétaire seul (`GET /api/v1/signins`). Cloudflare
+retiré (DNS seul), le serveur voit l'adresse du client que Traefik transmet. **À trancher par le propriétaire**
+(rapport O) : le cookie expire 30 jours après la connexion, la session glisse 720 h (raccourcir
+`session_ttl_hours` ?) ; un flux ouvert survit à la déconnexion (couper = retirer le compte et relancer) ; le viewer
+lit des adresses internes (flux de la station, chemins de `/server` et `/config`) ; un viewer peut ouvrir 10 flux
+par fréquence ; bloquée par la limite, la connexion répond 401 et la page attend 429 (message moins clair) ;
+`/vitals` dit à tous la version et la durée de marche (désactivable dans les réglages).
+
+**Tranché par le propriétaire le 26/10 au soir** (questions posées sans jargon) : la connexion reste de **30 jours** ;
+pour un invité (viewer), **les adresses internes sont masquées et ses flux audio limités** ; `/vitals` **reste
+public** ; l'accès de l'ami s'ouvre **le 28/10**, après la fin de la bascule audio, pour qu'il arrive sur une
+production stable. Restent sans décision, faute d'enjeu pour un seul ami : un flux qui survit à la déconnexion, et
+le message de blocage (401 au lieu de 429), corrigé sans question.
+
+**Fiche P intégrée le 26/10 au soir** (202a566) : ces décisions sont dans le code, en production à la relance du
+27/10. Un invité perd aussi la raison d'un échec de source (texte libre, vidé en entier plutôt que nettoyé) ;
+deux flux par fréquence, comptés par compte.
+
+### Q61 — Le lanceur, projet à part, et son contrat avec le serveur *(26/10 — **dans ce dépôt, rangé à part** ; contrat à écrire)*
+
+**Le constat, relevé le 26/10** : le lanceur (2 825 lignes de Swift) lit `config.toml` lui-même (ports,
+base, journal, sidecar), connaît l'arborescence du dépôt (`runs/`, `bin/co-atc`, `production.command`),
+reconnaît `whisper_server` et `radio-ctl-sync` à leur nom, lance `git` et `lsof`, lit les journaux, et
+interroge la station lui-même. Le faux « Production did not start » du 26/10 vient d'un journal mal lu.
+
+**Proposé** : un contrat standard. Démarrer, c'est `co-atc -config <fichier>` ; arrêter, c'est SIGTERM ; être
+prêt, c'est `/api/v1/health` qui répond. Tout le reste passe par l'API locale en JSON, versionnée et documentée :
+`/api/v1/health/detail`, et une description du processus (PID et enfants, ports, journal, données, version et
+commit du binaire). Un test de contrat côté serveur. Le lanceur ne lit plus aucun fichier du serveur.
+L'accès distant (Q62) ajoute au contrat l'authentification par jeton et le rôle. **Décidé par le propriétaire le
+26/10** : le lanceur reste **dans ce dépôt, dans son propre dossier**, sans aucune dépendance aux fichiers du
+serveur ; un dépôt séparé plus tard si le besoin vient.
+
+### Q60 — Un serveur auto-contenu, qui ne dépend pas de ce qui manque sur la machine *(26/10 — le script de production absorbé par co-atc ; **B1 mesuré : le décodage en Go est équivalent**, choix à faire)*
+
+**Le déclencheur** : le 26/10, la production lancée par le porteur n'avait pas d'audio, faute de trouver
+ffmpeg hors du PATH du shell (134e4fb corrige la recherche). **Le propriétaire** : le serveur doit être
+autant que possible auto-contenu.
+
+**L'inventaire du 26/10** : ffmpeg (Homebrew, 15 bibliothèques Homebrew) pour tout l'audio ; le sidecar
+Python dans le venv **d'un autre dépôt** (`whisper-lab/.venv`, 1,1 Go, Python 3.12) ; le modèle anglais dans
+le cache Hugging Face (2,9 Go) ; le modèle français et l'archive sur le disque externe ; pdftotext (Homebrew,
+outil AIP seulement) ; et `runs/production.command`, **hors du dépôt**, qui fige la page, retrouve co-atc
+par motif, lit le mot de passe, lance `radio-ctl-sync` avec l'adresse de la station en dur, `caffeinate`, et
+vérifie le disque externe.
+
+**Proposé** : la page dans le binaire (`go:embed`) ; le décodage du cas courant (MP3 d'Icecast, PCM brut)
+en Go pur, ffmpeg restant une option pour les sources exotiques ; le sidecar dans son propre environnement
+verrouillé, créé par une commande d'installation, les modèles téléchargés au premier lancement ; pdftotext
+facultatif ; le script de production absorbé (co-atc lance ses compagnons configurés). **Décidé le 26/10** :
+**mesurer d'abord le décodage en Go** (équivalence de l'audio produit, coût processeur) avant de choisir
+entre ne plus dépendre de ffmpeg et en embarquer un. **Décidé par le propriétaire le 26/10** : co-atc lance
+lui-même ce que lance aujourd'hui le script (la liaison avec la station, l'empêchement de veille), réglages dans
+la configuration ; `production.command` disparaît. Mené en parallèle de l'accès distant (Q62).
+
+**B1 mesuré le 26/10** (outil `runs/b1-decodage/bench/`, hors du dépôt ; 5 min enregistrées de chaque flux de la
+station, station prévenue). **Les flux sont du MP3 mono à 8 kHz (MPEG-2.5), environ 15 kb/s** ; la production les
+fait monter à 24 kHz (`ffmpeg_sample_rate`, héritage de l'API d'OpenAI), alors que Whisper travaille à 16 kHz.
+
+| Mesure | Résultat |
+|---|---|
+| `go-mp3` (le décodeur Go le plus répandu) | **ne lit pas le MPEG-2.5** : écarté |
+| goxiph (`github.com/faide/goxiph/mp3`, Go pur, BSD-3, publié en août 2026, sans version numérotée) | lit le MPEG-2.5 ; compile avec notre Go 1.25 bien que son module demande 1.26.6 ; environ 3 700 lignes avec ses dépendances ; aucun accès réseau ni lancement de programme hors de ses outils de test |
+| Décodeur seul, goxiph contre ffmpeg, par fenêtres de 5 s | **identiques à l'arrondi près** : rapport signal sur bruit de 98,5 à 104,7 dB dans chaque fenêtre avec du son (62 fenêtres sur les deux flux), aucun décalage |
+| Chaîne complète jusqu'à 24 kHz (décodeur Go + rééchantillonneur Go à noyau précalculé) | 72,2 à 80,5 dB par fenêtre : l'écart ne vient que du rééchantillonneur, inaudible |
+| Coût de calcul par heure d'audio et par fréquence | Go 5,6 s à 24 kHz, 4,3 s à 16 kHz ; ffmpeg 1,9 s (le décodage seul coûte autant dans les deux : 0,1 s pour 5 min) |
+| **Défaut trouvé dans la production** | l'option `-fflags nobuffer` de ffmpeg **jette l'audio lu pendant l'analyse du début du flux : 3,6 s à chaque démarrage de ffmpeg** (28 800 échantillons sur 2 397 312) ; ffmpeg démarre quelques fois par jour (relances, bascules de la station : 16 fois le 16/10) |
+| Un flux pris en cours commence au milieu d'une trame | ffmpeg se recale seul ; un décodeur Go doit chercher la première trame entière (la suivante doit tomber à sa place) |
+
+Le test de transcription par paires n'a pas été fait : l'écart des deux décodages est au niveau de l'arrondi en
+16 bits, en dessous de ce qui peut changer une transcription. Il peut l'être sur demande (un sidecar de test sur
+le GPU, inscrit au planning de la machine).
+
+**Le propriétaire, le 26/10** : tester goxiph dans Clairance avant de décider ; s'il est validé, **bascule
+complète, ffmpeg abandonné** ; la production peut être arrêtée pour les tests. Plan de validation en cinq niveaux
+dans le doc 35 (B1 bis) ; décodeur intégré (a62e9c2) et branché derrière `frequencies.decoder = "go"` (839674c).
+
+**N4 passé le 26/10** (doc 35, B1 bis) : sur une demi-heure réelle des deux fréquences, 237 transmissions sur 237
+découpées aux mêmes bornes ; 17 textes différents sur 237, quand un bruit inaudible d'un pas d'arrondi ajouté à
+l'audio de ffmpeg en fait basculer 22 et que le même audio transcrit deux fois n'en change aucun. Le critère écrit
+d'abord (97 % de textes identiques) était mal posé : Whisper bascule une transmission difficile sur douze à la moindre
+perturbation. **N5 lancé le 26/10 à 13:09:51** : 24 h de production en Go, jugées le 27/10 (doc 35). **N5 passé le 27/10 à 13:17** : aucune panne du décodeur, débit conforme, transmissions par heure au niveau de ffmpeg, Icecast sans décrochage (détail dans le doc 35). La condition ci-dessous est remplie. **Appliqué le 27/10 à 14:01** (relance 3, 749d489) : ffmpeg retiré, production à 16 kHz.
+
+**Décidé par le propriétaire le 26/10, sous condition** : **si goxiph est validé à la fin de N5**, on abandonne
+ffmpeg ; les sources SRT et carte son sont retirées. Le PCM brut par UDP (GQRX, SDR++, rtl_fm), qui ne demande
+aucun décodage, est réécrit en Go, sauf avis contraire du propriétaire. Si N5 échoue, rien de cela n'est fait.
+
+**Décidé par le propriétaire le 26/10 : la production passe de 24 à 16 kHz**, la fréquence de Whisper (le 24 kHz
+venait de l'API d'OpenAI de l'amont ; l'audio de la station est à 8 kHz). Appliqué **après N5**, pour ne pas mêler deux
+changements dans le même essai : `transcription.ffmpeg_sample_rate` à 16000 dans la configuration, et la valeur par
+défaut du code (`defaults.go`, `local.go`) avec, au moment où ffmpeg est retiré.
+
+**Restaient à trancher avant cela** : (1) décoder le MP3 en Go avec goxiph, intégré au dépôt à un commit figé
+(sa licence le permet), ffmpeg ne restant qu'en option pour les autres entrées (carte son, autres formats) ; ou
+embarquer un ffmpeg ; (2) retirer `-fflags nobuffer` dès maintenant ; (3) passer la production de 24 à 16 kHz,
+ou à la fréquence du flux.
+
+### Q59 — Qui porte la production quand le lanceur se ferme ? *(24/10 — **tranchée par le propriétaire le 24/10 : (b), séparer la production du menu**)*
+
+**Le constat, mesuré le 24/10 par l'agent du lanceur** (doc 34, « L'étape 1 », branche `lanceur`) sur une
+instance d'essai qui ne lit que l'ADS-B (port 8013, aucun auditeur sur la station). Une instance lancée
+par le lanceur, lui-même ouvert par `open`, dépend du lanceur pour macOS. **Quand le lanceur se ferme,
+l'instance continue de tourner, mais perd le réseau local aussitôt et pour de bon** : dernière lecture
+ADS-B à 14:01:25,76 UTC, lanceur fermé à 14:01:26, plus rien en deux minutes de suivi. Rouvrir le
+lanceur ne lui rend rien. Le 16-18/10 n'était donc pas propre à la mise à jour de Claude : il suffit que
+l'application dont dépend la production se ferme. La règle 5 de `CLAUDE.md` (« passe par `open` ») reste
+juste, avec une condition : l'application ouverte doit rester ouverte tant que ce qu'elle a lancé doit
+entendre la station. Depuis 1a, quitter le lanceur demande confirmation tant que quelque chose dépend de
+lui ; restent un plantage du lanceur et sa mise à jour.
+
+**Les deux voies** :
+- **(a) en rester là** : le lanceur doit rester ouvert ; le mettre à jour, c'est relancer la production.
+- **(b) un porteur** : chaque production démarrée dans une instance à part de `Clairance.app`, ouverte par
+  le système, qui ne fait que la porter et se ferme avec elle ; le menu peut alors se fermer, planter ou
+  être mis à jour sans toucher à la production. Reste à mesurer : le porteur garde-t-il le réseau local
+  quand l'application est remplacée sur le disque ?
+
+**Recommandation de l'agent du lanceur, que je partage** : (b). Le gardien de l'étape 1b ne peut pas
+signaler sa propre chute, et (a) ferait de chaque mise à jour du lanceur une coupure de la production.
+
+**Décidé par le propriétaire le 24/10** (réponse dans la session du lanceur, rapportée par son agent) :
+**(b)**, « séparer les deux ». La production est portée à part du menu, qui peut se fermer, planter ou être
+mis à jour sans la couper. Le porteur reste à choisir par la mesure. **Essai accordé** de deux candidats :
+une instance à part de `Clairance.app`, et un agent launchd chargé le temps de la mesure puis retiré (plist
+sous `runs/`, `AssociatedBundleIdentifiers` = Clairance). Est retenu celui qui garde le réseau local quand le
+menu se ferme et quand l'application est remplacée sur le disque. Mesures consignées dans le doc 34. Le même
+jour, l'étape 1a est fusionnée dans `local` (14c39e6) et la fiche design 10 du lanceur est validée :
+l'étape 1b se codera dessus.
+
+**Mesuré et livré le 24/10** (8c1182b, fusion e71e4bd ; détail dans le doc 34) : **le porteur retenu est une
+instance à part de `Clairance.app`**, ouverte par `open -n`, qui lance co-atc et se ferme avec lui. Une fois le
+menu fermé, ou l'application remplacée sur le disque, la production garde la station : deux minutes de suivi,
+aucune lecture manquée. **L'agent launchd est écarté** : rattaché à Clairance par `AssociatedBundleIdentifiers`,
+il n'a eu le réseau local à aucun de ses trois démarrages (« no route to host ») ; il a été retiré aussitôt. **À
+savoir pour tout lancement** : la première connexion au réseau local d'une compilation que macOS ne connaît pas
+encore échoue, puis tout passe (vu trois fois). Le porteur interroge donc la station avant de lancer quoi que ce
+soit ; un co-atc tout juste reconstruit et lancé à la main peut échouer de la même façon au démarrage (« ADS-B
+source validation failed »). Pas encore vérifié : le démarrage de la vraie production par le nouveau lanceur.
+
 ### Q57 — La piste et la sortie probables sur le cartouche de l'avion *(16/10 — **décidée par le propriétaire le 16/10, en production à 17 h 06**)*
+
+> **Remesurée le 27/10** (A5, plan 35), sur les 26-27/10, tout en configuration ouest : la piste tient (93,8 % juste à 15 NM, 99,7 % à 10 NM à LFPG ; 100 % à LFPO) ; la sortie tient à 20 et 30 NM (90 et 98 %) mais **à 15 NM, 70 % seulement en ouest** (le 85 % ci-dessous était dopé par la configuration est). Fichiers : `runs/mesures/q57/*/2026-10-27/`.
 
 > **Décision du propriétaire, 16/10** : « oui, construis cette forme directement et on bascule en
 > prod direct », sur la forme de la session design (MapLabel, AircraftStory, MapControls,
@@ -5546,6 +5900,15 @@ du 27/09 tirées au hasard, 43 textes vides et une seule transmission avec un mo
 contre 0 vide et 28 pour le Whisper anglais de production ; il lit la voix propre d'ATCOSIM mais
 pas la radio en bande étroite. Il ne pèse pas dans le choix du portage ; Whisper affiné puis
 converti en CTranslate2 reste la voie.
+
+**Fiche N, le 26/10** (cloud, relue et fusionnée : e375fa0) : le sidecar choisit son moteur au démarrage (`--engine
+auto|mlx|faster-whisper`) ; MLX passe derrière une interface sans changement de comportement (mêmes appels, mêmes
+arguments, vérifié par la fiche avec un faux MLX, puis sur le Mac avec le vrai : la commande de production démarre,
+cache MLX borné, et les sept tests de contrat passent sur le modèle turbo, client Go compris) ; faster-whisper
+tourne sur processeur (Whisper small int8 : 3,4 × le temps réel sur 4 cœurs, 1,4 Go). **Pas vérifié** : tout GPU,
+les vrais modèles large-v3 convertis en CTranslate2, la précision d'appariement après portage (D73 : 95 %). Prochaine
+étape, au labo sur GPU ou sur une machine Linux : convertir les trois modèles et rejouer les journées du 03 et
+04/10.
 
 ### Q53 — Un positionnement « espace aérien français » dans le nom, la marque et la présentation ? *(12/10 — close : nom choisi le 13/10, D74)*
 

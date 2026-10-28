@@ -25,7 +25,7 @@ func TestARoleIsOwnerOrViewerAndNothingElse(t *testing.T) {
 // requestAs is a request carrying a fresh session of the named account.
 func requestAs(t *testing.T, s *Service, name string) *http.Request {
 	t.Helper()
-	sess, err := s.Sessions().Create(name)
+	sess, err := s.Sessions().Create(name, s.roles[name])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,5 +103,34 @@ func TestTheFirstAccountAndLocalOnlyAreTheOwner(t *testing.T) {
 	}
 	if strings.Contains(string(raw), "role") {
 		t.Errorf("the first account was written with a role:\n%s", raw)
+	}
+}
+
+// A session outlives nothing of its account: once the account is gone, or holds
+// another role, the session is refused and ended -- it used to be taken for the
+// owner's, the role of an unknown account defaulting to owner.
+func TestASessionWhoseAccountChangedIsRefused(t *testing.T) {
+	dir := t.TempDir()
+	writeUsers(t, dir, `{"name":"pierre","password_hash":"`+decoyHash+`"},
+		{"name":"guest","password_hash":"`+decoyHash+`","role":"viewer"}`)
+	s := startIn(t, dir, false)
+	gone, demoted := requestAs(t, s, "guest"), requestAs(t, s, "pierre")
+
+	s.mu.Lock()
+	delete(s.users, "guest")
+	delete(s.roles, "guest")
+	s.roles["pierre"] = RoleViewer
+	s.mu.Unlock()
+
+	for name, r := range map[string]*http.Request{"a removed account": gone, "an owner made viewer": demoted} {
+		if _, ok := s.SessionFrom(r); ok {
+			t.Errorf("%s: its session is still honoured", name)
+		}
+		if got := s.Role(r); got != "" {
+			t.Errorf("%s: role %q, want none", name, got)
+		}
+	}
+	if n := s.Sessions().Count(); n != 0 {
+		t.Errorf("%d sessions left, want the two ended", n)
 	}
 }
