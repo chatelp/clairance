@@ -178,6 +178,9 @@ func (r *Router) Routes() http.Handler {
 			// The page's version and the server's (D87): read at load, then
 			// announced in the WebSocket's heartbeat.
 			router.Get("/version", r.handler.GetVersion)
+			// The server machine's folders, for choosing the database archive
+			// (D85): the owner's only (ownerRoutes).
+			router.Get("/server/folders", r.handler.GetServerFolders)
 			// The accounts, managed by the owner while the server runs (D83):
 			// reading is in ownerRoutes, writing a viewer never may.
 			router.Get("/accounts", r.handler.GetAccounts)

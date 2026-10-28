@@ -24,6 +24,7 @@ GET     /api/v1/navaids/{ident}                      401 404 404 404
 GET     /api/v1/procedure-routes                     401 200 200 200
 GET     /api/v1/runways                              401 200 200 200
 GET     /api/v1/server                               401 200 200 200
+GET     /api/v1/server/folders                       401 403 403 200
 GET     /api/v1/setup/status                         200 200 200 200
 GET     /api/v1/signins                              401 403 403 200
 GET     /api/v1/station                              401 200 200 200
