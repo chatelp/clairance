@@ -95,7 +95,8 @@ type StorageState struct {
 // ArchiveState is where the retention copies a day before deleting it (D85):
 // whether it is found, what it holds, and the room left on its disk.
 type ArchiveState struct {
-	Dir       string `json:"dir"` // "" when there is none
+	Dir       string `json:"dir"` // "" when there is none; hidden from a guest
+	Set       bool   `json:"set"` // whether there is one, which a guest is told
 	Found     bool   `json:"found"`
 	Files     int    `json:"files"` // archived days: co-atc-*.db.gz and .zst
 	Bytes     int64  `json:"bytes"`
@@ -425,7 +426,7 @@ func (h *Handler) referenceState() *ReferenceState {
 
 // archiveState reads the database archive: what it holds, and its disk's room.
 func archiveState(dir string) ArchiveState {
-	a := ArchiveState{Dir: dir}
+	a := ArchiveState{Dir: dir, Set: dir != ""}
 	if dir == "" {
 		return a
 	}

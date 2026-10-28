@@ -468,7 +468,9 @@ function serverSettings() {
         // deleted for good; not found, this disk grows.
         archiveLine() {
             const a = this.state && this.state.storage && this.state.storage.archive;
-            if (!a || !this.archiveDirOf(this.state.settings)) {
+            // set, not the path: a guest is told whether there is an archive,
+            // never where it is.
+            if (!a || !a.set) {
                 return 'No archive: the databases past ' + this.state.settings.db_retention_gb + ' GB are deleted for good.';
             }
             if (!a.found) return 'Archive not found: nothing is deleted until it is back, and this disk keeps growing. Is its disk plugged in?';
@@ -478,7 +480,7 @@ function serverSettings() {
 
         archiveWarn() {
             const a = this.state && this.state.storage && this.state.storage.archive;
-            return !a || !this.archiveDirOf(this.state.settings) || !a.found;
+            return !a || !a.set || !a.found;
         },
 
         fmtBytes(n) {

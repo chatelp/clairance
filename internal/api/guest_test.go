@@ -351,7 +351,7 @@ func TestAGuestsPageWorksWithoutTheAddresses(t *testing.T) {
 	decode(t, g.read(g.viewer, "/api/v1/server"), &server)
 	if server.Storage.ActiveDBBytes == 0 || server.Storage.DiskFreeBytes == 0 || !server.Logging.Bounded ||
 		server.Access.Mode != "account" || server.Storage.Dir != "" || server.Logging.File != "" ||
-		!server.Storage.Archive.Found || server.Storage.Archive.Dir != "" ||
+		!server.Storage.Archive.Found || !server.Storage.Archive.Set || server.Storage.Archive.Dir != "" ||
 		server.Settings.DBArchive == nil || server.Settings.DBArchive.Dir != "" {
 		t.Errorf("the settings panel's figures as a guest reads them: %+v", server)
 	}
