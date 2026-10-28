@@ -124,7 +124,7 @@ function serverSettings() {
         },
 
         state: null,
-        draft: { log_level: 'info', db_retention_gb: 20, reference_airport: '', also_airports: [], matching: null, vitals: true },
+        draft: { log_level: 'info', db_retention_gb: 20, db_archive_dir: '', reference_airport: '', also_airports: [], matching: null, vitals: true },
         newAccount: null, // { username, password } while the first account is being typed
         busy: false,
         loading: false,
@@ -144,6 +144,7 @@ function serverSettings() {
                 this.draft = {
                     log_level: this.state.settings.log_level,
                     db_retention_gb: this.state.settings.db_retention_gb,
+                    db_archive_dir: this.archiveDirOf(this.state.settings),
                     reference_airport: this.state.settings.reference_airport,
                     also_airports: (this.state.settings.also_airports || []).slice(),
                     // A deep copy: the sector sizes are edited in place by the inputs.
@@ -188,6 +189,15 @@ function serverSettings() {
                 }
             }
 
+            // Turning the archive off means the days past the size are deleted
+            // from then on: said before it is done (D85).
+            const archiveDir = (this.draft.db_archive_dir || '').trim();
+            if (this.state && archiveDir === '' && this.archiveDirOf(this.state.settings) !== '' &&
+                !confirm('Without an archive, the databases past ' + gb + ' GB will be deleted, not archived. Continue?')) {
+                this.draft.db_archive_dir = this.archiveDirOf(this.state.settings);
+                return;
+            }
+
             this.busy = true;
             try {
                 const r = await fetch('/api/v1/server/settings', {
@@ -197,6 +207,7 @@ function serverSettings() {
                     body: JSON.stringify({
                         log_level: this.draft.log_level,
                         db_retention_gb: gb,
+                        db_archive: { dir: archiveDir },
                         reference_airport: this.draft.reference_airport,
                         // The reference airport cannot also be a further one.
                         also_airports: this.draft.also_airports.filter(c => c !== this.draft.reference_airport),
@@ -213,6 +224,7 @@ function serverSettings() {
                     this.draft.also_airports = (this.state.settings.also_airports || []).slice();
                     if (this.state.settings.matching) this.draft.matching = JSON.parse(JSON.stringify(this.state.settings.matching));
                     this.draft.vitals = this.vitalsOn(this.state.settings);
+                    this.draft.db_archive_dir = this.archiveDirOf(this.state.settings);
                     return;
                 }
                 const followed = s => [s.reference_airport].concat(s.also_airports || []).join('+');
@@ -444,6 +456,29 @@ function serverSettings() {
             this.note = msg;
             this.noteBad = bad;
             setTimeout(() => { this.note = ''; }, bad ? 8000 : 3000);
+        },
+
+        // The database archive in force (D85), "" for none.
+        archiveDirOf(settings) {
+            return (settings && settings.db_archive && settings.db_archive.dir) || '';
+        },
+
+        // What the archive is now: none, not found, or what it holds. The first
+        // two are warnings (archiveWarn): with none, what passes the size is
+        // deleted for good; not found, this disk grows.
+        archiveLine() {
+            const a = this.state && this.state.storage && this.state.storage.archive;
+            if (!a || !this.archiveDirOf(this.state.settings)) {
+                return 'No archive: the databases past ' + this.state.settings.db_retention_gb + ' GB are deleted for good.';
+            }
+            if (!a.found) return 'Archive not found: nothing is deleted until it is back, and this disk keeps growing. Is its disk plugged in?';
+            return a.files + (a.files === 1 ? ' day' : ' days') + ' archived, ' + this.fmtBytes(a.bytes) +
+                ' · ' + this.fmtBytes(a.free_bytes) + ' free on its disk.';
+        },
+
+        archiveWarn() {
+            const a = this.state && this.state.storage && this.state.storage.archive;
+            return !a || !this.archiveDirOf(this.state.settings) || !a.found;
         },
 
         fmtBytes(n) {

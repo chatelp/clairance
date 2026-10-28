@@ -850,7 +850,7 @@
                             <h3>System</h3>
                             <template x-if="state">
                                 <div class="contents">
-                                    <!-- Editable: the only two things here that change without a restart. -->
+                                    <!-- Editable: the only things here that change without a restart. -->
                                     <div class="cl-field">
                                         <span class="cl-field__label cursor-help" data-help-title="Log level"
                                               data-help="How much the server writes to its log: debug is everything, error only what went wrong. info is the usual.">Log level</span>
@@ -865,12 +865,22 @@
                                          it, today's never. -->
                                     <div class="cl-field">
                                         <span class="cl-field__label cursor-help" data-help-title="Databases kept"
-                                              data-help="A size, not a number of days: past it the oldest days leave this disk, today's never. They are copied to [storage] archive_dir first when one is set, and kept while it cannot be found; without one they are deleted. Lowering it asks first.">Keep databases up to</span>
+                                              data-help="A size, not a number of days: past it the oldest days leave this disk, today's never. They are copied to the archive below first when one is set, and kept while it cannot be found; without one they are deleted. Lowering it asks first.">Keep databases up to</span>
                                         <span class="cl-row">
                                             <input type="number" min="1" max="1000" step="1" class="cl-input text-right" style="width: 72px;" aria-label="Gigabytes"
                                                    x-model.number="draft.db_retention_gb" @change="save()">
                                             <span class="cl-age">GB</span>
                                         </span>
+                                    </div>
+                                    <!-- The database archive (28/10, D85): where a day goes before it
+                                         leaves this disk. Checked by the server when it changes. -->
+                                    <div class="cl-field max-md:grid-cols-1">
+                                        <span class="cl-field__label cursor-help" data-help-title="Database archive"
+                                              data-help="Where a day goes before it leaves this disk: copied there, compressed and checked against the original, then deleted here. An absolute path to an existing folder the server can write, outside the databases' own, usually on an external disk; the server never creates it. While it cannot be found nothing is deleted, and this disk keeps growing. Empty: no archive, the days past the size are deleted.">Archive old databases to</span>
+                                        <input type="text" class="cl-input" style="width: 22rem; max-width: 100%;" aria-label="Archive folder"
+                                               placeholder="none: deleted past the size" autocomplete="off" autocapitalize="none" spellcheck="false"
+                                               x-model="draft.db_archive_dir" @change="save()">
+                                        <span class="whitespace-normal" style="grid-column: 1 / -1;" :class="archiveWarn() ? 'cl-light cl-light--warn' : 'cl-field__help'" role="status" x-text="archiveLine()"></span>
                                     </div>
                                 </div>
                             </template>
