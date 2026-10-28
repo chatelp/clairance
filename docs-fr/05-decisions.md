@@ -5028,6 +5028,18 @@ journal. Fait le 28/10 (deux commits « the database archive is set from the set
 folder in Settings > System »), vérifié dans Chrome sur l'instance d'essai ; en production à la prochaine
 relance.
 
+**Complément du 28/10, 18:15 — choisir le dossier sans taper son chemin** (demande du propriétaire : « un
+bouton pour ouvrir la fenêtre système »). Une page ne peut pas ouvrir le sélecteur du système pour le
+serveur : le navigateur ne donne pas de chemin, et la page tourne souvent sur une autre machine. Choix
+du propriétaire : un sélecteur **dans la page**, qui parcourt les dossiers du serveur
+(`GET /api/v1/server/folders`, admin seul, lecture seule : dossiers seulement, jamais les fichiers ni les
+cachés, 500 au plus triés puis coupés). Le champ reste : un chemin peut toujours se taper. Le serveur dit
+de chaque dossier s'il peut être choisi, et sinon pourquoi (celui des bases ou l'un des siens ; un dossier
+qu'il ne peut pas écrire) ; choisir enregistre comme un chemin tapé, que le serveur revérifie. Maquette et
+fiche FolderPicker de la session design, validées par le propriétaire. Fait le 28/10 (19c5b1a, 3a3e9d6
+pour la route ; f18cda3 pour la page), vérifié dans Chrome sur l'instance d'essai ; en production à la
+prochaine relance.
+
 ### D84 — Un suivi d'usage par compte, pour le propriétaire *(27/10)*
 
 > **Décision du propriétaire, 27/10**, après la première écoute de l'invité : « il y a moyen de
