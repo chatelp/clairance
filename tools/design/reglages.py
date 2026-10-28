@@ -212,7 +212,7 @@ def folder_picker(state='open'):
         rows = [('bases', ''), ('exports', ''), ('Old Mac', 'read only')]
         foot = ('<span class="cl-plain">1.8 TB free on Archive.</span>'
                 '<span class="cl-row"><button class="cl-btn cl-btn--quiet">Cancel</button><button class="cl-btn cl-btn--primary">Choose this folder</button></span>')
-    places = ''.join(f'<button class="cl-folder__place" aria-current="{str(n == here).lower()}">{g}{n}' + (f' <span class="cl-folder__free">· {f}</span>' if f else '') + '</button>'
+    places = ''.join(f'<button class="cl-folder__place" aria-current="{str(n == here).lower()}">{g}{n}' + (f' <span class="cl-folder__free">{f}</span>' if f else '') + '</button>'
                      for n, g, f in PLACES)
     crumbs = []
     for i, part in enumerate(path):
