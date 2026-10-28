@@ -100,7 +100,7 @@ It works on a phone too, through the same page.
 
 ### Open it to a friend
 
-- **Accounts, managed from the page.** In *Settings → Account → Accounts* the admin adds an
+- **Accounts, managed from the page.** In *Settings → Access* the admin adds an
   account, admin or viewer, gives one a new password, cuts one off — its pages and its sound
   stop within the second — or removes it, while the server runs. A viewer reads the thread,
   the map and the transcripts, changes nothing, and hears the audio only if the server allows
@@ -233,7 +233,7 @@ Optional, once:
   runways, taxiways and aprons around your station (OpenStreetMap, ODbL). The file belongs to
   your station and is not built in: it is written to `station/` in the data directory
   (`[storage] sqlite_base_path`), from where the server serves it to the map.
-- In *Settings → Regional data*, **Update from the SIA** fetches the official names and the
+- In *Settings → Listening*, **Update from the SIA** fetches the official names and the
   published procedures of the French airports you follow.
 - `tools/menubar/` builds **Clairance.app**, a menu-bar launcher that starts and stops
   your installation's own production script and shows every instance running. On macOS,
@@ -366,7 +366,7 @@ do not forward ports 8001–8004: through the proxy, everything goes through the
   sound stop within the second; the password is kept. Give a new password, or *Remove* the
   account, to keep them out. Nothing to restart.
 - **To see who came**: the sign-in trace (`signins.jsonl` beside the accounts, or
-  `/api/v1/signins` signed in as the owner), and *Settings → Account → Usage* for what each
+  `/api/v1/signins` signed in as the owner), and *Settings → Usage* for what each
   account did (`usage.jsonl`, `[auth] usage_days = 30`, 0 keeps none).
 - **To watch it from outside**, point an uptime probe at `/api/v1/health` through the public
   address and look for `"status":true`: it answers without sign-in, true while the server runs

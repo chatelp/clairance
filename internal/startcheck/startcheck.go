@@ -209,7 +209,7 @@ func (c *check) databases(retentionGB float64, archiveDir string) {
 		if info, err := os.Stat(a); err != nil || !info.IsDir() {
 			c.missing(Missing{Kind: "directory", What: "the database archive", Path: absolute(a),
 				Effect: "the days past the retention are kept, not deleted, until it is back: the databases grow past db_retention_gb",
-				Level:  LevelWarn, Hint: "an external disk may be unplugged; or change the archive in Settings > System, or empty it to delete them as before"})
+				Level:  LevelWarn, Hint: "an external disk may be unplugged; or change the archive in Settings > Server, or empty it to delete them as before"})
 		}
 	}
 	headroom := int64(retentionGB*(1<<30)) - used
