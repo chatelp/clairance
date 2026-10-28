@@ -531,7 +531,7 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
 .cl-page__section > :not(.cl-grid2) { max-width: 592px; }
 /* lists of cards (accounts, usage, reports) take the page's width, in two columns from 1 024 px */
 .cl-page__section--wide { max-width: none; }
-.cl-grid2 { display: grid; grid-template-columns: 1fr; gap: var(--space-3); }
+.cl-grid2 { display: grid; grid-template-columns: 1fr; gap: var(--space-3); align-items: start; } /* each card its own height: a short one is not stretched hollow beside a long one */
 @media (min-width: 1024px) { .cl-grid2 { grid-template-columns: 1fr 1fr; } }
 .cl-grid2 > .cl-card { min-width: 0; }
 /* a value read, not set (a viewer's Listening): plain text where the control would be */
