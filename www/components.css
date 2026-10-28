@@ -585,6 +585,47 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
   .cl-page__back { display: flex; align-items: center; gap: var(--space-1); min-height: 44px; padding: 0 var(--space-3); border-bottom: var(--border-width-default) solid var(--color-border-default); }
   .cl-page__pagehead, .cl-page__section { padding-left: var(--space-4); padding-right: var(--space-4); }
 }
+/* ------------------------------------------------------------ FolderPicker
+   The server machine's folders, browsed from the page to choose the database archive (owner, 28/10):
+   a panel that unfolds under its field, never a second window. Folders only, never a file. */
+.cl-folder { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); background: var(--color-surface-panel); border: var(--border-width-default) solid var(--color-border-default); border-radius: var(--radius-lg); }
+/* the path, typed or chosen with "Choose…": the field and its button on one line */
+.cl-pathfield { display: flex; align-items: center; gap: var(--space-1-5); width: 380px; max-width: 100%; }
+.cl-pathfield > .cl-input { flex: 1; min-width: 0; }
+/* where to start: the disks with their room, then the home folder */
+.cl-folder__places { display: flex; flex-wrap: wrap; gap: var(--space-1-5); }
+.cl-folder__place { display: inline-flex; align-items: center; gap: var(--space-1-5); height: var(--size-control-desk); padding: 0 var(--space-2); border: var(--border-width-default) solid var(--color-border-control); border-radius: var(--radius-md); font-size: var(--font-size-small); color: var(--color-text-primary); cursor: pointer; }
+.cl-folder__place svg { width: 14px; height: 14px; flex: none; color: var(--color-text-secondary); }
+.cl-folder__place[aria-current="true"] { border-color: var(--color-accent-default); background: var(--color-surface-selected); }
+.cl-folder__free { color: var(--color-text-tertiary); }
+/* the open folder's path, each part a way back up */
+.cl-folder__crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-0-5); font-size: var(--font-size-small); line-height: var(--font-line-height-small); }
+.cl-folder__crumbs button { padding: 0 var(--space-1); border-radius: var(--radius-sm); color: var(--color-text-secondary); cursor: pointer; }
+.cl-folder__crumbs [aria-current="location"] { color: var(--color-text-primary); font-weight: var(--font-weight-strong); }
+.cl-folder__sep { color: var(--color-text-tertiary); }
+/* the folders inside: a click opens one; six rows, then the list scrolls */
+.cl-folder__list { list-style: none; margin: 0; padding: 0; max-height: calc(6 * 32px + 2px); overflow-y: auto; background: var(--color-surface-page); border: var(--border-width-default) solid var(--color-border-subtle); border-radius: var(--radius-md); }
+.cl-folder__row { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 32px; padding: 0 var(--space-2); text-align: left; font-size: var(--font-size-body); color: var(--color-text-primary); cursor: pointer; border-bottom: var(--border-width-default) solid var(--color-border-subtle); }
+.cl-folder__list li:last-child .cl-folder__row { border-bottom: 0; }
+@media (hover: hover) { .cl-folder__row:hover { background: var(--color-surface-hover); } }
+.cl-folder__row svg { width: 16px; height: 16px; flex: none; color: var(--color-text-secondary); }
+.cl-folder__row::after { content: "›"; margin-left: auto; color: var(--color-text-tertiary); }
+/* why a folder cannot be chosen, in words, before its chevron: it can still be opened */
+.cl-folder__note { margin-left: auto; font-size: var(--font-size-caption); color: var(--color-text-tertiary); }
+.cl-folder__row:has(.cl-folder__note)::after { margin-left: var(--space-2); }
+.cl-folder__empty { padding: var(--space-3) var(--space-2); font-size: var(--font-size-small); color: var(--color-text-secondary); }
+/* what choosing the open folder means, then Cancel and Choose this folder */
+.cl-folder__foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.cl-folder__foot > .cl-row:last-child { margin-left: auto; }
+@media (max-width: 767px) {
+  .cl-pathfield { width: 100%; }
+  .cl-folder { padding: var(--space-2); }
+  .cl-folder__place { height: var(--size-control-touch); }
+  .cl-folder__crumbs button { min-height: var(--size-target-touch); }
+  .cl-folder__row { min-height: var(--size-row-desk); }
+  .cl-folder__list { max-height: calc(6 * var(--size-row-desk) + 2px); }
+  .cl-folder__foot > .cl-row:last-child { margin-left: 0; width: 100%; justify-content: flex-end; }
+}
 .cl-field { display: grid; grid-template-columns: 1fr auto; gap: var(--space-1) var(--space-4); align-items: center; }
 .cl-field__label { font-size: var(--font-size-body); line-height: var(--font-line-height-body); color: var(--color-text-primary); }
 .cl-field__help { grid-column: 1 / -1; font-size: var(--font-size-small); line-height: var(--font-line-height-small); color: var(--color-text-secondary); }
