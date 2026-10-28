@@ -71,14 +71,16 @@ function usageInterruptionLine(i) {
 // says on hover.
 const USAGE_DAY = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 function usageBars(days) {
-    const max = Math.max(1, ...days.map((d) => d.connected_s));
+    // Against the busiest day, whichever is longer, and never past the box.
+    const max = Math.max(1, ...days.map((d) => Math.max(d.connected_s, d.listening_s)));
+    const pct = (s) => Math.min(100, Math.round((s / max) * 100));
     return days.map((d) => {
         const date = new Date(d.date + 'T12:00:00');
         return {
             date: d.date,
             label: USAGE_DAY[date.getDay()],
-            connected: Math.round((d.connected_s / max) * 100),
-            listening: Math.round((d.listening_s / max) * 100),
+            connected: pct(d.connected_s),
+            listening: pct(d.listening_s),
             title: `${d.date.slice(8)}/${d.date.slice(5, 7)}: connected ${usageDuration(d.connected_s)}, listened ${usageDuration(d.listening_s)}` +
                 (d.clips ? `, ${d.clips} clip${d.clips > 1 ? 's' : ''}` : ''),
         };

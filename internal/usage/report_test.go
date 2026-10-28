@@ -127,3 +127,31 @@ func TestTheReportFindsTheInterruptions(t *testing.T) {
 		t.Errorf("the page lost and back: %+v", lostPage)
 	}
 }
+
+// A sound that plays on after its page's live connection broke is still being
+// there: listening never comes out longer than connected (27-28/10, 12 h of
+// sound against 56 min of pages, bars drawn at 1 300 %).
+func TestListeningIsNeverLongerThanConnected(t *testing.T) {
+	c := &clock{at("2026-10-27 20:40:00")}
+	j := opened(t, "", 30, c)
+	p := j.Begin("ami", KindPage, "")
+	s := j.Begin("ami", KindSound, "124350")
+	c.add(20 * time.Minute)
+	p.End(EndLost, 0) // 21:00, the page's connection lost...
+	c.add(3 * time.Hour)
+	s.End(EndStopped, 0) // ...its sound playing on until midnight
+	c.add(time.Minute)
+
+	acc := j.Report(paris).Accounts[0]
+	if acc.Week.Connected != acc.Week.Listening || acc.Week.Listening != (20+180)*60 {
+		t.Errorf("connected %d s, listening %d s, want both %d", acc.Week.Connected, acc.Week.Listening, (20+180)*60)
+	}
+	for _, d := range acc.Days {
+		if d.Listening > d.Connected {
+			t.Errorf("%s: listening %d s past connected %d s", d.Date, d.Listening, d.Connected)
+		}
+	}
+	if !acc.LastSeen.Equal(at("2026-10-28 00:00:00").UTC()) {
+		t.Errorf("last seen %v, want the end of the sound", acc.LastSeen)
+	}
+}

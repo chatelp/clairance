@@ -51,3 +51,11 @@ test('a bar a day, against the busiest day', () => {
     assert.equal(bars[1].title, '27/10: connected 20 min, listened 20 min, 2 clips');
     assert.equal(usageBars([{ date: '2026-10-25', connected_s: 0, listening_s: 0 }])[0].connected, 0);
 });
+
+test('a bar never leaves its box, even when the sound outlasted the page', () => {
+    const bars = usageBars([
+        { date: '2026-10-27', connected_s: 3360, listening_s: 43380 },
+        { date: '2026-10-28', connected_s: 600, listening_s: 0 },
+    ]);
+    assert.deepEqual(bars.map((b) => [b.connected, b.listening]), [[8, 100], [1, 0]]);
+});

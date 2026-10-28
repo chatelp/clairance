@@ -156,6 +156,10 @@ func build(done, open []Record, now time.Time, loc *time.Location, days int) Rep
 
 	for user, recs := range byUser {
 		acc := Account{User: user, Week: Totals{ByFreq: map[string]int64{}}, Interruptions: []Interruption{}}
+		// Connected is a page open or a sound playing: a page whose live
+		// connection broke can go on playing for hours (27-28/10, 12 h of
+		// sound after its WebSocket was lost at 21:02), and listening must not
+		// come out longer than being there.
 		var pages, sound []span
 		perFreq := map[string][]span{}
 		for _, r := range recs {
@@ -163,12 +167,15 @@ func build(done, open []Record, now time.Time, loc *time.Location, days int) Rep
 			switch r.Kind {
 			case KindPage:
 				pages = append(pages, s)
-				if r.End.After(acc.LastSeen) {
-					acc.LastSeen = r.End
-				}
 			case KindSound:
+				pages = append(pages, s)
 				sound = append(sound, s)
 				perFreq[r.Freq] = append(perFreq[r.Freq], s)
+			default:
+				continue
+			}
+			if r.End.After(acc.LastSeen) {
+				acc.LastSeen = r.End
 			}
 		}
 		pages, sound = union(pages), union(sound)
