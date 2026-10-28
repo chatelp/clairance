@@ -58,7 +58,7 @@ flowchart LR
 
 ## Gérer les comptes depuis la page
 
-Réglages › Account › **Accounts**, visible du seul admin (D83, en production depuis le 27/10 à
+Réglages › Administration › **Access**, partie *Accounts*, visible du seul admin (D83, en production depuis le 27/10 à
 15:37). Pour chaque compte : son rôle, ses sessions ouvertes, sa dernière activité, sa dernière
 connexion et d'où.
 
@@ -92,7 +92,7 @@ configuration, pour un serveur qu'on prépare avant de l'ouvrir.
 - **La trace des connexions** : chaque connexion, refusée ou non, et chaque déconnexion, avec
   l'adresse du client, son navigateur et l'heure, plus chaque changement fait depuis le panneau
   et par qui (`configs/signins.jsonl`, deux fichiers de 1 Mo au plus ; `GET /api/v1/signins`).
-- **L'usage par compte** (D84, en production depuis le 27/10 à 20:13), Réglages › Account ›
+- **L'usage par compte** (D84, en production depuis le 27/10 à 20:13), Réglages › Administration ›
   **Usage** :
   - *Now* : qui a une page ouverte et quelles fréquences il entend, rafraîchi toutes les 15 s ;
   - par compte, sur 7 jours : temps connecté, temps d'écoute par fréquence (deux onglets comptés
@@ -132,7 +132,7 @@ Mesuré le 27/10 :
 ## Pas à pas
 
 **Ouvrir l'accès à un invité**
-1. Réglages › Account › Accounts › *Add an account* : son nom, un mot de passe de 10 caractères
+1. Réglages › Administration › Access › *Add an account* : son nom, un mot de passe de 10 caractères
    au moins, rôle *viewer*.
 2. Lui transmettre l'adresse publique, son nom et son mot de passe.
 3. Pour qu'il entende le son : `audio_replay = "all"` dans `[server]`, puis une relance (global,

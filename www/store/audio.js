@@ -322,7 +322,9 @@
             const freq = this.audioFrequencies.find(f => String(f.id) === String(frequency_id));
             const label = (freq && freq.name) || frequency_id;
             if (status === 'failed' && was !== 'failed') {
-                Alpine.store('events')?.add({ kind: 'stream', text: `${label}: audio stream lost` + (error ? ` (${error})` : '') });
+                // What happened, in words; the technical reason to the console (design, 28/10).
+                if (error) console.warn(`${label}: audio stream lost:`, error);
+                Alpine.store('events')?.add({ kind: 'stream', text: `${label}: audio stream lost.` });
             } else if (status === 'connected' && was === 'failed') {
                 Alpine.store('events')?.add({ kind: 'stream', text: `${label}: audio stream back` });
             }

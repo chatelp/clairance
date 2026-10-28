@@ -133,6 +133,15 @@ type Server struct {
 	refused     map[string]bool // origins already logged
 
 	presence atomic.Pointer[Presence]
+
+	// What every heartbeat carries: the page's version and the server's
+	// (D87, the page's notice of an update). Empty until SetHeartbeat.
+	heartbeat atomic.Pointer[map[string]interface{}]
+}
+
+// SetHeartbeat sets what every heartbeat carries.
+func (s *Server) SetHeartbeat(data map[string]interface{}) {
+	s.heartbeat.Store(&data)
 }
 
 // Presence is told of each client opened by a signed-in account, by its tag,
@@ -220,7 +229,11 @@ func (s *Server) Run() {
 	s.logger.Info("Starting WebSocket server")
 	go func(every time.Duration) {
 		for range time.Tick(every) {
-			s.Broadcast(&Message{Type: MessageTypeHeartbeat, Data: map[string]interface{}{}})
+			data := map[string]interface{}{}
+			if d := s.heartbeat.Load(); d != nil {
+				data = *d
+			}
+			s.Broadcast(&Message{Type: MessageTypeHeartbeat, Data: data})
 		}
 	}(heartbeatPeriod)
 

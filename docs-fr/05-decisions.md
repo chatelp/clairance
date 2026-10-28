@@ -4925,6 +4925,32 @@ système de design : la séquence d'arrivée calculée dans le store pour tous l
 (la PAR la relit), les gabarits français des consignes, puis la migration elle-même
 (`04-migration.md`).
 
+### D87 — Un avis quand une nouvelle version est prête, et les nouveautés *(28/10)*
+
+> **Demande du propriétaire, 28/10** : « si on met à jour le back ou le front, il y ait un popup qui informe
+> l'utilisateur des nouveautés (sans jargon), voire qui l'incite à rafraîchir la page si son front est en
+> retard » ; présentation demandée à la session design, puis « je valide la proposition ».
+
+Ce qui est décidé (maquette de la session design, fiche Notices : Notice) :
+
+- **Une page en retard sur le serveur est invitée à recharger**, jamais rechargée d'office : une carte
+  « Clairance has been updated » en haut à droite, Reload et Later ; si une fréquence joue, la carte dit que
+  le son s'arrête un instant et qu'un clic le relance. Après Later, un bouton « New version » reste dans la
+  barre du haut ; la carte ne revient que pour une version plus récente.
+- **On compare la page, pas le serveur** : le serveur calcule au démarrage une empreinte de la page qu'il
+  sert (chemins et octets de ses fichiers) et l'annonce dans `/api/v1/version` et dans le signe de vie
+  WebSocket (toutes les 15 s) ; un serveur neuf avec la même page ne demande pas de recharger. La date du
+  commit du serveur et le commit (admin seul) ne servent qu'à l'affichage.
+- **Les nouveautés** : `www/news.json`, des lignes en mots d'auditeur (90 caractères au plus, au présent,
+  aucun mot de l'intérieur ; une correction s'écrit comme le nouveau comportement), écrites à chaque mise en
+  production qui change l'écran ; montrées une fois par compte et par navigateur (localStorage).
+- **Réglages › About Clairance**, pour tous : la version de la page et celle du serveur, Reload si la page
+  est en retard, puis toutes les nouveautés.
+- Un seul avis à la fois ; aucun par-dessus le bandeau de connexion perdue, les réglages ou la connexion.
+
+**Fait le 28/10** (fd79a1c, 1153a02, 2041ccd), vérifié de bout en bout sur l'instance d'essai, relu par la
+session design ; **en production depuis le 28/10 à 13:38** (relance 11).
+
 ### D86 — Les réglages en pages groupées, mis en forme par l'agent design *(28/10)*
 
 > **Décision du propriétaire, 28/10**, sur l'analyse `38-reglages-analyse.md` : « des settings multi-pages,

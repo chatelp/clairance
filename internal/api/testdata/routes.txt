@@ -35,6 +35,7 @@ GET /api/v1/transcriptions/speaker/{type} (*Handler).GetTranscriptionsBySpeaker 
 GET /api/v1/transcriptions/time-range (*Handler).GetTranscriptionsByTimeRange locked
 GET /api/v1/transcriptions/{id}/audio (*Handler).GetTranscriptionAudio locked
 GET /api/v1/usage (*Handler).GetUsage locked
+GET /api/v1/version (*Handler).GetVersion locked
 GET /api/v1/vitals (*Handler).GetVitals open
 GET /api/v1/ws (*Handler).HandleWebSocket locked
 GET /api/v1/wx (*Handler).GetWeatherData locked

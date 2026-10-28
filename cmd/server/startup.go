@@ -392,6 +392,10 @@ func buildRouter(cfg *config.Config, adsbService *adsb.Service, frequenciesServi
 	router := api.NewRouter(adsbService, frequenciesService, weatherService, refService, cfg, log, wsServer, store.transcriptions, store.clearances)
 	router.Handler().AttachRuntime(runtimeSettings, store.aircraft.GetDB(), sttSidecar)
 	router.Handler().SetBuild(version, commit)
+	// The page's fingerprint and the date of the server's version: read by
+	// the page at load, then in every heartbeat (D87).
+	router.Handler().SetVersions(api.PageVersion(cfg), builtAt)
+	wsServer.SetHeartbeat(router.Handler().Versions())
 	// Which page the browser gets: the binary's own, or a directory's.
 	if page := api.PageOf(cfg); page.Source == "embedded" {
 		log.Info(fmt.Sprintf("Page: embedded (commit %s)", commit))
