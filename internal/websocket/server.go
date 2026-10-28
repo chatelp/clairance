@@ -28,6 +28,7 @@ const (
 	MessageTypeFrequencyStatus        = "frequency_status"       // Frequency connection status changes
 	MessageTypeFrequenciesChanged     = "frequencies_changed"    // A source was added or removed while running
 	MessageTypeFrequencyActivity      = "frequency_activity"     // Someone is speaking on a frequency, and the level
+	MessageTypeHeartbeat              = "heartbeat"              // Sent every heartbeatPeriod: the page's proof that its connection lives
 )
 
 // Deadlines on the connection. A client that stops reading -- a phone put to
@@ -41,6 +42,14 @@ const (
 	pongWait   = 60 * time.Second
 	pingPeriod = pongWait / 2
 )
+
+// heartbeatPeriod is how often every page is sent a heartbeat, whatever else
+// happens. A page learns that its connection died only when it is closed, and
+// one the server closed behind a proxy may never hear it: on 27/10 a page lost
+// its connection at 21:02, played its sound all night, and never tried to
+// reconnect. With a heartbeat it can tell silence from a quiet sky
+// (www/websocket-client.js, silenceLimitMs).
+var heartbeatPeriod = 15 * time.Second
 
 // maxMessageBytes bounds one message from a client. gorilla reads a whole
 // message into memory and sets no bound of its own: a signed-in client
@@ -209,6 +218,11 @@ func (s *Server) SetMessageHandler(handler MessageHandler) {
 // Run starts the WebSocket server
 func (s *Server) Run() {
 	s.logger.Info("Starting WebSocket server")
+	go func(every time.Duration) {
+		for range time.Tick(every) {
+			s.Broadcast(&Message{Type: MessageTypeHeartbeat, Data: map[string]interface{}{}})
+		}
+	}(heartbeatPeriod)
 
 	for {
 		select {
