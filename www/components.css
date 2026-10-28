@@ -499,49 +499,70 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
 .cl-parview .cl-parframe.is-in-use { border-color: var(--color-accent-default); }
 .cl-parview .cl-table { margin-top: var(--space-2); }
 
-/* ------------------------------------------------------------ Page (settings): over the screen, one column */
-.cl-page { position: absolute; inset: 0; z-index: var(--z-page); background: var(--color-scrim); display: flex; justify-content: center; }
-.cl-page__inner { width: 100%; max-width: 900px; height: 100%; display: grid; grid-template-columns: 200px 1fr; background: var(--color-surface-page); border-left: var(--border-width-default) solid var(--color-border-default); border-right: var(--border-width-default) solid var(--color-border-default); }
-.cl-page__nav { padding: var(--space-6) var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); border-right: var(--border-width-default) solid var(--color-border-default); }
-.cl-page__nav a { color: var(--color-text-secondary); text-decoration: none; font-size: var(--font-size-small); padding: var(--space-1) var(--space-2); border-radius: var(--radius-md); }
-.cl-page__nav a[aria-current="true"] { background: var(--color-surface-selected); color: var(--color-accent-strong); }
-.cl-page__body { overflow: hidden; display: flex; flex-direction: column; }
-.cl-page__head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-6); border-bottom: var(--border-width-default) solid var(--color-border-default); }
-.cl-page__title { margin: 0; font-size: var(--font-size-display); line-height: var(--font-line-height-display); font-weight: var(--font-weight-strong); }
-.cl-page__section { padding: var(--space-4) var(--space-6); display: flex; flex-direction: column; gap: var(--space-3); border-bottom: var(--border-width-default) solid var(--color-border-subtle); max-width: 640px; }
-.cl-page__section h3 { margin: 0; font-size: var(--font-size-title); line-height: var(--font-line-height-title); font-weight: var(--font-weight-strong); }
-/* SettingsPage in pages (D86, 28/10): a grouped nav, one page at a time, a wider page whose fields keep their reading width */
-.cl-page__inner { max-width: 1080px; grid-template-columns: 220px 1fr; }
-.cl-page__nav { gap: var(--space-4); overflow-y: auto; }
-.cl-page__group { display: flex; flex-direction: column; gap: var(--space-0-5); }
-.cl-page__group > .cl-label { padding: 0 var(--space-2); margin-bottom: var(--space-1); }
-.cl-page__nav a { display: flex; align-items: center; gap: var(--space-2); }
+/* ------------------------------------------------------------ Page (settings)
+   One page at a time, grouped (D86, 28/10). From 768 px a window over the application, which stays in
+   sight behind a veil, its pages in a row of tabs, a glyph over the label (owner, 28/10); under 768 px
+   the whole screen, the list of pages then a page with "‹ Settings". One markup for both. */
+.cl-page { position: absolute; inset: 0; z-index: var(--z-page); background: var(--color-scrim); }
+.cl-page__inner { width: 100%; height: 100%; background: var(--color-surface-page); }
+.cl-page__nav { display: flex; }
+.cl-page__group { display: flex; }
+.cl-page__nav a { display: flex; align-items: center; color: var(--color-text-secondary); text-decoration: none; border-radius: var(--radius-md); }
 .cl-page__nav a:hover { color: var(--color-text-primary); background: var(--color-surface-hover); }
-.cl-page__nav a[aria-current="true"]:hover { background: var(--color-surface-selected); color: var(--color-accent-strong); }
+.cl-page__nav a[aria-current="true"], .cl-page__nav a[aria-current="true"]:hover { background: var(--color-surface-selected); color: var(--color-accent-strong); }
+/* each page's glyph: the interface glyphs' 16 grid drawn at 20 px, its stroke kept at 1.5 px */
+.cl-page__glyph { width: 20px; height: 20px; flex: none; }
+.cl-page__glyph * { vector-effect: non-scaling-stroke; }
 /* a page that needs a look carries the status lights' shape, never a colour alone */
-.cl-page__mark { margin-left: auto; font-size: var(--font-size-caption); line-height: 1; }
+.cl-page__mark { font-size: var(--font-size-caption); line-height: 1; }
 .cl-page__mark.is-warn { color: var(--color-status-warn); }
 .cl-page__mark.is-bad { color: var(--color-status-urgent); }
-.cl-page__scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.cl-page__body { display: flex; flex-direction: column; min-height: 0; }
+.cl-page__head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-6); border-bottom: var(--border-width-default) solid var(--color-border-default); }
+.cl-page__title { margin: 0; font-size: var(--font-size-display); line-height: var(--font-line-height-display); font-weight: var(--font-weight-strong); }
+.cl-page__scroll { flex: 1; min-height: 0; overflow-y: auto; container-type: inline-size; }
 .cl-page__pagehead { padding: var(--space-6) var(--space-6) var(--space-2); max-width: 640px; }
-.cl-page__pagetitle { margin: 0; font-size: var(--font-size-title); line-height: var(--font-line-height-title); font-weight: var(--font-weight-strong); }
+/* the page's group, above its title: who the page concerns (This browser, Station, Administration) */
+.cl-page__eyebrow { display: block; margin-bottom: var(--space-0-5); }
+.cl-page__pagetitle { margin: 0; font-size: var(--font-size-display); line-height: var(--font-line-height-display); font-weight: var(--font-weight-strong); }
 .cl-page__lede { margin: var(--space-1) 0 0; font-size: var(--font-size-small); line-height: var(--font-line-height-small); color: var(--color-text-secondary); }
+.cl-page__section { padding: var(--space-4) var(--space-6); display: flex; flex-direction: column; gap: var(--space-3); border-bottom: var(--border-width-default) solid var(--color-border-subtle); }
 .cl-page__section:last-child { border-bottom: 0; }
+.cl-page__section h3 { margin: 0; font-size: var(--font-size-title); line-height: var(--font-line-height-title); font-weight: var(--font-weight-strong); }
 /* the rule between sections runs the page's width; the fields keep 592 px of reading width */
-.cl-page__section { max-width: none; }
 .cl-page__section > :not(.cl-grid2) { max-width: 592px; }
-/* lists of cards (accounts, usage, reports) take the page's width, in two columns from 1 024 px */
-.cl-page__section--wide { max-width: none; }
+/* lists of cards (accounts, usage, reports) take the page's width, in two columns when it has 640 px */
 .cl-grid2 { display: grid; grid-template-columns: 1fr; gap: var(--space-3); align-items: start; } /* each card its own height: a short one is not stretched hollow beside a long one */
-@media (min-width: 1024px) { .cl-grid2 { grid-template-columns: 1fr 1fr; } }
+@container (min-width: 640px) { .cl-grid2 { grid-template-columns: 1fr 1fr; } }
 .cl-grid2 > .cl-card { min-width: 0; }
 /* a value read, not set (a viewer's Listening): plain text where the control would be */
 .cl-field__value { font-size: var(--font-size-body); line-height: var(--font-line-height-body); color: var(--color-text-secondary); text-align: right; }
 .cl-field--text .cl-field__value { text-align: left; }
 .cl-page__back { display: none; }
+/* computer: a window of fixed size, centred, never closer than 24 px to the screen's edges */
+@media (min-width: 768px) {
+  .cl-page { display: grid; place-items: center; padding: var(--space-6); }
+  .cl-page__inner { width: clamp(720px, 60vw, 880px); max-width: calc(100vw - 2 * var(--space-6)); height: clamp(520px, 84vh, 800px); max-height: calc(100dvh - 2 * var(--space-6));
+    display: flex; flex-direction: column; overflow: hidden;
+    border: var(--border-width-default) solid var(--color-border-default); border-radius: var(--radius-lg); box-shadow: var(--shadow-overlay); }
+  /* the head (title, light, close), then the tabs, then the page: the body's parts join the window's column */
+  .cl-page__body { display: contents; }
+  .cl-page__head { order: -2; min-height: var(--size-bar); padding: var(--space-2) var(--space-3) 0 var(--space-6); border-bottom: 0; background: var(--color-surface-panel); }
+  .cl-page__title { font-size: var(--font-size-title); line-height: var(--font-line-height-title); }
+  .cl-page__nav { order: -1; flex: none; align-items: stretch; padding: var(--space-1) var(--space-4) var(--space-2); background: var(--color-surface-panel); border-bottom: var(--border-width-default) solid var(--color-border-default); overflow-x: auto; }
+  .cl-page__group { gap: var(--space-0-5); }
+  /* the groups' names leave the row for the page's eyebrow; a rule keeps them apart, the name stays for a screen reader (aria-labelledby) */
+  .cl-page__group > .cl-label { display: none; }
+  .cl-page__group + .cl-page__group { margin-left: var(--space-2); padding-left: var(--space-2); border-left: var(--border-width-default) solid var(--color-border-default); }
+  .cl-page__nav a { position: relative; flex-direction: column; justify-content: center; gap: var(--space-1); min-width: 64px; padding: var(--space-1-5) var(--space-2) var(--space-1);
+    font-size: var(--font-size-caption); line-height: var(--font-line-height-caption); white-space: nowrap; }
+  /* the mark sits on the glyph's upper right corner, like a badge */
+  .cl-page__mark { position: absolute; top: var(--space-1); left: calc(50% + 8px); }
+  .cl-page__scroll { order: 1; }
+}
 /* phone: the list of pages, then a page with "‹ Settings" */
 @media (max-width: 767px) {
-  .cl-page__inner { max-width: none; grid-template-columns: 1fr; border: 0; }
+  .cl-page__inner { display: grid; grid-template-columns: 1fr; }
   /* one markup, two states: the list (the title, the close, the pages), then a page ("‹ Settings" for its head) */
   .cl-page__inner.is-list { grid-template-rows: auto 1fr; align-content: start; }
   .cl-page__inner.is-detail { grid-template-rows: 1fr; }
@@ -550,11 +571,14 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
   .cl-page__inner.is-list .cl-page__head > .cl-light, .cl-page__inner.is-list .cl-page__head .cl-btn--quiet { display: none; }
   .cl-page__inner.is-list .cl-page__scroll, .cl-page__inner.is-list .cl-page__back,
   .cl-page__inner.is-detail > .cl-page__nav, .cl-page__inner.is-detail .cl-page__head { display: none; }
-  .cl-page__nav { border-right: 0; padding: var(--space-3) 0; }
-  .cl-page__group > .cl-label { padding: 0 var(--space-4); }
-  .cl-page__nav a { min-height: 44px; padding: 0 var(--space-4); border-radius: 0; font-size: var(--font-size-body); color: var(--color-text-primary); border-bottom: var(--border-width-default) solid var(--color-border-subtle); }
-  .cl-page__nav a::after { content: "›"; color: var(--color-text-tertiary); margin-left: auto; }
+  .cl-page__nav { flex-direction: column; gap: var(--space-4); padding: var(--space-3) 0; overflow-y: auto; }
+  .cl-page__group { flex-direction: column; }
+  .cl-page__group > .cl-label { padding: 0 var(--space-4); margin-bottom: var(--space-1); }
+  .cl-page__nav a { gap: var(--space-3); min-height: 44px; padding: 0 var(--space-4); border-radius: 0; font-size: var(--font-size-body); color: var(--color-text-primary); border-bottom: var(--border-width-default) solid var(--color-border-subtle); }
+  .cl-page__nav a .cl-page__glyph { color: var(--color-text-secondary); }
   /* a page's mark sits right before the chevron */
+  .cl-page__mark { margin-left: auto; }
+  .cl-page__nav a::after { content: "›"; color: var(--color-text-tertiary); margin-left: auto; }
   .cl-page__nav a:has(.cl-page__mark)::after { margin-left: var(--space-2); }
   .cl-page__nav a[aria-current="true"] { background: none; color: var(--color-text-primary); }
   .cl-page__back { display: flex; align-items: center; gap: var(--space-1); min-height: 44px; padding: 0 var(--space-3); border-bottom: var(--border-width-default) solid var(--color-border-default); }

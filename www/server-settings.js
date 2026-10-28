@@ -43,6 +43,7 @@ const MATCHING_PRESET_CHOICES = [
 // The settings' pages (D86, 28/10; docs-fr/design, SettingsPage): their group,
 // their name, the sentence under it, whether a viewer sees it (read only), and
 // whether it holds the server's settings (the light and "Reload" in the head).
+// Each has its glyph, a tab's over its label from 768 px (owner, 28/10).
 const SETTINGS_PAGES = [
     { id: 'display', group: 'This browser', label: 'Display', lede: 'How this browser draws the screen. Kept in this browser only.', viewer: true },
     { id: 'account', group: 'This browser', label: 'Account', lede: 'Who is signed in on this browser.', viewer: true },
@@ -103,6 +104,9 @@ function serverSettings() {
             const opened = () => {
                 this.phoneDetail = false;
                 if (!this.state && !this.busy) this.load();
+                // The focus on the page's tab.
+                // The focus on the page's tab, once the window shows.
+                setTimeout(() => this.$root.querySelector('.cl-page__nav a[aria-current="true"]')?.focus(), 60);
             };
             this.$watch('$store.atc.settingsOpen', (open) => { if (open) opened(); });
             if (Alpine.store('atc').settingsOpen) opened();
@@ -139,6 +143,57 @@ function serverSettings() {
             this.page = id;
             this.phoneDetail = true;
             if (this.$refs.scroll) this.$refs.scroll.scrollTop = 0;
+        },
+
+        glyph(id) {
+            return SETTINGS_GLYPHS[id] || '';
+        },
+
+        // Closing keeps what was typed: the field being edited is left first,
+        // so it saves as with Tab (and a lower size asks first), and the window
+        // is hidden, never emptied. Focus goes back to the gear.
+        close() {
+            const el = document.activeElement;
+            if (el && this.$root.contains(el) && el.blur) el.blur();
+            Alpine.store('atc').settingsOpen = false;
+            this.$nextTick(() => document.querySelector('button[aria-label="Settings"]')?.focus());
+        },
+
+        // A field being typed into, in the window.
+        typing() {
+            const el = document.activeElement;
+            return !!(el && this.$root.contains(el) && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'));
+        },
+
+        // The veil closes the window only for a press and a release both on
+        // it, and nothing being typed; otherwise the focus goes back to the field.
+        // Read at the press: the browser takes the focus away from the field
+        // at the press already, and the release would find nothing typed.
+        scrimDown: false,
+        typedIn: null,
+        veilDown(e) {
+            this.scrimDown = e.target === e.currentTarget;
+            this.typedIn = this.scrimDown && this.typing() ? document.activeElement : null;
+            if (this.typedIn) e.preventDefault(); // the field keeps the focus
+        },
+        veilUp(e) {
+            const both = this.scrimDown && e.target === e.currentTarget;
+            const field = this.typedIn;
+            this.scrimDown = false;
+            this.typedIn = null;
+            if (!both) return;
+            if (field) { field.focus(); return; }
+            this.close();
+        },
+
+        // Tab stays in the window (aria-modal).
+        trap(e) {
+            const items = [...this.$root.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea, [tabindex="0"]')]
+                .filter((el) => el.offsetParent !== null);
+            if (!items.length) return;
+            const first = items[0], last = items[items.length - 1];
+            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
         },
 
         phoneState() {
@@ -598,4 +653,16 @@ function serverSettings() {
     };
 }
 
-if (typeof module !== 'undefined') module.exports = { SETTINGS_PAGES, settingsNav };
+// Each page's glyph: the paths of a 16 grid drawn at 20 px (docs-fr/design, SettingsPage).
+const SETTINGS_GLYPHS = {
+    display: '<rect x="2" y="2.75" width="12" height="8.5" rx="1"/><path d="M8 11.25v2.5M5.5 13.75h5"/>',
+    account: '<circle cx="8" cy="5.25" r="2.75"/><path d="M2.75 14c.35-2.9 2.55-4.5 5.25-4.5s4.9 1.6 5.25 4.5"/>',
+    listening: '<path d="M2.75 10.5V8a5.25 5.25 0 0 1 10.5 0v2.5"/><rect x="2" y="9.25" width="3" height="4.75" rx="1"/><rect x="11" y="9.25" width="3" height="4.75" rx="1"/>',
+    matching: '<path d="M7 9.5 9.5 7"/><path d="M8.6 4.4 9.7 3.3a2.55 2.55 0 0 1 3.6 3.6l-1.1 1.1"/><path d="M7.4 11.6 6.3 12.7a2.55 2.55 0 0 1-3.6-3.6l1.1-1.1"/>',
+    access: '<rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2M8 9.75v1.5"/>',
+    usage: '<path d="M2.5 13.5h11M4.75 11V8.5M8 11V4M11.25 11V6.5"/>',
+    server: '<rect x="2.5" y="2.5" width="11" height="4.5" rx="1"/><rect x="2.5" y="9" width="11" height="4.5" rx="1"/><path d="M5 4.75h.01M5 11.25h.01"/>',
+    about: '<circle cx="8" cy="8" r="6"/><path d="M8 7.5v3.5M8 5h.01"/>',
+};
+
+if (typeof module !== 'undefined') module.exports = { SETTINGS_PAGES, SETTINGS_GLYPHS, settingsNav };

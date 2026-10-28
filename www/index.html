@@ -381,17 +381,21 @@
                          Station › Listening, read only. On a phone (under 768 px) the list of
                          pages, then a page with "‹ Settings" (is-list, is-detail). -->
                     <div x-show="$store.atc.settingsOpen" x-cloak
-                         @keydown.escape.window="$store.atc.settingsOpen = false"
+                         x-transition.opacity.duration.150ms
+                         @keydown.escape.window="if ($store.atc.settingsOpen && !$event.defaultPrevented) close()"
+                         @keydown.tab="trap($event)"
+                         @mousedown="veilDown($event)" @mouseup="veilUp($event)"
                          x-data="serverSettings()" x-init="init()" @settings-page.window="open($event.detail)"
                          role="dialog" aria-modal="true" aria-label="Settings"
-                         class="cl-root cl-page fixed inset-x-0 top-0 bottom-0" style="z-index: 10010;">
+                         class="cl-root cl-page fixed inset-x-0 top-0 bottom-0 motion-reduce:transition-none" style="z-index: 10010;">
                         <div class="cl-page__inner" :class="phoneState()">
                             <nav class="cl-page__nav" aria-label="Settings pages">
-                                <template x-for="g in navGroups()" :key="g.name">
-                                    <div class="cl-page__group">
-                                        <span class="cl-label" x-show="g.name" x-text="g.name"></span>
+                                <template x-for="(g, gi) in navGroups()" :key="g.name">
+                                    <div class="cl-page__group" :role="g.name ? 'group' : null" :aria-labelledby="g.name ? 'set-group-' + gi : null">
+                                        <span class="cl-label" :id="'set-group-' + gi" x-show="g.name" x-text="g.name"></span>
                                         <template x-for="p in g.pages" :key="p.id">
                                             <a href="#" :aria-current="String(page === p.id)" @click.prevent="open(p.id)">
+                                                <svg class="cl-page__glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" x-html="glyph(p.id)"></svg>
                                                 <span x-text="p.label"></span>
                                                 <template x-if="mark(p.id)">
                                                     <span class="cl-page__mark" :class="mark(p.id).cls" :title="mark(p.id).why" x-text="mark(p.id).glyph"></span>
@@ -407,7 +411,7 @@
                                     <span class="cl-light whitespace-normal" :class="statusLight().level" x-show="serverPage() && admin && statusLight().text" x-text="statusLight().text"></span>
                                     <span class="cl-row" style="margin-left: auto;">
                                         <button class="cl-btn cl-btn--quiet" x-show="serverPage() && admin" @click="load()" :disabled="busy">Reload from the server</button>
-                                        <button class="cl-btn cl-btn--icon" aria-label="Close" title="Close (Esc)" @click="$store.atc.settingsOpen = false"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button>
+                                        <button class="cl-btn cl-btn--icon" aria-label="Close" title="Close (Esc)" @click="close()"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button>
                                     </span>
                                 </div>
                                 <div class="cl-page__back">
@@ -416,6 +420,7 @@
                                 </div>
                                 <div class="cl-page__scroll" x-ref="scroll">
                                     <div class="cl-page__pagehead">
+                                        <span class="cl-label cl-page__eyebrow" x-show="pageInfo().group" x-text="pageInfo().group"></span>
                                         <h2 class="cl-page__pagetitle" x-text="pageInfo().label"></h2>
                                         <p class="cl-page__lede" x-text="pageLede()"></p>
                                     </div>
