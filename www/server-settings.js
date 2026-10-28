@@ -69,6 +69,25 @@ function settingsNav(admin) {
     return groups;
 }
 
+// The aerodromes offered under "Also follow", in two lists: shown, the
+// followed ones (always, however far) then the nearest others, n in all,
+// by distance; more, the rest, folded, by distance. Equal distances keep
+// the order of the codes. Pure, for the tests.
+function alsoSplit(choices, followed, n) {
+    const on = new Set(followed || []);
+    const sorted = (choices || []).slice().sort((a, b) =>
+        (a.distance_nm || 0) - (b.distance_nm || 0) || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
+    let room = n - sorted.filter((c) => on.has(c.code)).length;
+    const shown = [];
+    const more = [];
+    for (const c of sorted) {
+        if (on.has(c.code)) shown.push(c);
+        else if (room-- > 0) shown.push(c);
+        else more.push(c);
+    }
+    return { shown, more };
+}
+
 function serverSettings() {
     return {
         presets: MATCHING_PRESETS,
@@ -665,4 +684,4 @@ const SETTINGS_GLYPHS = {
     about: '<circle cx="8" cy="8" r="6"/><path d="M8 7.5v3.5M8 5h.01"/>',
 };
 
-if (typeof module !== 'undefined') module.exports = { SETTINGS_PAGES, SETTINGS_GLYPHS, settingsNav };
+if (typeof module !== 'undefined') module.exports = { SETTINGS_PAGES, SETTINGS_GLYPHS, settingsNav, alsoSplit };
