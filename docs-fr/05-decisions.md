@@ -4954,7 +4954,7 @@ Ce qui est décidé :
 - Pour la production : `archive_dir = "/Volumes/Crucial X8/clairance-archive/bases"`, à côté de l'archive
   faite à la main le 28/10 (zstd, 23/09 au 18/10). Pas de seconde copie (choix du propriétaire).
 
-**Fait le 28/10** (4f69da5, 7afc9b1) : tests (archive vérifiée puis effacement, WAL compris ; archive introuvable : rien d'effacé, rien de créé ; copie existante identique gardée, différente jamais écrasée ; contrôle de démarrage), instance d'essai démarrée avec une archive absente (nommée dans la santé détaillée, non créée, rien d'effacé). Plafond à 6 Go réglé par le propriétaire le 28/10 vers 11:40. **En production à la prochaine relance**, avec `archive_dir` dans `configs/config.toml`.
+**Fait le 28/10** (4f69da5, 7afc9b1) : tests (archive vérifiée puis effacement, WAL compris ; archive introuvable : rien d'effacé, rien de créé ; copie existante identique gardée, différente jamais écrasée ; contrôle de démarrage), instance d'essai démarrée avec une archive absente (nommée dans la santé détaillée, non créée, rien d'effacé). Plafond à 6 Go réglé par le propriétaire le 28/10 vers 11:40. **En production depuis le 28/10 à 11:29** (relance 8, cdaf1a3), `archive_dir` réglé dans `configs/config.toml` ; première passe : 7 journées archivées puis retirées (23/09 → 02/10), 4,05 Go libérés, `data/` 9,2 → 5,5 Go.
 
 ### D84 — Un suivi d'usage par compte, pour le propriétaire *(27/10)*
 
