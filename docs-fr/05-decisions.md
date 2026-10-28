@@ -4948,8 +4948,8 @@ Ce qui est décidé (maquette de la session design, fiche Notices : Notice) :
   est en retard, puis toutes les nouveautés.
 - Un seul avis à la fois ; aucun par-dessus le bandeau de connexion perdue, les réglages ou la connexion.
 
-**Fait le 28/10** (fd79a1c, 1153a02), vérifié de bout en bout sur l'instance d'essai ; en production à la
-prochaine relance, après la relecture de la session design.
+**Fait le 28/10** (fd79a1c, 1153a02, 2041ccd), vérifié de bout en bout sur l'instance d'essai, relu par la
+session design ; **en production depuis le 28/10 à 13:38** (relance 11).
 
 ### D86 — Les réglages en pages groupées, mis en forme par l'agent design *(28/10)*
 

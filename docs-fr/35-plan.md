@@ -150,8 +150,8 @@ relance de la production ne le laisse pas sans explication.
 | E1. Le portage du sidecar sur Linux avec NVIDIA (faster-whisper, repli processeur ; Q54) — **le code fait le 26/10 par la fiche N** (e375fa0), vérifié sur processeur (cloud) et sans régression sous MLX (Mac) ; reste un GPU et les vrais modèles convertis | B4 |
 | E2. L'avertissement légal (dans l'application et le README) : ne pas rediffuser, ne pas publier d'audio ni d'immatriculations privées | — |
 | E3. Le guide d'installation, en anglais et en français | B, E1 |
-| E5. Les réglages refondus (D86) : une page à la fois en trois groupes, le rôle viewer lu par la page, renommages, aides sans doublon ; analyse `38-reglages-analyse.md` | maquette du design validée le 28/10 ; **codé le 28/10** (dc738a4, f9cbd67, e1adfb1, 51bf5ce), vérifié sur 8020 ; **relecture du design close** ; reste la relance | — |
-| E6. Un avis quand une nouvelle version est prête, et les nouveautés (D87) | maquette du design validée le 28/10 ; **codé le 28/10** (fd79a1c, 1153a02), vérifié sur 8020 ; relecture du design puis relance | — |
+| E5. Les réglages refondus (D86) : une page à la fois en trois groupes, le rôle viewer lu par la page, renommages, aides sans doublon ; analyse `38-reglages-analyse.md` | maquette du design validée, codé et relu le 28/10 (dc738a4, f9cbd67, e1adfb1, 51bf5ce) ; **en production depuis le 28/10 à 13:38** (relance 11) — **fait** | — |
+| E6. Un avis quand une nouvelle version est prête, et les nouveautés (D87) | maquette du design validée, codé et relu le 28/10 (fd79a1c, 1153a02, 2041ccd) ; **en production depuis le 28/10 à 13:38** (relance 11) — **fait** | — |
 | E4. La mesure de sortie : une installation sur une machine vierge, à partir du seul guide, **en moins d'une heure, par quelqu'un qui n'a pas écrit le code** ; la précision d'appariement inchangée après portage (95 %, D73) | E1 à E3 |
 
 ### F — Le produit, ensuite
