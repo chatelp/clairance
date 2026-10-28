@@ -148,7 +148,7 @@ func main() {
 	// What the server depends on, named before it relies on any of it: a
 	// sidecar that cannot start stops the server just below, and its cause is
 	// then the line above. Nothing missing stops the server here.
-	check := startcheck.Run(startcheck.Inputs{Config: cfg, DBRetentionGB: runtimeSettings.DBRetentionGB()})
+	check := startcheck.Run(startcheck.Inputs{Config: cfg, DBRetentionGB: runtimeSettings.DBRetentionGB(), DBArchiveDir: runtimeSettings.DBArchiveDir()})
 	check.Log(log)
 
 	sttSidecar := startSidecar(signalCtx, cfg, log)
@@ -178,7 +178,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go runDatabaseRetentionCleanup(ctx, store.dir, cfg.Storage.ArchiveDir, store.aircraft.GetDB(), runtimeSettings, log)
+	go runDatabaseRetentionCleanup(ctx, store.dir, store.aircraft.GetDB(), runtimeSettings, log)
 	go runFilePurge(ctx, cfg, log)
 
 	lifecycle.Say(lifecycle.Step, map[string]any{"step": "services"})

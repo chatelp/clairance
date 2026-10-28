@@ -62,6 +62,7 @@ type Report struct {
 type Inputs struct {
 	Config        *config.Config
 	DBRetentionGB float64
+	DBArchiveDir  string // the archive in force: the panel's, else [storage] archive_dir
 	Free          func(dir string) (int64, bool)
 }
 
@@ -88,7 +89,7 @@ func Run(in Inputs) Report {
 	c.sources()
 	c.pdftotext()
 	c.sidecar()
-	c.databases(in.DBRetentionGB)
+	c.databases(in.DBRetentionGB, in.DBArchiveDir)
 	c.archive()
 	c.stationFiles()
 	return c.r
@@ -178,7 +179,7 @@ func (c *check) sidecar() {
 // databases checks that the data directory can be written, and that its disk
 // holds what the databases may still grow to before the retention deletes a
 // day (db_retention_gb, which the settings panel can change).
-func (c *check) databases(retentionGB float64) {
+func (c *check) databases(retentionGB float64, archiveDir string) {
 	dir := c.cfg.Storage.SQLiteBasePath
 	existing := existingAncestor(dir)
 	if err := writable(existing); err != nil {
@@ -204,11 +205,11 @@ func (c *check) databases(retentionGB float64) {
 	}
 	// The archive the retention copies a day to before deleting it (D85): not
 	// found, nothing is deleted, and the databases grow past the retention.
-	if a := c.cfg.Storage.ArchiveDir; a != "" {
+	if a := archiveDir; a != "" {
 		if info, err := os.Stat(a); err != nil || !info.IsDir() {
 			c.missing(Missing{Kind: "directory", What: "the database archive", Path: absolute(a),
 				Effect: "the days past the retention are kept, not deleted, until it is back: the databases grow past db_retention_gb",
-				Level:  LevelWarn, Hint: "an external disk may be unplugged; or empty [storage] archive_dir to delete them as before"})
+				Level:  LevelWarn, Hint: "an external disk may be unplugged; or change the archive in Settings > System, or empty it to delete them as before"})
 		}
 	}
 	headroom := int64(retentionGB*(1<<30)) - used

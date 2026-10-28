@@ -176,7 +176,7 @@ func openStorage(cfg *config.Config, runtimeSettings *config.Runtime, log *logge
 	}
 	// With an archive, the first pass runs once the server is up
 	// (runDatabaseRetentionCleanup): archiving can take minutes (D85).
-	if cfg.Storage.ArchiveDir == "" {
+	if runtimeSettings.DBArchiveDir() == "" {
 		if err := cleanupOldDailyDatabases(dbDir, dbPath, runtimeSettings.DBRetentionGB(), "", log); err != nil {
 			log.Warn("Failed to clean up old database files",
 				logger.Error(err),

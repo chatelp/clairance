@@ -78,17 +78,28 @@ type TranscriptionState struct {
 }
 
 type StorageState struct {
-	Dir                string      `json:"dir"`
-	ActiveDB           string      `json:"active_db"`
-	ActiveDBBytes      int64       `json:"active_db_bytes"`
-	GrowthBytesPerHour int64       `json:"growth_bytes_per_hour"` // -1 while still measuring
-	Rotates            bool        `json:"rotates"`
-	RetentionGB        float64     `json:"retention_gb"`
-	DailyFiles         []DailyFile `json:"daily_files"`
-	TotalBytes         int64       `json:"total_bytes"`
-	DiskFreeBytes      int64       `json:"disk_free_bytes"`
-	DiskTotalBytes     int64       `json:"disk_total_bytes"`
-	DaysUntilFull      float64     `json:"days_until_full"` // -1 when not computable
+	Dir                string       `json:"dir"`
+	ActiveDB           string       `json:"active_db"`
+	ActiveDBBytes      int64        `json:"active_db_bytes"`
+	GrowthBytesPerHour int64        `json:"growth_bytes_per_hour"` // -1 while still measuring
+	Rotates            bool         `json:"rotates"`
+	RetentionGB        float64      `json:"retention_gb"`
+	DailyFiles         []DailyFile  `json:"daily_files"`
+	TotalBytes         int64        `json:"total_bytes"`
+	DiskFreeBytes      int64        `json:"disk_free_bytes"`
+	DiskTotalBytes     int64        `json:"disk_total_bytes"`
+	DaysUntilFull      float64      `json:"days_until_full"` // -1 when not computable
+	Archive            ArchiveState `json:"archive"`
+}
+
+// ArchiveState is where the retention copies a day before deleting it (D85):
+// whether it is found, what it holds, and the room left on its disk.
+type ArchiveState struct {
+	Dir       string `json:"dir"` // "" when there is none
+	Found     bool   `json:"found"`
+	Files     int    `json:"files"` // archived days: co-atc-*.db.gz and .zst
+	Bytes     int64  `json:"bytes"`
+	FreeBytes int64  `json:"free_bytes"`
 }
 
 type DailyFile struct {
@@ -209,6 +220,7 @@ func (h *Handler) GetServerState(w http.ResponseWriter, r *http.Request) {
 		st.Storage.DiskFreeBytes = free
 		st.Storage.DiskTotalBytes = total
 	}
+	st.Storage.Archive = archiveState(h.runtime.DBArchiveDir())
 
 	// Growth is measured against a sample taken at start rather than divided by the
 	// file's age: the file survives restarts, so its age says nothing about how fast
@@ -347,6 +359,9 @@ func (h *Handler) PutServerSettings(w http.ResponseWriter, r *http.Request) {
 	if next.AIPNames == nil {
 		next.AIPNames = current.AIPNames
 	}
+	if next.DBArchive == nil {
+		next.DBArchive = current.DBArchive
+	}
 
 	if err := h.runtime.Apply(next); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -362,6 +377,7 @@ func (h *Handler) PutServerSettings(w http.ResponseWriter, r *http.Request) {
 	h.logger.Info("Server settings changed from the panel",
 		logger.String("by", by),
 		logger.Float64("db_retention_gb", next.DBRetentionGB),
+		logger.String("db_archive_dir", h.runtime.DBArchiveDir()),
 		logger.String("log_level", next.LogLevel),
 		logger.String("reference_airport", next.ReferenceAirport),
 		logger.String("also_airports", strings.Join(next.AlsoAirports, ",")),
@@ -405,4 +421,33 @@ func (h *Handler) referenceState() *ReferenceState {
 		}
 	}
 	return st
+}
+
+// archiveState reads the database archive: what it holds, and its disk's room.
+func archiveState(dir string) ArchiveState {
+	a := ArchiveState{Dir: dir}
+	if dir == "" {
+		return a
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return a
+	}
+	a.Found = true
+	for _, e := range entries {
+		name := e.Name()
+		if !e.Type().IsRegular() || !strings.HasPrefix(name, "co-atc-") {
+			continue
+		}
+		if info, err := e.Info(); err == nil {
+			a.Bytes += info.Size()
+		}
+		if strings.HasSuffix(name, ".db.gz") || strings.HasSuffix(name, ".db.zst") {
+			a.Files++
+		}
+	}
+	if free, _, ok := disk.Space(dir); ok {
+		a.FreeBytes = free
+	}
+	return a
 }

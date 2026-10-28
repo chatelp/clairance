@@ -58,7 +58,8 @@ func install(t *testing.T, dir, name string) {
 }
 
 func (s *station) run(retentionGB float64) Report {
-	return Run(Inputs{Config: s.cfg, DBRetentionGB: retentionGB, Free: func(string) (int64, bool) { return s.free, true }})
+	return Run(Inputs{Config: s.cfg, DBRetentionGB: retentionGB, DBArchiveDir: s.cfg.Storage.ArchiveDir,
+		Free: func(string) (int64, bool) { return s.free, true }})
 }
 
 // only says the report holds exactly these, by What, at these levels.

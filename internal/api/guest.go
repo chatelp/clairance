@@ -34,7 +34,7 @@ var guestHidden = map[string][]string{
 	"/api/v1/adsb/source": {"aircraft.last_error", "receiver.last_error", "stats.last_error"},
 	// The paths of the database and the log; the sidecar's error, which names
 	// its address or the model's path; who else has an account.
-	"/api/v1/server": {"storage.dir", "storage.active_db", "logging.file", "transcription.detail", "access.accounts"},
+	"/api/v1/server": {"storage.dir", "storage.active_db", "storage.archive.dir", "settings.db_archive.dir", "logging.file", "transcription.detail", "access.accounts"},
 	"/api/v1/config": {"storage.sqlite_base_path"},
 	// radio-ctl-sync's words when the station does not answer: its URL.
 	"/api/v1/status": {"receiver.detail"},

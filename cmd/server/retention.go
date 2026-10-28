@@ -20,7 +20,7 @@ import (
 	"github.com/yegors/co-atc/pkg/logger"
 )
 
-func runDatabaseRetentionCleanup(ctx context.Context, dbDir, archiveDir string, db *sqlite.DB, rt *config.Runtime, log *logger.Logger) {
+func runDatabaseRetentionCleanup(ctx context.Context, dbDir string, db *sqlite.DB, rt *config.Runtime, log *logger.Logger) {
 	// Two cadences. Rotation is checked every minute so the switch lands close
 	// to midnight; retention is an hourly sweep, which is as often as it can
 	// possibly matter.
@@ -33,7 +33,7 @@ func runDatabaseRetentionCleanup(ctx context.Context, dbDir, archiveDir string, 
 		// Read on every pass, not captured once: a retention changed from the
 		// settings panel takes effect on the next sweep rather than at the next
 		// restart.
-		capGB := rt.DBRetentionGB()
+		capGB, archiveDir := rt.DBRetentionGB(), rt.DBArchiveDir()
 		if err := cleanupOldDailyDatabases(dbDir, db.Path(), capGB, archiveDir, log); err != nil {
 			log.Warn("Periodic database retention cleanup failed",
 				logger.Error(err),
@@ -44,7 +44,7 @@ func runDatabaseRetentionCleanup(ctx context.Context, dbDir, archiveDir string, 
 
 	// With an archive, the startup pass is this one rather than one before the
 	// server answers: archiving several days can take minutes (D85).
-	if archiveDir != "" {
+	if rt.DBArchiveDir() != "" {
 		sweep()
 	}
 
@@ -174,14 +174,16 @@ func cleanupOldDailyDatabases(dbDir, activeDBPath string, capGB float64, archive
 		}
 		deleted++
 		freed += f.bytes
-		msg := "Deleted old database file"
-		if archiveDir != "" {
-			msg = "Archived and deleted old database file"
-		}
-		log.Info(msg,
+		fields := []logger.Field{
 			logger.String("path", f.path),
 			logger.String("file_date", f.date.Format("2006-01-02")),
-			logger.Int64("bytes", f.bytes))
+			logger.Int64("bytes", f.bytes)}
+		if archiveDir != "" {
+			log.Info("Archived and deleted old database file", fields...)
+		} else {
+			// Gone for good: said as a warning, as the settings say it (D85).
+			log.Warn("Deleted old database file: no archive is set, it is gone for good", fields...)
+		}
 	}
 
 	if deleted > 0 {

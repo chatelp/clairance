@@ -341,10 +341,18 @@ func TestAGuestsPageWorksWithoutTheAddresses(t *testing.T) {
 		t.Errorf("the ADS-B source as a guest reads it: %v", source)
 	}
 
+	// A database archive set (D85): its path is the house's too.
+	settings := g.handler.runtime.Settings()
+	settings.DBArchive = &config.DBArchiveSettings{Dir: t.TempDir()}
+	if err := g.handler.runtime.Apply(settings); err != nil {
+		t.Fatal(err)
+	}
 	var server ServerState
 	decode(t, g.read(g.viewer, "/api/v1/server"), &server)
 	if server.Storage.ActiveDBBytes == 0 || server.Storage.DiskFreeBytes == 0 || !server.Logging.Bounded ||
-		server.Access.Mode != "account" || server.Storage.Dir != "" || server.Logging.File != "" {
+		server.Access.Mode != "account" || server.Storage.Dir != "" || server.Logging.File != "" ||
+		!server.Storage.Archive.Found || server.Storage.Archive.Dir != "" ||
+		server.Settings.DBArchive == nil || server.Settings.DBArchive.Dir != "" {
 		t.Errorf("the settings panel's figures as a guest reads them: %+v", server)
 	}
 
