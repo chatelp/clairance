@@ -193,12 +193,54 @@ def page_usage():
             + section('Accounts', f'<div class="cl-grid2">{cards}</div>', wide=True))
 
 
-def page_server():
+# The folder picker (owner, 28/10): the server machine's folders, browsed from the page
+_I = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{}</svg>'
+FOLDER = _I.format('<path d="M2 4.25c0-.55.45-1 1-1h3.25l1.5 1.5H13c.55 0 1 .45 1 1v6c0 .55-.45 1-1 1H3c-.55 0-1-.45-1-1z"/>')
+DISK = _I.format('<rect x="1.75" y="5" width="12.5" height="6" rx="1.5"/><path d="M11.25 8h.01"/>')
+HOME = _I.format('<path d="M2.5 7.5 8 3l5.5 4.5M4 6.5V13h8V6.5"/>')
+PLACES = [('Archive', DISK, '1.8 TB free'), ('Macintosh HD', DISK, '210 GB free'), ('Home', HOME, '')]
+
+
+def folder_picker(state='open'):
+    """'open': inside a disk, a folder that can be chosen; 'databases': the databases' own folder, refused."""
+    if state == 'databases':
+        path, here, rows = ['/', 'Users', 'pierre', 'clairance', 'data'], 'Home', []
+        foot = ('<span class="cl-light cl-light--warn">The databases are kept here: choose a folder outside, best on another disk.</span>'
+                '<span class="cl-row"><button class="cl-btn cl-btn--quiet">Cancel</button><button class="cl-btn cl-btn--primary" disabled>Choose this folder</button></span>')
+    else:
+        path, here = ['/', 'Volumes', 'Archive', 'clairance'], 'Archive'
+        rows = [('bases', ''), ('exports', ''), ('Old Mac', 'read only')]
+        foot = ('<span class="cl-plain">1.8 TB free on Archive.</span>'
+                '<span class="cl-row"><button class="cl-btn cl-btn--quiet">Cancel</button><button class="cl-btn cl-btn--primary">Choose this folder</button></span>')
+    places = ''.join(f'<button class="cl-folder__place" aria-current="{str(n == here).lower()}">{g}{n}' + (f' <span class="cl-folder__free">· {f}</span>' if f else '') + '</button>'
+                     for n, g, f in PLACES)
+    crumbs = []
+    for i, part in enumerate(path):
+        cur = ' aria-current="location"' if i == len(path) - 1 else ''
+        crumbs.append(f'<button{cur}>{part}</button>')
+    crumb = '<span class="cl-folder__sep" aria-hidden="true">/</span>'.join(crumbs[1:])
+    crumb = crumbs[0] + crumb
+    if rows:
+        lst = ''.join(f'<li><button class="cl-folder__row">{FOLDER}<span>{n}</span>' + (f'<span class="cl-folder__note">{w}</span>' if w else '') + '</button></li>' for n, w in rows)
+    else:
+        lst = '<li class="cl-folder__empty">No folder inside.</li>'
+    return (f'<div class="cl-folder" role="group" aria-label="Choose the archive folder"><div class="cl-folder__places">{places}</div>'
+            f'<nav class="cl-folder__crumbs" aria-label="Open folder">{crumb}</nav>'
+            f'<ul class="cl-folder__list" aria-label="Folders in {path[-1]}">{lst}</ul><div class="cl-folder__foot">{foot}</div></div>')
+
+
+def page_server(picker=None):
     log = field('Log detail', '<select class="cl-select" aria-label="Log detail"><option>info</option></select>', 'How much the server writes to its log.')
     keep = field('Keep databases up to', '<span class="cl-row"><input class="cl-input" style="width: 72px;" value="6" aria-label="Gigabytes"><span class="cl-age">GB</span></span>',
                  'The day’s database and the days before; a day past this size goes to the archive below.')
-    arch = field('Archive old databases to', '<input class="cl-input" style="width: 300px;" value="/Volumes/Archive/clairance/bases" aria-label="Archive folder">',
-                 '<span class="cl-light cl-light--warn">Not found: the disk is not mounted. Nothing is deleted until it is back.</span>', text=True)
+    if picker:
+        arch = field('Archive old databases to', '<span class="cl-pathfield"><input class="cl-input" value="" placeholder="none: deleted past the size" aria-label="Archive folder">'
+                     '<button class="cl-btn" aria-expanded="true">Choose…</button></span>',
+                     '<span class="cl-light cl-light--warn">No archive: the databases past 6 GB are deleted for good.</span>', text=True) + folder_picker(picker)
+    else:
+        arch = field('Archive old databases to', '<span class="cl-pathfield"><input class="cl-input" value="/Volumes/Archive/clairance/bases" aria-label="Archive folder">'
+                     '<button class="cl-btn" aria-expanded="false">Choose…</button></span>',
+                     '<span class="cl-light cl-light--warn">Not found: the disk is not mounted. Nothing is deleted until it is back.</span>', text=True)
     kvcard = lambda title, rows: (f'<div class="cl-card"><span class="cl-label">{title}</span><dl class="cl-kv">'
                                   + ''.join(f'<dt>{k}</dt><dd>{v}</dd>' for k, v in rows) + '</dl></div>')
     reports = (kvcard('Storage', [('Database', 'co-atc-2026-10-28.db · 412 MB'), ('Growing', '33 MB/h'), ('Disk free', '41 GB'), ('Disk full in', '52 d')])
@@ -234,9 +276,9 @@ def page_about(role='admin', outdated=False):
 BODY = {'about': page_about, 'display': page_display, 'account': page_account, 'matching': page_matching, 'access': page_access, 'usage': page_usage, 'server': page_server}
 
 
-def settings_page(current='listening', role='admin', state=''):
+def settings_page(current='listening', role='admin', state='', picker=None):
     """One markup for the computer and both phone states: state '' (computer), 'is-list' or 'is-detail' (phone)."""
-    body = page_listening(role) if current == 'listening' else page_about(role) if current == 'about' else BODY[current]()
+    body = page_listening(role) if current == 'listening' else page_about(role) if current == 'about' else page_server(picker) if current == 'server' else BODY[current]()
     lede = LEDE['listening-viewer'] if (current == 'listening' and role != 'admin') else LEDE[current]
     server_page = current in ('listening', 'matching', 'access', 'server') and role == 'admin'
     reload_ = '<button class="cl-btn cl-btn--quiet">Reload from the server</button>' if server_page else ''
