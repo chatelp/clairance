@@ -24,8 +24,10 @@ LEDE = {
     'access': 'Who may open Clairance, and with which account.',
     'usage': 'What each account did these 7 days. Seen by admins only.',
     'server': "The server's log, its databases and their archive, then what it reports.",
+    'about': 'The version of this page and of the server, and what changed.',
 }
 TITLE = {k: t for _, items in PAGES for k, t in items}
+TITLE['about'] = 'About Clairance'
 MARKS = {'server': ('is-warn', '▲', 'Needs a look: the archive disk is missing')}
 
 
@@ -43,6 +45,8 @@ def nav(current, role):
                 mark = f'<span class="cl-page__mark {cls}" title="{why}">{glyph}</span>'
             links += f'<a href="#" aria-current="{str(key == current).lower()}">{title}{mark}</a>'
         out.append(f'<div class="cl-page__group"><span class="cl-label">{name}</span>{links}</div>')
+    # About, below the groups and for everyone: the versions and what is new (28/10)
+    out.append(f'<div class="cl-page__group"><a href="#" aria-current="{str(current == "about").lower()}">About Clairance</a></div>')
     return f'<nav class="cl-page__nav" aria-label="Settings pages">{"".join(out)}</nav>'
 
 
@@ -180,12 +184,35 @@ def page_server():
     return section('', log + keep + arch) + section('Reports', f'<div class="cl-grid2">{reports}</div>', wide=True)
 
 
-BODY = {'display': page_display, 'account': page_account, 'matching': page_matching, 'access': page_access, 'usage': page_usage, 'server': page_server}
+NEWS = [
+    ('28 October 2026', ['The settings are now in pages, grouped by who they concern.',
+                         'The sound starts within a second, and plays on an iPhone.',
+                         'After a cut, the page reconnects on its own and says so.']),
+    ('16 October 2026', ['A procedure named in the thread can be drawn on the map: click its name.',
+                         'Aircraft labels show the runway or the exit they are heading for.']),
+]
+
+
+def page_about(role='admin', outdated=False):
+    page_v = '27 October 2026' if outdated else '28 October 2026'
+    commit = lambda c: f' <span class="cl-age">{c}</span>' if role == 'admin' else ''
+    this = field('This page', value(page_v + commit('9f3c2e1' if outdated else 'b7433bc')))
+    if outdated:
+        srv = field('The server', '<span class="cl-row"><span class="cl-light cl-light--warn">28 October 2026</span><button class="cl-btn cl-btn--primary">Reload</button></span>',
+                    'The server runs a newer version than this page: reload it to use it.')
+    else:
+        srv = field('The server', value('28 October 2026' + commit('b7433bc')), 'This page and the server are the same version.')
+    news = ''.join(f'<div class="cl-field"><span class="cl-field__label">{d}</span><span></span><ul class="cl-notice__list" style="grid-column: 1 / -1;">'
+                   + ''.join(f'<li>{i}</li>' for i in items) + '</ul></div>' for d, items in NEWS)
+    return section('', this + srv) + section("What's new", news)
+
+
+BODY = {'about': page_about, 'display': page_display, 'account': page_account, 'matching': page_matching, 'access': page_access, 'usage': page_usage, 'server': page_server}
 
 
 def settings_page(current='listening', role='admin', state=''):
     """One markup for the computer and both phone states: state '' (computer), 'is-list' or 'is-detail' (phone)."""
-    body = page_listening(role) if current == 'listening' else BODY[current]()
+    body = page_listening(role) if current == 'listening' else page_about(role) if current == 'about' else BODY[current]()
     lede = LEDE['listening-viewer'] if (current == 'listening' and role != 'admin') else LEDE[current]
     server_page = current in ('listening', 'matching', 'access', 'server') and role == 'admin'
     reload_ = '<button class="cl-btn cl-btn--quiet">Reload from the server</button>' if server_page else ''

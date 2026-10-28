@@ -432,6 +432,21 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
 /* ResumeBanner: the browser waits for a click before it plays sound */
 .cl-resume { display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--color-surface-raised); border: var(--border-width-default) solid var(--color-accent-default); border-radius: var(--radius-lg); box-shadow: var(--shadow-overlay); font-size: var(--font-size-body); }
 .cl-resume svg { width: 20px; height: 20px; flex: none; }
+/* Notice (28/10): what the page says on its own, a new version to load or what is new; top right under the bar, over the
+   context column (never the map nor the thread), never blocking; above the tab bar on a phone */
+.cl-notice { position: absolute; top: calc(var(--size-bar) + var(--space-2)); right: var(--space-3); z-index: var(--z-toast); width: 340px; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); background: var(--color-surface-raised); border: var(--border-width-default) solid var(--color-border-default); border-radius: var(--radius-lg); box-shadow: var(--shadow-overlay); }
+.cl-notice__head { display: flex; align-items: center; gap: var(--space-2); }
+.cl-notice__head svg { width: 20px; height: 20px; flex: none; }
+.cl-notice__title { margin: 0; font-size: var(--font-size-body); line-height: var(--font-line-height-body); font-weight: var(--font-weight-strong); color: var(--color-text-primary); }
+.cl-notice__when { margin-left: auto; font-size: var(--font-size-small); color: var(--color-text-tertiary); white-space: nowrap; }
+.cl-notice__text { margin: 0; font-size: var(--font-size-small); line-height: var(--font-line-height-small); color: var(--color-text-secondary); }
+.cl-notice__list { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--font-size-small); line-height: var(--font-line-height-small); color: var(--color-text-primary); }
+.cl-notice__actions { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1); }
+.cl-notice__actions .cl-link { margin-left: auto; font-size: var(--font-size-small); }
+@media (max-width: 767px) {
+  .cl-notice { top: auto; bottom: calc(var(--size-row-touch) + var(--space-2)); left: var(--space-2); right: var(--space-2); width: auto; }
+  .cl-notice__actions .cl-btn { min-height: var(--size-control-touch); }
+}
 
 /* ------------------------------------------------------------ small helpers */
 .cl-row { display: flex; align-items: center; gap: var(--space-1-5); flex-wrap: wrap; }
