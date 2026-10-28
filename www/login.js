@@ -109,7 +109,7 @@
     }
 
     // Public and cached 10 s by the server; a 404 means it is turned off in
-    // Settings > Account, and the console is not drawn.
+    // Settings › Access ("Live figures on the sign-in page"), and the console is not drawn.
     function startVitals(box) {
         let timer = null;
         const tick = async () => {
@@ -220,7 +220,7 @@
                 <label class="cl-signin__field"><span class="cl-label">Password, 10 characters or more</span>
                   <input class="cl-input" id="coatc-pass" type="password" autocomplete="new-password"></label>
               </div>
-              <span class="cl-plain" data-note>You can change this later in Settings › Account.</span>
+              <span class="cl-plain" data-note>You can change this later in Settings › Access.</span>
               <button class="cl-btn cl-btn--primary" type="submit">Continue</button>`);
 
         const form = el.querySelector('form');

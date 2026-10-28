@@ -117,10 +117,12 @@ function usagePanel() {
             } catch (e) { /* the rest of the page does not depend on it */ } finally {
                 this.busy = false;
             }
-            // Kept fresh while the settings are open, the owner's only.
+            // Kept fresh while its page is shown (D86): an element of the panel
+            // has no box when the page, or the settings, are hidden.
             if (this.loaded && !this.timer) {
                 this.timer = setInterval(() => {
-                    if (document.visibilityState === 'visible' && Alpine.store('atc').settingsOpen) this.load();
+                    const shown = this.$el.firstElementChild && this.$el.firstElementChild.offsetParent !== null;
+                    if (document.visibilityState === 'visible' && shown) this.load();
                 }, 15000);
             }
         },

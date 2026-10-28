@@ -7,8 +7,9 @@
 // The password typed here goes to the server once, in the request body, and is
 // cleared from the form as soon as the answer comes.
 
-// Roles in the owner's words: an owner is the admin of this server.
-const ACCOUNT_ROLES = { owner: 'admin', viewer: 'viewer' };
+// Roles in the owner's words, one word each everywhere on screen (D86): an
+// owner is the Admin of this server.
+const ACCOUNT_ROLES = { owner: 'Admin', viewer: 'Viewer' };
 
 // "3 min ago", "2 h ago", "26/10 18:21": how long since, for a list read at a
 // glance. Pure, for the tests.

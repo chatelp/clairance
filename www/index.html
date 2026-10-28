@@ -145,7 +145,7 @@
                       x-text="$store.events.unread > 99 ? '99+' : $store.events.unread"></span>
             </button>
             <button class="cl-btn cl-btn--icon" aria-label="Settings" data-help-title="Settings"
-                    data-help="Listening, callsign matching, display, account, system." @click="$store.atc.settingsOpen = true">
+                    data-help="This browser's display and account; the station's listening; for an admin, matching, access, usage and the server." @click="$store.atc.settingsOpen = true">
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true"><path d="M6.43 2.83 L6.50 1.16 L9.50 1.16 L9.57 2.83 L10.55 3.24 L11.77 2.10 L13.90 4.23 L12.76 5.45 L13.17 6.43 L14.84 6.50 L14.84 9.50 L13.17 9.57 L12.76 10.55 L13.90 11.77 L11.77 13.90 L10.55 12.76 L9.57 13.17 L9.50 14.84 L6.50 14.84 L6.43 13.17 L5.45 12.76 L4.23 13.90 L2.10 11.77 L3.24 10.55 L2.83 9.57 L1.16 9.50 L1.16 6.50 L2.83 6.43 L3.24 5.45 L2.10 4.23 L4.23 2.10 L5.45 3.24Z"/><circle cx="8" cy="8" r="2.1"/></svg>
             </button>
         </header>
@@ -343,262 +343,58 @@
 
             <!-- Left Content Area (Settings, Map). On a phone (under 768 px) the
                  map and the list take turns, chosen by the tabs above the radio bar
-                 (audit 4.2). -->
-            <div class="flex-col flex-1 relative min-w-0" :class="$store.atc.mobilePane === 'sky' ? 'flex' : 'hidden md:flex'">
+                 (audit 4.2); it stays shown while the settings are open, which live
+                 in it -- the gear opened nothing on the list's tab (28/10). -->
+            <div class="flex-col flex-1 relative min-w-0" :class="$store.atc.mobilePane === 'sky' || $store.atc.settingsOpen ? 'flex' : 'hidden md:flex'">
                 <!-- Main Content -->
                 <main class="flex flex-1 overflow-hidden relative">
-                    <!-- Settings: a page of its own (audit 2.1, 10/10), SettingsPage since
-                         migration step 9 (docs-fr/design/ecrans/reglages.html). The controls
-                         are the same, restyled: their bindings and save() are unchanged.
-                         Above the sky's overlays (10001-10002); on a phone the nav becomes a
-                         row over the body. -->
+                    <!-- Settings: one page at a time, in three groups (D86, 28/10; SettingsPage,
+                         docs-fr/design/ecrans/reglages*.html). A viewer sees This browser and
+                         Station › Listening, read only. On a phone (under 768 px) the list of
+                         pages, then a page with "‹ Settings" (is-list, is-detail). -->
                     <div x-show="$store.atc.settingsOpen" x-cloak
                          @keydown.escape.window="$store.atc.settingsOpen = false"
-                         x-data="serverSettings()" x-init="load()"
+                         x-data="serverSettings()" x-init="init()"
                          role="dialog" aria-modal="true" aria-label="Settings"
                          class="cl-root cl-page fixed inset-x-0 top-0 bottom-0" style="z-index: 10010;">
-                        <div class="cl-page__inner max-md:grid-cols-1 max-md:grid-rows-[auto_minmax(0,1fr)] max-md:border-x-0">
-                            <nav class="cl-page__nav max-md:flex-row max-md:overflow-x-auto max-md:border-r-0 max-md:border-b max-md:border-border-default max-md:px-3 max-md:py-2" aria-label="Sections">
-                                <template x-for="s in sections" :key="s[0]">
-                                    <a :href="'#set-' + s[0]" :aria-current="String(current === s[0])" @click.prevent="goTo(s[0])" class="whitespace-nowrap" x-text="s[1]"></a>
+                        <div class="cl-page__inner" :class="phoneState()">
+                            <nav class="cl-page__nav" aria-label="Settings pages">
+                                <template x-for="g in navGroups()" :key="g.name">
+                                    <div class="cl-page__group">
+                                        <span class="cl-label" x-text="g.name"></span>
+                                        <template x-for="p in g.pages" :key="p.id">
+                                            <a href="#" :aria-current="String(page === p.id)" @click.prevent="open(p.id)">
+                                                <span x-text="p.label"></span>
+                                                <template x-if="mark(p.id)">
+                                                    <span class="cl-page__mark" :class="mark(p.id).cls" :title="mark(p.id).why" x-text="mark(p.id).glyph"></span>
+                                                </template>
+                                            </a>
+                                        </template>
+                                    </div>
                                 </template>
                             </nav>
                             <div class="cl-page__body min-h-0">
-                                <div class="cl-page__head flex-wrap max-md:px-4 max-md:py-3">
+                                <div class="cl-page__head flex-wrap">
                                     <h1 class="cl-page__title">Settings</h1>
-                                    <span class="cl-light whitespace-normal" :class="statusLight().level" x-show="statusLight().text" x-text="statusLight().text"></span>
+                                    <span class="cl-light whitespace-normal" :class="statusLight().level" x-show="serverPage() && admin && statusLight().text" x-text="statusLight().text"></span>
                                     <span class="cl-row" style="margin-left: auto;">
-                                        <button class="cl-btn" @click="load()" :disabled="busy">Reload from the server</button>
+                                        <button class="cl-btn cl-btn--quiet" x-show="serverPage() && admin" @click="load()" :disabled="busy">Reload from the server</button>
                                         <button class="cl-btn cl-btn--icon" aria-label="Close" title="Close (Esc)" @click="$store.atc.settingsOpen = false"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button>
                                     </span>
                                 </div>
-                                <div class="flex-1 min-h-0 overflow-y-auto" x-ref="scroller" @scroll.passive="spy()">
-
-                        <section id="set-listening" class="cl-page__section max-md:px-4">
-                            <h3>Listening</h3>
-                            <div class="cl-field cl-field--text">
-                                <span class="cl-field__label">On air</span>
-                                <span class="cl-plain" x-text="onAir()"></span>
-                                <span class="cl-field__help">Chosen at the station; this page plays what it receives.</span>
-                            </div>
-                            <!-- The airport phases are judged against. Upstream measured them from
-                                 the receiver; this lets a receiver that does not sit on the airport
-                                 worth watching say which one it is. -->
-                            <template x-if="state && state.reference">
-                                <div class="contents">
-                                    <div class="cl-field max-md:grid-cols-1">
-                                        <span class="cl-field__label cursor-help" data-help-title="Reference airport"
-                                              data-help="Approach, departure, takeoff, landing, runway in use and weather are judged against this airport. Distances and range rings stay on the receiver.">Reference airport</span>
-                                        <select class="cl-select min-w-0 max-w-full" aria-label="Reference airport"
-                                                x-model="draft.reference_airport" @change="save()" :disabled="busy">
-                                            <template x-for="c in airportChoices()" :key="c.code">
-                                                <option :value="c.code" :selected="c.code === draft.reference_airport"
-                                                        x-text="c.code + ' · ' + c.name + ' · ' + c.distance_nm + ' NM'"></option>
-                                            </template>
-                                        </select>
-                                        <span class="cl-field__help">Phases (taxi, take-off, approach) are judged against it.</span>
-                                    </div>
-                                    <!-- Further airports: Orly and De Gaulle are 13 NM apart and both
-                                         worth watching (docs-fr/05-decisions.md, Q40). -->
-                                    <!-- Stacked: the airports in range are twenty or more, and beside
-                                         the label they squeezed it to a word per line. -->
-                                    <div class="cl-field grid-cols-1">
-                                        <span class="cl-field__label cursor-help" data-help-title="Also follow"
-                                              data-help="Each aircraft is judged against the airport whose runway axis it flies, else the nearest; its phase then shows that airport. Weather stays the reference airport's. Three at most.">Also follow</span>
-                                        <span class="cl-row gap-x-4">
-                                            <template x-for="c in alsoChoices()" :key="'also-' + c.code">
-                                                <label class="cl-check" :class="alsoFollowed(c.code) ? 'is-on' : ''"
-                                                       role="checkbox" tabindex="0" :aria-checked="String(alsoFollowed(c.code))"
-                                                       :data-help-title="c.code" :data-help="c.name + ' · ' + c.distance_nm + ' NM from the receiver'"
-                                                       @click.prevent="if (!busy) toggleAlso(c.code)" @keydown.space.prevent="if (!busy) toggleAlso(c.code)">
-                                                    <span class="cl-check__box"></span><span x-text="c.code"></span>
-                                                </label>
-                                            </template>
-                                        </span>
-                                        <span class="cl-field__help">Up to three: each gets a PAR and an arrival sequence.</span>
-                                    </div>
+                                <div class="cl-page__back">
+                                    <button class="cl-btn cl-btn--icon cl-mono" aria-label="Back to Settings" @click="phoneDetail = false">‹</button>
+                                    <span class="cl-plain">Settings</span>
                                 </div>
-                            </template>
-                        </section>
-
-                        <section id="set-matching" class="cl-page__section max-md:px-4">
-                            <h3>Callsign matching</h3>
-                            <!-- How a transmission is tied to an aircraft. Each rule was measured
-                                 against a shuffled sky before being offered here (docs-fr/05-decisions.md,
-                                 Q30 and Q46); a change applies to the next transmission. -->
-                            <template x-if="state && draft.matching">
-                                <div class="contents">
-                                    <!-- Three presets (D73), measured on 03 and 04/10; the rules below stay
-                                         free to change, and "custom" says when they match no preset. -->
-                                    <div class="cl-field max-md:grid-cols-1">
-                                        <span class="cl-field__label">Rules</span>
-                                        <span class="cl-row justify-end max-md:justify-start">
-                                            <span class="cl-age cursor-help" x-show="!activePreset()" data-help-title="Custom"
-                                                  data-help="The rules below match none of the three presets: your own mix.">custom</span>
-                                            <div class="cl-seg" role="group" aria-label="Rules preset">
-                                                <template x-for="p in presetChoices" :key="p[0]">
-                                                    <button class="cl-seg__item" :aria-pressed="String(activePreset() === p[0])" :disabled="busy"
-                                                            @click="applyPreset(p[0])" data-help-title="Preset" :data-help="p[2]" x-text="p[1]"></button>
-                                                </template>
-                                            </div>
-                                        </span>
-                                        <span class="cl-field__help">How a transmission is tied to an aircraft. The eleven rules behind each preset stay below, folded.</span>
-                                        <span class="cl-field__source">Measured on Paris approaches (CDG, ORY, LBG), October 2026.</span>
+                                <div class="cl-page__scroll" x-ref="scroll">
+                                    <div class="cl-page__pagehead">
+                                        <h2 class="cl-page__pagetitle" x-text="pageInfo().label"></h2>
+                                        <p class="cl-page__lede" x-text="pageLede()"></p>
                                     </div>
-                                    <button class="cl-disclosure" :aria-expanded="String(rulesOpen)" @click="rulesOpen = !rulesOpen">The eleven rules</button>
-                                    <div x-show="rulesOpen" class="flex flex-col gap-3">
-                                        <div class="cl-field">
-                                            <span class="cl-field__label">Letters in flight numbers</span>
-                                            <button class="cl-switch" role="switch" aria-label="Letters in flight numbers" :disabled="busy"
-                                                    :class="draft.matching.letters ? 'is-on' : ''" :aria-checked="String(!!draft.matching.letters)" @click="flipRule('letters')"></button>
-                                            <span class="cl-field__help">"seven uniform echo" read as 7UE. 59% of callsigns have letters. Measured +27% matched aircraft, precision 73% to 76%.</span>
-                                        </div>
-                                        <div class="cl-field">
-                                            <span class="cl-field__label">Airline heard roughly</span>
-                                            <button class="cl-switch" role="switch" aria-label="Airline heard roughly" :disabled="busy"
-                                                    :class="draft.matching.approx_operators ? 'is-on' : ''" :aria-checked="String(!!draft.matching.approx_operators)" @click="flipRule('approx_operators')"></button>
-                                            <span class="cl-field__help">"welling" taken for Vueling, among the airlines in the sky only. Few matches on its own; rescues half-heard ones.</span>
-                                        </div>
-                                        <div class="cl-field">
-                                            <span class="cl-field__label">Shortest flight number</span>
-                                            <select class="cl-select" aria-label="Shortest flight number" x-model.number="draft.matching.min_digits" @change="save()" :disabled="busy">
-                                                <option value="2">2 digits</option>
-                                                <option value="3">3 digits</option>
-                                                <option value="4">4 digits</option>
-                                            </select>
-                                            <span class="cl-field__help">With 2 digits, chance matches about as often as the truth (measured); 3 is the default.</span>
-                                        </div>
-                                        <p class="cl-plain m-0">An aircraft heard on the frequency in the last two minutes, named again in short:</p>
-                                        <div class="cl-field">
-                                            <span class="cl-field__label">By its last letters</span>
-                                            <button class="cl-switch" role="switch" aria-label="By its last letters" :disabled="busy"
-                                                    :class="draft.matching.context_letters ? 'is-on' : ''" :aria-checked="String(!!draft.matching.context_letters)" @click="flipRule('context_letters')"></button>
-                                            <span class="cl-field__help">"sierra bravo" for AFR23SB. Measured +8, no chance matches.</span>
-                                        </div>
-                                        <div class="cl-field">
-                                            <span class="cl-field__label">By its last two digits</span>
-                                            <button class="cl-switch" role="switch" aria-label="By its last two digits" :disabled="busy"
-                                                    :class="draft.matching.context_digits ? 'is-on' : ''" :aria-checked="String(!!draft.matching.context_digits)" @click="flipRule('context_digits')"></button>
-                                            <span class="cl-field__help">"five four" for LBT554, when no other aircraft just heard ends so. Measured +13.</span>
-                                        </div>
-                                        <div class="cl-field">
-                                            <span class="cl-field__label">By its airline alone</span>
-                                            <button class="cl-switch" role="switch" aria-label="By its airline alone" :disabled="busy"
-                                                    :class="draft.matching.context_names ? 'is-on' : ''" :aria-checked="String(!!draft.matching.context_names)" @click="flipRule('context_names')"></button>
-                                            <span class="cl-field__help">When it is the only one of that airline just heard. Measured +68, but ADS-B cannot tell whether the right aircraft was named: to be checked by ear first.</span>
-                                        </div>
-                                        <div class="cl-field">
-                                            <span class="cl-field__label">Only aircraft in the frequency's sector</span>
-                                            <button class="cl-switch" role="switch" aria-label="Only aircraft in the frequency's sector" :disabled="busy"
-                                                    :class="draft.matching.sectors ? 'is-on' : ''" :aria-checked="String(!!draft.matching.sectors)" @click="flipRule('sectors')"></button>
-                                            <span class="cl-field__help">For frequencies that name their airport and kind. Measured on the Roissy approach: chance matches halved, more true ones.</span>
-                                            <span class="cl-field__source">Set for the Paris area: set your own for another station.</span>
-                                        </div>
-                                        <template x-if="draft.matching.sectors && draft.matching.sector">
-                                            <div class="flex flex-col gap-2 pl-4 border-l border-border-subtle">
-                                                <template x-for="kind in ['approach', 'departure', 'tower', 'ground']" :key="kind">
-                                                    <div class="cl-field">
-                                                        <span class="cl-field__label capitalize" x-text="kind"></span>
-                                                        <span class="cl-row">
-                                                            <input type="number" min="1" max="250" class="cl-input w-16 text-right" :aria-label="kind + ' sector radius, NM'"
-                                                                   x-model.number="draft.matching.sector[kind].radius_nm" @change="save()" :disabled="busy">
-                                                            <span class="cl-age">NM, below</span>
-                                                            <input type="number" min="500" max="60000" step="500" class="cl-input w-20 text-right" :aria-label="kind + ' sector ceiling, ft'"
-                                                                   x-model.number="draft.matching.sector[kind].max_alt_ft" @change="save()" :disabled="busy">
-                                                            <span class="cl-age">ft</span>
-                                                        </span>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </template>
-                                        <div class="cl-field">
-                                            <span class="cl-field__label">Exact flight number required</span>
-                                            <button class="cl-switch" role="switch" aria-label="Exact flight number required" :disabled="busy"
-                                                    :class="(draft.matching.min_score || 0) >= 0.9 ? 'is-on' : ''" :aria-checked="String((draft.matching.min_score || 0) >= 0.9)"
-                                                    @click="draft.matching.min_score = (draft.matching.min_score || 0) >= 0.9 ? 0 : 0.9; save()"></button>
-                                            <span class="cl-field__help">Score 0.9: a number heard in part, or an abbreviation alone, no longer names an aircraft. Measured on 03 and 04/10: 95 % to 97 % right, 27 % fewer matches.</span>
-                                        </div>
-                                        <div class="cl-field">
-                                            <span class="cl-field__label">First two digits, airline named</span>
-                                            <button class="cl-switch" role="switch" aria-label="First two digits, airline named" :disabled="busy"
-                                                    :class="draft.matching.prefix_digits ? 'is-on' : ''" :aria-checked="String(!!draft.matching.prefix_digits)" @click="flipRule('prefix_digits')"></button>
-                                            <span class="cl-field__help">"Air France Five One" for AFR511, right after the airline's name, when no other aircraft of the airline starts so. Measured +1 to 2%, with nearly as much chance on one day: off by default.</span>
-                                        </div>
-                                        <div class="cl-field">
-                                            <span class="cl-field__label">Accept one digit off</span>
-                                            <button class="cl-switch" role="switch" aria-label="Accept one digit off" :disabled="busy"
-                                                    :class="draft.matching.one_digit_off ? 'is-on' : ''" :aria-checked="String(!!draft.matching.one_digit_off)" @click="flipRule('one_digit_off')"></button>
-                                            <span class="cl-field__help">Measured 81% noise. For experiments only.</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
-                        </section>
 
-                        <!-- Regional data (SettingsPage, 16/10): the sources that depend on where the
-                             station is; a source that does not cover it says so, without controls. -->
-                        <section id="set-regional" class="cl-page__section max-md:px-4">
-                            <h3>Regional data</h3>
-                            <template x-if="aip">
-                                <div class="contents">
-                                    <div class="cl-field max-md:grid-cols-1">
-                                        <span class="cl-field__label cursor-help" data-help-title="Names from the AIP"
-                                              data-help="The official names around the station, from the French eAIP: reporting points, control positions, procedures. They name the procedures heard in the thread, from the sound of the words.">Names from the AIP</span>
-                                        <span class="cl-light whitespace-normal" :class="'cl-light--' + aipLight().level" x-text="aipLight().text"></span>
-                                        <span class="cl-field__help">The official names around the station, from the French eAIP: reporting points, control positions, procedures. They do not decide which aircraft is speaking: tried, a callsign whose airline is misheard sounds just like a procedure. They name the procedures heard in the thread, from the sound of the words.</span>
-                                    </div>
-                                    <template x-if="aip.coverage !== 'none'">
-                                        <div class="contents">
-                                            <dl class="cl-kv">
-                                                <template x-if="aip.present">
-                                                    <div class="contents">
-                                                        <dt>Reporting points</dt><dd x-text="aip.points"></dd>
-                                                        <dt>Control positions</dt><dd x-text="aip.callsigns"></dd>
-                                                        <dt>Procedure points</dt><dd x-text="aip.procedure_points + (aip.charts_read ? ' · from ' + aip.charts_read + ' SID and STAR coding tables' : '')"></dd>
-                                                    </div>
-                                                </template>
-                                                <dt>Area</dt><dd x-text="aip.radius_nm + ' NM around the station'"></dd>
-                                                <dt>Aerodromes</dt><dd x-text="(aip.airports || []).filter(a => !(aip.outside || []).includes(a)).join(' · ') + ' (the ones followed)'"></dd>
-                                            </dl>
-                                            <div class="cl-row">
-                                                <button class="cl-btn" :class="aipStale ? 'cl-btn--primary' : ''" :disabled="aip.refreshing || aipBusy" @click="refreshAIP()">Update from the SIA</button>
-                                                <span class="cl-plain">Public pages and coding tables of the eAIP, about 15 MB the first time in a cycle, under a minute.</span>
-                                            </div>
-                                            <span x-show="aip.present" class="cl-plain" x-text="aipSourceLine()"></span>
-                                            <span x-show="aip.present && aip.charts_note" class="cl-plain" x-text="'Coding tables: ' + aip.charts_note + '.'"></span>
-                                            <div class="cl-field">
-                                                <span class="cl-field__label">Update at each new AIRAC cycle</span>
-                                                <button class="cl-switch" role="switch" aria-label="Update at each new AIRAC cycle" :disabled="busy"
-                                                        :class="aip.auto_update ? 'is-on' : ''" :aria-checked="String(!!aip.auto_update)" @click="setAIP({ auto_update: !aip.auto_update })"></button>
-                                                <span class="cl-field__help">Every 28 days, when a new cycle comes into force, the server downloads the pages again.</span>
-                                            </div>
-                                            <!-- Naming the procedures in the thread (Q55 usage 3): three measured settings, no free slider. -->
-                                            <div class="cl-field">
-                                                <span class="cl-field__label">Name the procedures heard in the thread</span>
-                                                <button class="cl-switch" role="switch" aria-label="Name the procedures heard in the thread" :disabled="busy"
-                                                        :class="aip.name_procedures ? 'is-on' : ''" :aria-checked="String(!!aip.name_procedures)" @click="setAIP({ name_procedures: !aip.name_procedures })"></button>
-                                                <span class="cl-field__help">A dashed chip beside the words gives the official name they probably were: "ELCOB 7G" for "elcope seven golf". The transcript is left as heard.</span>
-                                            </div>
-                                            <template x-if="aip.name_procedures">
-                                                <div class="cl-field max-md:grid-cols-1">
-                                                    <span class="cl-field__label">How sure</span>
-                                                    <div class="cl-seg justify-self-end max-md:justify-self-start" role="group" aria-label="How sure a name must be">
-                                                        <template x-for="c in namingChoices" :key="c[0]">
-                                                            <button class="cl-seg__item" :aria-pressed="String(aip.naming === c[0])" :disabled="busy" @click="setAIP({ naming: c[0] })" x-text="c[1]"></button>
-                                                        </template>
-                                                    </div>
-                                                    <span class="cl-field__help" x-text="(namingChoices.find(c => c[0] === aip.naming) || namingChoices[1])[2]"></span>
-                                                    <span class="cl-field__source">Measured on the owner's listening of Paris approaches, 77 cases, October 2026.</span>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </template>
-                                </div>
-                            </template>
-                        </section>
-
-                        <section id="set-display" class="cl-page__section max-md:px-4">
-                            <h3>Display <span class="cl-age">this browser</span></h3>
+                    <!-- This browser › Display: kept in this browser only. -->
+                    <div x-show="page === 'display'" class="contents">
+                        <section class="cl-page__section">
                             <div class="cl-field">
                                 <span class="cl-field__label cursor-help" data-help-title="Last transmission on the label"
                                       data-help="Under the callsign of each aircraft the radio has named in the last ten minutes, its last transmission, cut short. Click the aircraft to read it in full in its story.">Last transmission on aircraft labels</span>
@@ -662,144 +458,318 @@
                             </div>
                             <p class="cl-plain m-0">Base map and layers: the layers button, at the bottom right of the map.</p>
                         </section>
+                        <section class="cl-page__section">
+                            <button class="cl-disclosure" :aria-expanded="String(debugOpen)" @click="debugOpen = !debugOpen">Diagnostics</button>
+                            <div x-show="debugOpen" class="flex flex-col gap-3">
+                                <p class="cl-plain m-0">Live updates, and the counters of this page: to look at a moment, or to report a problem.</p>
+                                <div class="cl-field">
+                                    <span class="cl-field__label">Live updates</span>
+                                    <button class="cl-btn" @click="$store.atc.toggleWebSocketUpdates()" :aria-pressed="String(!!$store.atc.wsUpdatesPaused)"
+                                            x-text="$store.atc.wsUpdatesPaused ? 'Resume' : 'Pause'"></button>
+                                    <span class="cl-field__help">Freezes the map and the lists to look at a moment; the radio keeps playing.</span>
+                                </div>
+                                <dl class="cl-kv" x-show="$store.atc.mapPerformanceStats">
+                                    <dt x-text="$store.atc.mapPerformanceStats?.smoothingEnabled ? 'Render FPS' : 'Update rate (/s)'"></dt><dd x-text="$store.atc.mapPerformanceStats?.animationFps"></dd>
+                                    <dt>Render frame (ms)</dt><dd x-text="$store.atc.mapPerformanceStats?.smoothingEnabled ? $store.atc.mapPerformanceStats?.animationFrameMs : '-'"></dd>
+                                    <dt>Render targets / frame</dt><dd x-text="$store.atc.mapPerformanceStats?.smoothingEnabled ? (($store.atc.mapPerformanceStats?.animationAnimatedThisFrame ?? 0) + ' / ' + ($store.atc.mapPerformanceStats?.animationVisibleTargets ?? 0)) : '-'"></dd>
+                                    <dt>Render marker updates /s</dt><dd x-text="$store.atc.mapPerformanceStats?.smoothingEnabled ? $store.atc.mapPerformanceStats?.animationMarkerUpdatesPerSec : '-'"></dd>
+                                    <dt>Map refresh /s</dt><dd x-text="$store.atc.mapPerformanceStats?.refreshPerSec"></dd>
+                                    <dt>Map refresh avg (ms)</dt><dd x-text="$store.atc.mapPerformanceStats?.avgRefreshMs"></dd>
+                                    <dt>Map marker ops /s</dt><dd x-text="$store.atc.mapPerformanceStats?.markerOpsPerSec"></dd>
+                                    <dt>Map visibility passes /s</dt><dd x-text="$store.atc.mapPerformanceStats?.fullVisibilityPassesPerSec"></dd>
+                                    <dt>Merge correct /s</dt><dd x-text="$store.atc.mapPerformanceStats?.animationCorrectedPerSec"></dd>
+                                    <dt>Predicted /s</dt><dd x-text="$store.atc.mapPerformanceStats?.animationPredictedPerSec"></dd>
+                                    <dt>Dropped frames</dt><dd x-text="$store.atc.mapPerformanceStats?.animationDroppedFrames"></dd>
+                                    <dt>Render quality</dt><dd x-text="$store.atc.mapPerformanceStats?.animationQuality"></dd>
+                                    <dt>WebSocket total /s</dt><dd x-text="$store.atc.mapPerformanceStats?.wsRates?.total ?? 0"></dd>
+                                    <dt>WS aircraft_update /s</dt><dd x-text="$store.atc.mapPerformanceStats?.wsRates?.aircraft_update ?? 0"></dd>
+                                    <dt>WS predicted /s</dt><dd x-text="$store.atc.mapPerformanceStats?.wsRates?.aircraft_predicted_state ?? 0"></dd>
+                                    <dt>WS add/remove /s</dt><dd x-text="($store.atc.mapPerformanceStats?.wsRates?.aircraft_added ?? 0) + ' / ' + ($store.atc.mapPerformanceStats?.wsRates?.aircraft_removed ?? 0)"></dd>
+                                    <dt>WS phase/transcription /s</dt><dd x-text="($store.atc.mapPerformanceStats?.wsRates?.phase_change ?? 0) + ' / ' + ($store.atc.mapPerformanceStats?.wsRates?.transcription ?? 0)"></dd>
+                                    <dt>WS parse errors /s</dt><dd x-text="$store.atc.mapPerformanceStats?.wsRates?.parse_errors ?? 0"></dd>
+                                    <dt>Tile cache controlled</dt><dd x-text="$store.atc.mapPerformanceStats?.tileCache?.controlled ? 'yes' : 'no'"></dd>
+                                    <dt>Tile cache hit rate</dt><dd x-text="($store.atc.mapPerformanceStats?.tileCache?.hitRatePct ?? 0) + '%'"></dd>
+                                    <dt>Tile cache hits / misses</dt><dd x-text="($store.atc.mapPerformanceStats?.tileCache?.hits ?? 0) + ' / ' + ($store.atc.mapPerformanceStats?.tileCache?.misses ?? 0)"></dd>
+                                    <dt>Heap (MB)</dt><dd x-text="$store.atc.mapPerformanceStats?.heapUsedMB !== null ? ($store.atc.mapPerformanceStats.heapUsedMB + ' / ' + $store.atc.mapPerformanceStats.heapLimitMB + ' (' + $store.atc.mapPerformanceStats.heapUsagePct + '%) • Δ ' + (($store.atc.mapPerformanceStats.heapDeltaMB === null || $store.atc.mapPerformanceStats.heapDeltaMB === undefined) ? '-' : (($store.atc.mapPerformanceStats.heapDeltaMB > 0 ? '+' : '') + $store.atc.mapPerformanceStats.heapDeltaMB)) + ' MB') : '-'"></dd>
+                                </dl>
+                            </div>
+                        </section>
+                    </div>
 
-                        <section id="set-account" class="cl-page__section max-md:px-4">
-                            <h3>Account</h3>
-                            <!-- Who is signed in, and the way out: there was none. First in the
-                                 section, so that it is found. Shown only when sign-in is required. -->
-                            <div x-data="{ user: null, busy: false }"
-                                 x-init="fetch('/api/v1/auth/status', { credentials: 'same-origin' })
-                                     .then(r => r.ok ? r.json() : null)
-                                     .then(s => { if (s && s.enabled && s.authenticated && s.user) user = s.user; })
-                                     .catch(() => {})"
-                                 x-show="user" class="cl-field">
-                                <span class="cl-field__label">Signed in as <b class="cl-mono" x-text="user"></b></span>
-                                <button class="cl-btn" :disabled="busy"
-                                        @click="busy = true; fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'same-origin' })
-                                            .finally(() => location.reload())">Sign out</button>
-                            </div>
-                            <!-- Accounts (D83, 27/10): the owner's alone -- the list answers 403 to
-                                 anyone else, and the part stays hidden. See accounts-panel.js. -->
-                            <div x-data="accountsPanel()" x-init="load()" x-show="loaded" x-cloak class="flex flex-col gap-3">
-                                <div class="cl-field">
-                                    <span class="cl-field__label cursor-help" data-help-title="Accounts"
-                                          data-help="Who may sign in to this server. An admin sees and changes everything, these accounts included; a viewer reads, and hears the audio only if the server allows it. Changes apply at once, without a restart.">Accounts</span>
-                                    <button class="cl-btn" x-show="!adding" @click="startAdding()" :disabled="busy">Add an account</button>
-                                </div>
-                                <template x-for="a in accounts" :key="a.name">
-                                    <div class="flex flex-col gap-1 py-2" style="border-top: var(--border-width-default) solid var(--color-border-subtle);">
-                                        <span class="cl-row">
-                                            <b class="cl-mono" x-text="a.name"></b>
-                                            <span class="cl-badge cursor-help" x-text="roleLabel(a.role)"
-                                                  data-help-title="Role" data-help="admin: sees and changes everything, these accounts included. viewer: reads, changes nothing, and hears the audio only if the server allows it (audio_replay)."></span>
-                                            <span class="cl-age" x-show="a.name === you">you</span>
-                                        </span>
-                                        <span class="cl-age whitespace-normal" x-text="facts(a)"></span>
-                                        <span class="cl-row flex-wrap" x-show="a.name !== you || a.source === 'file'">
-                                            <button class="cl-btn cl-btn--quiet cursor-help" x-show="a.name !== you" :disabled="busy" @click="cut(a.name)"
-                                                    data-help-title="Cut access" data-help="Signs this account out everywhere at once: its pages lose their connection and their sound stops. The password is kept, so it can sign in again; give it a new password to keep it out.">Cut access</button>
-                                            <button class="cl-btn cl-btn--quiet" x-show="a.source === 'file' && passwordFor !== a.name" :disabled="busy" @click="startPassword(a.name)">New password</button>
-                                            <button class="cl-btn cl-btn--quiet cursor-help" x-show="a.source === 'file' && a.name !== you" :disabled="busy" @click="remove(a.name)"
-                                                    data-help-title="Remove" data-help="Deletes the account: it is signed out at once and can no longer sign in. The last admin cannot be removed.">Remove</button>
-                                        </span>
-                                        <template x-if="passwordFor === a.name">
-                                            <span class="cl-row flex-wrap">
-                                                <input class="cl-input" type="password" x-model="newPassword" autocomplete="new-password"
-                                                       :placeholder="'New password, ' + minPassword + ' characters or more'" :aria-label="'New password for ' + a.name"
-                                                       @keydown.enter="setPassword()">
-                                                <button class="cl-btn cl-btn--primary" :disabled="busy || newPassword.length < minPassword" @click="setPassword()">Set</button>
-                                                <button class="cl-btn cl-btn--quiet" @click="passwordFor = ''; newPassword = ''">Cancel</button>
-                                            </span>
-                                        </template>
+                    <!-- This browser › Account: who is signed in on this browser. -->
+                    <div x-show="page === 'account'" class="contents">
+                        <section class="cl-page__section">
+                            <template x-if="me && me.user">
+                                <div class="flex flex-col gap-3">
+                                    <div class="cl-field">
+                                        <span class="cl-field__label">Signed in as <b class="cl-mono" x-text="me.user"></b></span>
+                                        <span class="cl-badge cursor-help" x-text="roleLabel()"
+                                              data-help-title="Role" data-help="Admin: sees and changes everything, the accounts included. Viewer: reads, changes nothing, and hears the sound only if the server allows it."></span>
                                     </div>
-                                </template>
-                                <template x-if="adding">
-                                    <div class="flex flex-col gap-2 max-w-sm">
-                                        <input class="cl-input" x-model="form.name" placeholder="User name" aria-label="New account's user name"
-                                               autocomplete="off" autocapitalize="none" spellcheck="false">
-                                        <input class="cl-input" type="password" x-model="form.password" aria-label="New account's password"
-                                               :placeholder="'Password, ' + minPassword + ' characters or more'" autocomplete="new-password">
-                                        <span class="cl-row" role="radiogroup" aria-label="Role">
-                                            <label class="cl-check cl-check--radio" role="radio" tabindex="0" :class="form.role === 'viewer' ? 'is-on' : ''"
-                                                   :aria-checked="String(form.role === 'viewer')" @click.prevent="form.role = 'viewer'" @keydown.space.prevent="form.role = 'viewer'">
-                                                <span class="cl-check__box"></span>viewer
-                                            </label>
-                                            <label class="cl-check cl-check--radio" role="radio" tabindex="0" :class="form.role === 'owner' ? 'is-on' : ''"
-                                                   :aria-checked="String(form.role === 'owner')" @click.prevent="form.role = 'owner'" @keydown.space.prevent="form.role = 'owner'">
-                                                <span class="cl-check__box"></span>admin
-                                            </label>
-                                        </span>
-                                        <span class="cl-row">
-                                            <button class="cl-btn cl-btn--primary" @click="add()"
-                                                    :disabled="busy || !form.name.trim() || form.password.length < minPassword">Create</button>
-                                            <button class="cl-btn cl-btn--quiet" @click="stopAdding()">Cancel</button>
-                                        </span>
+                                    <div class="cl-row">
+                                        <button class="cl-btn" :disabled="signingOut"
+                                                @click="signingOut = true; fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'same-origin' })
+                                                    .finally(() => location.reload())">Sign out</button>
                                     </div>
-                                </template>
-                                <span class="cl-inline-error" x-show="error" x-text="error"></span>
-                                <span class="cl-field__help" x-show="note && !error" x-text="note"></span>
-                            </div>
-                            <!-- Usage (D84, 27/10): what each account did, the owner's alone like
-                                 the accounts above. See usage-panel.js. -->
-                            <div x-data="usagePanel()" x-init="load()" x-show="loaded" x-cloak class="flex flex-col gap-3">
-                                <div class="cl-field">
-                                    <span class="cl-field__label cursor-help" data-help-title="Usage"
-                                          data-help="What each account did: the pages it had open, the frequencies it listened to, the clips it played again, and what interrupted it. Kept on this server for the number of days below, read by the admin alone; no address is written. Set by usage_days in config.toml.">Usage</span>
-                                    <button class="cl-btn cl-btn--quiet" @click="load()" :disabled="busy">Refresh</button>
                                 </div>
-                                <span class="cl-field__help" x-show="!enabled">Not kept: usage_days is 0 in config.toml.</span>
-                                <template x-if="enabled">
-                                    <div class="flex flex-col gap-3">
-                                        <span class="cl-field__help" x-text="'The last 7 days; ' + days + ' days are kept.'"></span>
-                                        <div class="flex flex-col gap-1">
-                                            <span class="cl-field__label cursor-help" data-help-title="Now"
-                                                  data-help="Who has a page open right now, and which frequencies they hear. Refreshed every 15 seconds while the settings are open.">Now</span>
-                                            <span class="cl-age" x-show="now.length === 0">Nobody here.</span>
-                                            <template x-for="p in now" :key="p.user">
-                                                <span class="cl-row flex-wrap"><b class="cl-mono" x-text="p.user"></b><span class="cl-age whitespace-normal" x-text="nowLine(p)"></span></span>
+                            </template>
+                            <p class="cl-plain m-0" x-show="me && !me.enabled">No sign-in on this server: it is open to this machine only.</p>
+                        </section>
+                    </div>
+
+                    <!-- Station › Listening: an admin sets it, a viewer reads it. -->
+                    <div x-show="page === 'listening'" class="contents">
+                        <section class="cl-page__section">
+                            <div class="cl-field cl-field--text">
+                                <span class="cl-field__label">On air</span>
+                                <span class="cl-plain" x-text="onAir()"></span>
+                                <span class="cl-field__help">Chosen at the station; this page plays what it receives.</span>
+                            </div>
+                            <template x-if="admin">
+                                <div class="flex flex-col gap-3">
+                            <template x-if="state && state.reference">
+                                <div class="flex flex-col gap-3">
+                                    <div class="cl-field max-md:grid-cols-1">
+                                        <span class="cl-field__label cursor-help" data-help-title="Reference airport"
+                                              data-help="Approach, departure, takeoff, landing, runway in use and weather are judged against this airport. Distances and range rings stay on the receiver.">Reference airport</span>
+                                        <select class="cl-select min-w-0 max-w-full" aria-label="Reference airport"
+                                                x-model="draft.reference_airport" @change="save()" :disabled="busy">
+                                            <template x-for="c in airportChoices()" :key="c.code">
+                                                <option :value="c.code" :selected="c.code === draft.reference_airport"
+                                                        x-text="c.code + ' · ' + c.name + ' · ' + c.distance_nm + ' NM'"></option>
+                                            </template>
+                                        </select>
+                                        <span class="cl-field__help">Phases (taxi, take-off, approach) are judged against it.</span>
+                                    </div>
+                                    <!-- Further airports: Orly and De Gaulle are 13 NM apart and both
+                                         worth watching (docs-fr/05-decisions.md, Q40). -->
+                                    <!-- Stacked: the airports in range are twenty or more, and beside
+                                         the label they squeezed it to a word per line. -->
+                                    <div class="cl-field grid-cols-1">
+                                        <span class="cl-field__label cursor-help" data-help-title="Also follow"
+                                              data-help="Each aircraft is judged against the airport whose runway axis it flies, else the nearest; its phase then shows that airport. Weather stays the reference airport's. Three at most.">Also follow</span>
+                                        <span class="cl-row gap-x-4">
+                                            <template x-for="c in alsoChoices()" :key="'also-' + c.code">
+                                                <label class="cl-check" :class="alsoFollowed(c.code) ? 'is-on' : ''"
+                                                       role="checkbox" tabindex="0" :aria-checked="String(alsoFollowed(c.code))"
+                                                       :data-help-title="c.code" :data-help="c.name + ' · ' + c.distance_nm + ' NM from the receiver'"
+                                                       @click.prevent="if (!busy) toggleAlso(c.code)" @keydown.space.prevent="if (!busy) toggleAlso(c.code)">
+                                                    <span class="cl-check__box"></span><span x-text="c.code"></span>
+                                                </label>
+                                            </template>
+                                        </span>
+                                        <span class="cl-field__help">Up to three: each gets a PAR and an arrival sequence.</span>
+                                    </div>
+                                </div>
+                            </template>
+                                </div>
+                            </template>
+                            <template x-if="!admin && state && state.reference">
+                                <div class="flex flex-col gap-3">
+                                    <div class="cl-field">
+                                        <span class="cl-field__label">Reference airport</span>
+                                        <span class="cl-field__value" x-text="referenceText()"></span>
+                                        <span class="cl-field__help">Phases (taxi, take-off, approach) are judged against it.</span>
+                                    </div>
+                                    <div class="cl-field">
+                                        <span class="cl-field__label">Also follow</span>
+                                        <span class="cl-field__value" x-text="(draft.also_airports || []).join(' · ') || 'None'"></span>
+                                        <span class="cl-field__help">Each gets a PAR and an arrival sequence.</span>
+                                    </div>
+                                </div>
+                            </template>
+                        </section>
+                        <!-- Official names (AIP), formerly Regional data: the sources that depend on
+                             where the station is; a source that does not cover it says so, without controls. -->
+                        <section class="cl-page__section">
+                            <h3>Official names (AIP)</h3>
+                            <template x-if="aip">
+                                <div class="flex flex-col gap-3">
+                                    <div class="cl-field max-md:grid-cols-1">
+                                        <span class="cl-field__label cursor-help" data-help-title="Names from the AIP"
+                                              data-help="They name the procedures heard in the thread, from the sound of the words. They do not decide which aircraft is speaking: tried, a callsign whose airline is misheard sounds just like a procedure.">Names from the AIP</span>
+                                        <span class="cl-light whitespace-normal" :class="'cl-light--' + aipLight().level" x-text="aipLight().text"></span>
+                                        <span class="cl-field__help">The official names around the station, from the French eAIP: reporting points, control positions, procedures.</span>
+                                    </div>
+                                    <template x-if="aip.coverage !== 'none'">
+                                        <div class="flex flex-col gap-3">
+                                            <dl class="cl-kv">
+                                                <template x-if="aip.present">
+                                                    <div class="contents">
+                                                        <dt>Reporting points</dt><dd x-text="aip.points"></dd>
+                                                        <dt>Control positions</dt><dd x-text="aip.callsigns"></dd>
+                                                        <dt>Procedure points</dt><dd x-text="aip.procedure_points + (aip.charts_read ? ' · from ' + aip.charts_read + ' SID and STAR coding tables' : '')"></dd>
+                                                    </div>
+                                                </template>
+                                                <dt>Area</dt><dd x-text="aip.radius_nm + ' NM around the station'"></dd>
+                                                <dt>Aerodromes</dt><dd x-text="(aip.airports || []).filter(a => !(aip.outside || []).includes(a)).join(' · ') + ' (the ones followed)'"></dd>
+                                            </dl>
+                                            <div class="cl-row" x-show="admin">
+                                                <button class="cl-btn" :class="aipStale ? 'cl-btn--primary' : ''" :disabled="aip.refreshing || aipBusy" @click="refreshAIP()">Update from the SIA</button>
+                                                <span class="cl-plain">Public pages and coding tables of the eAIP, about 15 MB the first time in a cycle, under a minute.</span>
+                                            </div>
+                                            <span x-show="aip.present" class="cl-plain" x-text="aipSourceLine()"></span>
+                                            <span x-show="aip.present && aip.charts_note" class="cl-plain" x-text="'Coding tables: ' + aip.charts_note + '.'"></span>
+                                            <div class="cl-field">
+                                                <span class="cl-field__label">Update at each new AIRAC cycle</span>
+                                                <span class="cl-field__value" x-show="!admin" x-text="aip.auto_update ? 'On' : 'Off'"></span>
+                                                <button class="cl-switch" role="switch" aria-label="Update at each new AIRAC cycle" :disabled="busy" x-show="admin"
+                                                        :class="aip.auto_update ? 'is-on' : ''" :aria-checked="String(!!aip.auto_update)" @click="setAIP({ auto_update: !aip.auto_update })"></button>
+                                                <span class="cl-field__help">Every 28 days, when a new cycle comes into force, the server downloads the pages again.</span>
+                                            </div>
+                                            <!-- Naming the procedures in the thread (Q55 usage 3): three measured settings, no free slider. -->
+                                            <div class="cl-field">
+                                                <span class="cl-field__label">Name the procedures heard in the thread</span>
+                                                <span class="cl-field__value" x-show="!admin" x-text="aip.name_procedures ? 'On · ' + (namingChoices.find(c => c[0] === aip.naming) || namingChoices[1])[1] : 'Off'"></span>
+                                                <button class="cl-switch" role="switch" aria-label="Name the procedures heard in the thread" :disabled="busy" x-show="admin"
+                                                        :class="aip.name_procedures ? 'is-on' : ''" :aria-checked="String(!!aip.name_procedures)" @click="setAIP({ name_procedures: !aip.name_procedures })"></button>
+                                                <span class="cl-field__help">A dashed chip beside the words gives the official name they probably were: "ELCOB 7G" for "elcope seven golf". The transcript is left as heard.</span>
+                                            </div>
+                                            <template x-if="aip.name_procedures && admin">
+                                                <div class="cl-field max-md:grid-cols-1">
+                                                    <span class="cl-field__label">How sure</span>
+                                                    <div class="cl-seg justify-self-end max-md:justify-self-start" role="group" aria-label="How sure a name must be">
+                                                        <template x-for="c in namingChoices" :key="c[0]">
+                                                            <button class="cl-seg__item" :aria-pressed="String(aip.naming === c[0])" :disabled="busy" @click="setAIP({ naming: c[0] })" x-text="c[1]"></button>
+                                                        </template>
+                                                    </div>
+                                                    <span class="cl-field__help" x-text="(namingChoices.find(c => c[0] === aip.naming) || namingChoices[1])[2]"></span>
+                                                    <span class="cl-field__source">Measured on the owner's listening of Paris approaches, 77 cases, October 2026.</span>
+                                                </div>
                                             </template>
                                         </div>
-                                        <span class="cl-age" x-show="accounts.length === 0">Nobody signed in these 7 days.</span>
-                                        <template x-for="a in accounts" :key="a.user">
-                                            <div class="flex flex-col gap-1 py-2" style="border-top: var(--border-width-default) solid var(--color-border-subtle);">
-                                                <span class="cl-row flex-wrap">
-                                                    <b class="cl-mono" x-text="a.user"></b>
-                                                    <span class="cl-age" x-text="'last seen ' + lastSeen(a)"></span>
-                                                </span>
-                                                <span class="cl-age whitespace-normal" x-text="weekLine(a)"></span>
-                                                <div class="flex items-end gap-1 cursor-help" role="img" :aria-label="'Each day of the week for ' + a.user"
-                                                     data-help-title="A bar a day" data-help="The last 7 days, today on the right. The pale bar is the time a page was open, the coloured one the time the sound was on, both against the busiest day. Hover a bar for its figures.">
-                                                    <template x-for="b in bars(a)" :key="b.date">
-                                                        <div class="flex flex-col items-center gap-0.5" :title="b.title" style="width: 1.5rem;">
-                                                            <div class="relative w-full overflow-hidden" style="height: 2rem;">
-                                                                <div class="absolute bottom-0 inset-x-0 rounded-sm" :style="'height:' + b.connected + '%; background: var(--color-border-default);'"></div>
-                                                                <div class="absolute bottom-0 inset-x-0 rounded-sm" :style="'height:' + b.listening + '%; background: var(--color-accent-fill);'"></div>
-                                                            </div>
-                                                            <span class="cl-age" x-text="b.label"></span>
-                                                        </div>
-                                                    </template>
-                                                </div>
-                                                <template x-if="a.interruptions.length">
-                                                    <div class="flex flex-col gap-0.5">
-                                                        <span class="cl-age cursor-help" data-help-title="Interruptions"
-                                                              data-help="What cut this account's page or sound: the server stopping (a restart), the station's stream ending, or the connection breaking and coming back. A page left to sleep is not counted. 'Back in' is how long the page or the sound took to return on its own.">Interruptions</span>
-                                                        <template x-for="i in a.interruptions" :key="i.at + i.kind + (i.freq || '')">
-                                                            <span class="cl-age whitespace-normal" x-text="interruptionLine(i)"></span>
-                                                        </template>
+                                    </template>
+                                </div>
+                            </template>
+                        </section>
+                    </div>
+
+                    <!-- Station › Matching: an admin's. -->
+                    <div x-show="page === 'matching'" class="contents">
+                        <section class="cl-page__section">
+                            <!-- How a transmission is tied to an aircraft. Each rule was measured
+                                 against a shuffled sky before being offered here (docs-fr/05-decisions.md,
+                                 Q30 and Q46); a change applies to the next transmission. -->
+                            <template x-if="state && draft.matching">
+                                <div class="flex flex-col gap-3">
+                                    <!-- Three presets (D73), measured on 03 and 04/10; the rules below stay
+                                         free to change, and "custom" says when they match no preset. -->
+                                    <div class="cl-field max-md:grid-cols-1">
+                                        <span class="cl-field__label">Rules</span>
+                                        <span class="cl-row justify-end max-md:justify-start">
+                                            <span class="cl-age cursor-help" x-show="!activePreset()" data-help-title="Custom"
+                                                  data-help="The rules below match none of the three presets: your own mix.">custom</span>
+                                            <div class="cl-seg" role="group" aria-label="Rules preset">
+                                                <template x-for="p in presetChoices" :key="p[0]">
+                                                    <button class="cl-seg__item" :aria-pressed="String(activePreset() === p[0])" :disabled="busy"
+                                                            @click="applyPreset(p[0])" data-help-title="Preset" :data-help="p[2]" x-text="p[1]"></button>
+                                                </template>
+                                            </div>
+                                        </span>
+                                        <span class="cl-field__help">Standard is the default. The rules behind each preset are under Advanced.</span>
+                                        <span class="cl-field__source">Measured on Paris approaches (CDG, ORY, LBG), October 2026.</span>
+                                    </div>
+                                    <button class="cl-disclosure" :aria-expanded="String(rulesOpen)" @click="rulesOpen = !rulesOpen">Advanced</button>
+                                    <div x-show="rulesOpen" class="flex flex-col gap-3">
+                                        <div class="cl-field">
+                                            <span class="cl-field__label cursor-help" data-help-title="Letters in flight numbers" data-help="59% of callsigns have letters. Measured +27% matched aircraft, precision 73% to 76%.">Letters in flight numbers</span>
+                                            <button class="cl-switch" role="switch" aria-label="Letters in flight numbers" :disabled="busy"
+                                                    :class="draft.matching.letters ? 'is-on' : ''" :aria-checked="String(!!draft.matching.letters)" @click="flipRule('letters')"></button>
+                                            <span class="cl-field__help">"seven uniform echo" read as 7UE.</span>
+                                        </div>
+                                        <div class="cl-field">
+                                            <span class="cl-field__label cursor-help" data-help-title="Airline heard roughly" data-help="Few matches on its own; rescues half-heard ones.">Airline heard roughly</span>
+                                            <button class="cl-switch" role="switch" aria-label="Airline heard roughly" :disabled="busy"
+                                                    :class="draft.matching.approx_operators ? 'is-on' : ''" :aria-checked="String(!!draft.matching.approx_operators)" @click="flipRule('approx_operators')"></button>
+                                            <span class="cl-field__help">"welling" taken for Vueling, among the airlines in the sky only.</span>
+                                        </div>
+                                        <div class="cl-field">
+                                            <span class="cl-field__label cursor-help" data-help-title="Shortest flight number" data-help="With 2 digits, chance matches about as often as the truth (measured).">Shortest flight number</span>
+                                            <select class="cl-select" aria-label="Shortest flight number" x-model.number="draft.matching.min_digits" @change="save()" :disabled="busy">
+                                                <option value="2">2 digits</option>
+                                                <option value="3">3 digits</option>
+                                                <option value="4">4 digits</option>
+                                            </select>
+                                            <span class="cl-field__help">The fewest digits a flight number heard may have; 3 is the default.</span>
+                                        </div>
+                                        <p class="cl-plain m-0">An aircraft heard on the frequency in the last two minutes, named again in short:</p>
+                                        <div class="cl-field">
+                                            <span class="cl-field__label cursor-help" data-help-title="By its last letters" data-help="Measured +8, no chance matches.">By its last letters</span>
+                                            <button class="cl-switch" role="switch" aria-label="By its last letters" :disabled="busy"
+                                                    :class="draft.matching.context_letters ? 'is-on' : ''" :aria-checked="String(!!draft.matching.context_letters)" @click="flipRule('context_letters')"></button>
+                                            <span class="cl-field__help">"sierra bravo" for AFR23SB.</span>
+                                        </div>
+                                        <div class="cl-field">
+                                            <span class="cl-field__label cursor-help" data-help-title="By its last two digits" data-help="Measured +13.">By its last two digits</span>
+                                            <button class="cl-switch" role="switch" aria-label="By its last two digits" :disabled="busy"
+                                                    :class="draft.matching.context_digits ? 'is-on' : ''" :aria-checked="String(!!draft.matching.context_digits)" @click="flipRule('context_digits')"></button>
+                                            <span class="cl-field__help">"five four" for LBT554, when no other aircraft just heard ends so.</span>
+                                        </div>
+                                        <div class="cl-field">
+                                            <span class="cl-field__label cursor-help" data-help-title="By its airline alone" data-help="Measured +68, but ADS-B cannot tell whether the right aircraft was named: to be checked by ear first.">By its airline alone</span>
+                                            <button class="cl-switch" role="switch" aria-label="By its airline alone" :disabled="busy"
+                                                    :class="draft.matching.context_names ? 'is-on' : ''" :aria-checked="String(!!draft.matching.context_names)" @click="flipRule('context_names')"></button>
+                                            <span class="cl-field__help">When it is the only one of that airline just heard.</span>
+                                        </div>
+                                        <div class="cl-field">
+                                            <span class="cl-field__label cursor-help" data-help-title="Only aircraft in the frequency's sector" data-help="Measured on the Roissy approach: chance matches halved, more true ones.">Only aircraft in the frequency's sector</span>
+                                            <button class="cl-switch" role="switch" aria-label="Only aircraft in the frequency's sector" :disabled="busy"
+                                                    :class="draft.matching.sectors ? 'is-on' : ''" :aria-checked="String(!!draft.matching.sectors)" @click="flipRule('sectors')"></button>
+                                            <span class="cl-field__help">For frequencies that name their airport and kind.</span>
+                                            <span class="cl-field__source">Set for the Paris area: set your own for another station.</span>
+                                        </div>
+                                        <template x-if="draft.matching.sectors && draft.matching.sector">
+                                            <div class="flex flex-col gap-2 pl-4 border-l border-border-subtle">
+                                                <template x-for="kind in ['approach', 'departure', 'tower', 'ground']" :key="kind">
+                                                    <div class="cl-field">
+                                                        <span class="cl-field__label capitalize" x-text="kind"></span>
+                                                        <span class="cl-row">
+                                                            <input type="number" min="1" max="250" class="cl-input w-16 text-right" :aria-label="kind + ' sector radius, NM'"
+                                                                   x-model.number="draft.matching.sector[kind].radius_nm" @change="save()" :disabled="busy">
+                                                            <span class="cl-age">NM, below</span>
+                                                            <input type="number" min="500" max="60000" step="500" class="cl-input w-20 text-right" :aria-label="kind + ' sector ceiling, ft'"
+                                                                   x-model.number="draft.matching.sector[kind].max_alt_ft" @change="save()" :disabled="busy">
+                                                            <span class="cl-age">ft</span>
+                                                        </span>
                                                     </div>
                                                 </template>
                                             </div>
                                         </template>
+                                        <div class="cl-field">
+                                            <span class="cl-field__label cursor-help" data-help-title="Exact flight number required" data-help="A score of 0.9 at least. Measured on 03 and 04/10: 95 % to 97 % right, 27 % fewer matches.">Exact flight number required</span>
+                                            <button class="cl-switch" role="switch" aria-label="Exact flight number required" :disabled="busy"
+                                                    :class="(draft.matching.min_score || 0) >= 0.9 ? 'is-on' : ''" :aria-checked="String((draft.matching.min_score || 0) >= 0.9)"
+                                                    @click="draft.matching.min_score = (draft.matching.min_score || 0) >= 0.9 ? 0 : 0.9; save()"></button>
+                                            <span class="cl-field__help">A number heard in part, or an abbreviation alone, no longer names an aircraft.</span>
+                                        </div>
+                                        <div class="cl-field">
+                                            <span class="cl-field__label cursor-help" data-help-title="First two digits, airline named" data-help="Measured +1 to 2%, with nearly as much chance on one day: off by default.">First two digits, airline named</span>
+                                            <button class="cl-switch" role="switch" aria-label="First two digits, airline named" :disabled="busy"
+                                                    :class="draft.matching.prefix_digits ? 'is-on' : ''" :aria-checked="String(!!draft.matching.prefix_digits)" @click="flipRule('prefix_digits')"></button>
+                                            <span class="cl-field__help">"Air France Five One" for AFR511, right after the airline's name, when no other aircraft of the airline starts so.</span>
+                                        </div>
+                                        <div class="cl-field">
+                                            <span class="cl-field__label cursor-help" data-help-title="Accept one digit off" data-help="Measured: 81% of what it adds is noise.">Accept one digit off</span>
+                                            <button class="cl-switch" role="switch" aria-label="Accept one digit off" :disabled="busy"
+                                                    :class="draft.matching.one_digit_off ? 'is-on' : ''" :aria-checked="String(!!draft.matching.one_digit_off)" @click="flipRule('one_digit_off')"></button>
+                                            <span class="cl-field__help">A flight number heard with one digit wrong still names the aircraft. For experiments only.</span>
+                                        </div>
                                     </div>
-                                </template>
-                            </div>
+                                </div>
+                            </template>
+                        </section>
+                    </div>
+
+                    <!-- Administration › Access: who may open Clairance, and with which account. -->
+                    <div x-show="page === 'access'" class="contents">
+                        <section class="cl-page__section">
                             <template x-if="state">
-                                <div class="contents">
+                                <div class="flex flex-col gap-3">
                                     <!-- Access: the first-run question, answerable again. Switching
                                          reloads the page, since what this browser may see changes with
                                          it; the network without an account yet asks for one first. -->
                                     <template x-if="state.access">
-                                        <div class="contents">
+                                        <div class="flex flex-col gap-3">
                                             <div class="cl-field max-md:grid-cols-1">
                                                 <span class="cl-field__label cursor-help" data-help-title="Access" :data-help="accessLabel()">Who may open Clairance</span>
                                                 <span class="cl-row justify-end max-md:justify-start" role="radiogroup" aria-label="Who may open Clairance">
@@ -836,30 +806,162 @@
                                     <!-- The sign-in page's console (StationVitals): figures anyone who
                                          reaches the page sees, hence a switch of the server's own. -->
                                     <div class="cl-field">
-                                        <span class="cl-field__label">Station console on the sign-in page</span>
-                                        <button class="cl-switch" role="switch" aria-label="Station console on the sign-in page" :disabled="busy"
+                                        <span class="cl-field__label cursor-help" data-help-title="Live figures"
+                                              data-help="Anyone who reaches the sign-in page sees them, signed in or not: no position, callsign or frequency name is shown.">Live figures on the sign-in page</span>
+                                        <button class="cl-switch" role="switch" aria-label="Live figures on the sign-in page" :disabled="busy"
                                                 :class="draft.vitals ? 'is-on' : ''" :aria-checked="String(!!draft.vitals)"
                                                 @click="draft.vitals = !draft.vitals; save()"></button>
-                                        <span class="cl-field__help">Shows live, aggregated figures of this station (aircraft, channels, transmissions, uptime) on the sign-in page, without any position, callsign or frequency name.</span>
+                                        <span class="cl-field__help">The station's aircraft, channels, transmissions and uptime, shown on the sign-in page.</span>
                                     </div>
                                 </div>
                             </template>
                         </section>
+                        <section class="cl-page__section cl-page__section--wide">
+                            <!-- Accounts (D83, 27/10): the owner's alone -- the list answers 403 to
+                                 anyone else, and the part stays hidden. See accounts-panel.js. -->
+                            <div x-data="accountsPanel()" x-init="$watch('page', p => { if (p === 'access' && !loaded) load() }); if (page === 'access') load()" x-show="loaded" x-cloak class="contents">
+                                <div class="flex flex-col gap-2" style="max-width: 592px;">
+                                    <h3 class="cursor-help" data-help-title="Accounts"
+                                        data-help="An Admin sees and changes everything, these accounts included; a Viewer reads, and hears the sound only if the server allows it. Changes apply at once, without a restart.">Accounts</h3>
+                                    <p class="cl-plain m-0">Who may sign in to this server.</p>
+                                    <div class="cl-row"><button class="cl-btn" x-show="!adding" @click="startAdding()" :disabled="busy">Add an account</button></div>
+                                </div>
+                                <div class="cl-grid2">
+                                <template x-for="a in accounts" :key="a.name">
+                                    <div class="cl-card">
+                                        <span class="cl-row">
+                                            <b class="cl-mono" x-text="a.name"></b>
+                                            <span class="cl-badge cursor-help" x-text="roleLabel(a.role)"
+                                                  data-help-title="Role" data-help="Admin: sees and changes everything, these accounts included. Viewer: reads, changes nothing, and hears the sound only if the server allows it (audio_replay)."></span>
+                                            <span class="cl-age" x-show="a.name === you">you</span>
+                                        </span>
+                                        <span class="cl-age whitespace-normal" x-text="facts(a)"></span>
+                                        <span class="cl-row flex-wrap" x-show="a.name !== you || a.source === 'file'">
+                                            <button class="cl-btn cl-btn--quiet cursor-help" x-show="a.name !== you" :disabled="busy" @click="cut(a.name)"
+                                                    data-help-title="Cut access" data-help="Signs this account out everywhere at once: its pages lose their connection and their sound stops. The password is kept, so it can sign in again; give it a new password to keep it out.">Cut access</button>
+                                            <button class="cl-btn cl-btn--quiet" x-show="a.source === 'file' && passwordFor !== a.name" :disabled="busy" @click="startPassword(a.name)">New password</button>
+                                            <button class="cl-btn cl-btn--quiet cursor-help" x-show="a.source === 'file' && a.name !== you" :disabled="busy" @click="remove(a.name)"
+                                                    data-help-title="Remove" data-help="Deletes the account: it is signed out at once and can no longer sign in. The last admin cannot be removed.">Remove</button>
+                                        </span>
+                                        <template x-if="passwordFor === a.name">
+                                            <span class="cl-row flex-wrap">
+                                                <input class="cl-input" type="password" x-model="newPassword" autocomplete="new-password"
+                                                       :placeholder="'New password, ' + minPassword + ' characters or more'" :aria-label="'New password for ' + a.name"
+                                                       @keydown.enter="setPassword()">
+                                                <button class="cl-btn cl-btn--primary" :disabled="busy || newPassword.length < minPassword" @click="setPassword()">Set</button>
+                                                <button class="cl-btn cl-btn--quiet" @click="passwordFor = ''; newPassword = ''">Cancel</button>
+                                            </span>
+                                        </template>
+                                    </div>
+                                </template>
+                                </div>
+                                <template x-if="adding">
+                                    <div class="flex flex-col gap-2 max-w-sm">
+                                        <input class="cl-input" x-model="form.name" placeholder="User name" aria-label="New account's user name"
+                                               autocomplete="off" autocapitalize="none" spellcheck="false">
+                                        <input class="cl-input" type="password" x-model="form.password" aria-label="New account's password"
+                                               :placeholder="'Password, ' + minPassword + ' characters or more'" autocomplete="new-password">
+                                        <span class="cl-row" role="radiogroup" aria-label="Role">
+                                            <label class="cl-check cl-check--radio" role="radio" tabindex="0" :class="form.role === 'viewer' ? 'is-on' : ''"
+                                                   :aria-checked="String(form.role === 'viewer')" @click.prevent="form.role = 'viewer'" @keydown.space.prevent="form.role = 'viewer'">
+                                                <span class="cl-check__box"></span>Viewer
+                                            </label>
+                                            <label class="cl-check cl-check--radio" role="radio" tabindex="0" :class="form.role === 'owner' ? 'is-on' : ''"
+                                                   :aria-checked="String(form.role === 'owner')" @click.prevent="form.role = 'owner'" @keydown.space.prevent="form.role = 'owner'">
+                                                <span class="cl-check__box"></span>Admin
+                                            </label>
+                                        </span>
+                                        <span class="cl-row">
+                                            <button class="cl-btn cl-btn--primary" @click="add()"
+                                                    :disabled="busy || !form.name.trim() || form.password.length < minPassword">Create</button>
+                                            <button class="cl-btn cl-btn--quiet" @click="stopAdding()">Cancel</button>
+                                        </span>
+                                    </div>
+                                </template>
+                                <span class="cl-inline-error" x-show="error" x-text="error"></span>
+                                <span class="cl-field__help" x-show="note && !error" x-text="note"></span>
+                            </div>
+                        </section>
+                    </div>
 
-                        <section id="set-system" class="cl-page__section max-md:px-4">
-                            <h3>System</h3>
+                    <!-- Administration › Usage: what each account did. -->
+                    <div x-show="page === 'usage'" class="contents">
+                        <section class="cl-page__section cl-page__section--wide">
+                            <!-- Usage (D84, 27/10): what each account did, the owner's alone like
+                                 the accounts above. See usage-panel.js. -->
+                            <div x-data="usagePanel()" x-init="$watch('page', p => { if (p === 'usage') load() }); if (page === 'usage') load()" x-show="loaded" x-cloak class="contents">
+                                <div class="flex flex-col gap-2" style="max-width: 592px;">
+                                    <p class="cl-plain m-0 cursor-help" data-help-title="Usage" x-show="enabled"
+                                       data-help="The pages each account had open, the frequencies it listened to, the clips it played again, and what interrupted it. Kept on this server, read by an Admin alone; no address is written. Set by usage_days in config.toml."
+                                       x-text="'The last 7 days; ' + days + ' days are kept.'"></p>
+                                    <p class="cl-plain m-0" x-show="!enabled">Not kept: usage_days is 0 in config.toml.</p>
+                                    <div class="cl-row"><button class="cl-btn" @click="load()" :disabled="busy">Refresh</button></div>
+                                </div>
+                                <template x-if="enabled">
+                                    <div class="contents">
+                                        <div class="flex flex-col gap-1" style="max-width: 592px;">
+                                            <span class="cl-field__label cursor-help" data-help-title="Now"
+                                                  data-help="Refreshed every 15 seconds while this page is open.">Now</span>
+                                            <span class="cl-age" x-show="now.length === 0">Nobody here.</span>
+                                            <template x-for="p in now" :key="p.user">
+                                                <span class="cl-row flex-wrap"><b class="cl-mono" x-text="p.user"></b><span class="cl-age whitespace-normal" x-text="nowLine(p)"></span></span>
+                                            </template>
+                                        </div>
+                                        <span class="cl-age" x-show="accounts.length === 0">Nobody signed in these 7 days.</span>
+                                        <div class="cl-grid2">
+                                        <template x-for="a in accounts" :key="a.user">
+                                            <div class="cl-card">
+                                                <span class="cl-row flex-wrap">
+                                                    <b class="cl-mono" x-text="a.user"></b>
+                                                    <span class="cl-age" x-text="'last seen ' + lastSeen(a)"></span>
+                                                </span>
+                                                <span class="cl-age whitespace-normal" x-text="weekLine(a)"></span>
+                                                <div class="flex items-end gap-1 cursor-help" role="img" :aria-label="'Each day of the week for ' + a.user"
+                                                     data-help-title="A bar a day" data-help="The last 7 days, today on the right. The pale bar is the time a page was open, the coloured one the time the sound was on, both against the busiest day. Hover a bar for its figures.">
+                                                    <template x-for="b in bars(a)" :key="b.date">
+                                                        <div class="flex flex-col items-center gap-0.5" :title="b.title" style="width: 1.5rem;">
+                                                            <div class="relative w-full overflow-hidden" style="height: 2rem;">
+                                                                <div class="absolute bottom-0 inset-x-0 rounded-sm" :style="'height:' + b.connected + '%; background: var(--color-border-default);'"></div>
+                                                                <div class="absolute bottom-0 inset-x-0 rounded-sm" :style="'height:' + b.listening + '%; background: var(--color-accent-fill);'"></div>
+                                                            </div>
+                                                            <span class="cl-age" x-text="b.label"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                                <template x-if="a.interruptions.length">
+                                                    <div class="flex flex-col gap-0.5">
+                                                        <span class="cl-age cursor-help" data-help-title="Interruptions"
+                                                              data-help="What cut this account's page or sound: the server stopping (a restart), the station's stream ending, or the connection breaking and coming back. A page left to sleep is not counted. 'Back in' is how long the page or the sound took to return on its own.">Interruptions</span>
+                                                        <template x-for="i in a.interruptions" :key="i.at + i.kind + (i.freq || '')">
+                                                            <span class="cl-age whitespace-normal" x-text="interruptionLine(i)"></span>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </section>
+                    </div>
+
+                    <!-- Administration › Server: its log, its databases and their archive, then what it reports. -->
+                    <div x-show="page === 'server'" class="contents">
+                        <section class="cl-page__section">
                             <template x-if="state">
-                                <div class="contents">
+                                <div class="flex flex-col gap-3">
                                     <!-- Editable: the only things here that change without a restart. -->
                                     <div class="cl-field">
-                                        <span class="cl-field__label cursor-help" data-help-title="Log level"
-                                              data-help="How much the server writes to its log: debug is everything, error only what went wrong. info is the usual.">Log level</span>
-                                        <select class="cl-select" aria-label="Log level" x-model="draft.log_level" @change="save()">
+                                        <span class="cl-field__label cursor-help" data-help-title="Log detail"
+                                              data-help="debug writes everything, error only what went wrong; info is the usual. More detail helps to report a problem, and fills the log faster.">Log detail</span>
+                                        <select class="cl-select" aria-label="Log detail" x-model="draft.log_level" @change="save()">
                                             <option value="debug">debug</option>
                                             <option value="info">info</option>
                                             <option value="warn">warn</option>
                                             <option value="error">error</option>
                                         </select>
+                                        <span class="cl-field__help">How much the server writes to its log.</span>
                                     </div>
                                     <!-- A size, not a number of days (28/09): the oldest days go past
                                          it, today's never. -->
@@ -884,12 +986,17 @@
                                     </div>
                                 </div>
                             </template>
-                            <!-- Reported, not editable: changing any of these means reopening
-                                 something, and a page that silently fails to apply what it shows
-                                 is worse than one that says which half it can. -->
-                            <button class="cl-disclosure" :aria-expanded="String(reportsOpen)" @click="reportsOpen = !reportsOpen">Reports: database, ADS-B source, receiver, decoder</button>
-                            <div x-show="reportsOpen" class="flex flex-col gap-3">
+                        </section>
+                        <!-- Reported, not editable: changing any of these means reopening
+                             something, and a page that silently fails to apply what it shows
+                             is worse than one that says which half it can. -->
+                        <section class="cl-page__section cl-page__section--wide">
+                            <h3>Reports</h3>
+                            <div class="cl-grid2">
                                 <template x-if="state">
+                                    <div class="cl-card">
+                                        <span class="cl-label">Storage</span>
+                                        <dl class="cl-kv">
                                     <dl class="cl-kv">
                                         <dt>Database</dt>
                                         <dd><span x-text="fmtBytes(state.storage.active_db_bytes) + (state.storage.rotates ? ' · rotates daily' : ' · ')"></span><span x-show="!state.storage.rotates" class="cl-warn">▲ never rotates</span></dd>
@@ -902,8 +1009,13 @@
                                                       x-text="(state.storage.days_until_full < 7 ? '■ ' : '') + state.storage.days_until_full.toFixed(1) + ' days'"></span></dd>
                                         </div>
                                         <dt>Disk free</dt><dd x-text="fmtBytes(state.storage.disk_free_bytes)"></dd>
-                                        <dt>Log</dt>
-                                        <dd><span x-show="state.logging.bounded" x-text="state.logging.max_size_mb + ' MB × ' + state.logging.max_files + ' files'"></span><span x-show="!state.logging.bounded">stdout only · </span><span x-show="!state.logging.bounded" class="cl-warn">▲ no size limit</span></dd>
+                                        </dl>
+                                    </div>
+                                </template>
+                                <template x-if="state">
+                                    <div class="cl-card">
+                                        <span class="cl-label">Server</span>
+                                        <dl class="cl-kv">
                                         <template x-if="state.transcription">
                                             <div class="contents">
                                                 <dt>Transcription</dt>
@@ -915,8 +1027,12 @@
                                             <dd class="col-span-2 whitespace-normal"><span class="cl-urgent" x-text="'■ ' + state.transcription.detail"></span></dd>
                                         </template>
                                         <dt>Uptime</dt><dd x-text="fmtUptime(state.uptime_seconds)"></dd>
-                                    </dl>
+                                        <dt>Log</dt>
+                                        <dd><span x-show="state.logging.bounded" x-text="state.logging.max_size_mb + ' MB × ' + state.logging.max_files + ' files'"></span><span x-show="!state.logging.bounded">stdout only · </span><span x-show="!state.logging.bounded" class="cl-warn">▲ no size limit</span></dd>
+                                        </dl>
+                                    </div>
                                 </template>
+                                <div class="cl-card">
                                 <span class="cl-label">ADS-B source</span>
                                 <dl class="cl-kv">
                                     <dt>Mode</dt><dd x-text="$store.atc.adsbSourceInfo?.source_type || '—'"></dd>
@@ -938,6 +1054,8 @@
                                         <dd class="col-span-2 break-all"><span class="cl-urgent" x-text="'■ ' + $store.atc.adsbSourceInfo.aircraft.last_error"></span></dd>
                                     </template>
                                 </dl>
+                                </div>
+                                <div class="cl-card" x-show="$store.atc.adsbSourceInfo?.receiver?.available || $store.atc.adsbSourceInfo?.stats?.available">
                                 <div x-show="$store.atc.adsbSourceInfo?.receiver?.available" class="flex flex-col gap-3">
                                     <span class="cl-label">Receiver</span>
                                     <dl class="cl-kv">
@@ -964,41 +1082,10 @@
                                         <dt>Gain / PPM</dt><dd x-text="$store.atc.getAdsbStatsSummary()?.gainDb !== null ? ($store.atc.getAdsbStatsSummary()?.gainDb.toFixed(1) + ' dB · ' + $store.atc.formatSignedNumber($store.atc.getAdsbStatsSummary()?.estimatedPpm, 1) + ' ppm') : '—'"></dd>
                                     </dl>
                                 </div>
-                            </div>
-                            <button class="cl-disclosure" :aria-expanded="String(debugOpen)" @click="debugOpen = !debugOpen">Performance and debug</button>
-                            <div x-show="debugOpen" class="flex flex-col gap-3">
-                                <div class="cl-field">
-                                    <span class="cl-field__label">Live updates</span>
-                                    <button class="cl-btn" @click="$store.atc.toggleWebSocketUpdates()" :aria-pressed="String(!!$store.atc.wsUpdatesPaused)"
-                                            x-text="$store.atc.wsUpdatesPaused ? 'Resume' : 'Pause'"></button>
-                                    <span class="cl-field__help">Freezes the map and the lists to look at a moment; the radio keeps playing.</span>
                                 </div>
-                                <dl class="cl-kv" x-show="$store.atc.mapPerformanceStats">
-                                    <dt x-text="$store.atc.mapPerformanceStats?.smoothingEnabled ? 'Render FPS' : 'Update rate (/s)'"></dt><dd x-text="$store.atc.mapPerformanceStats?.animationFps"></dd>
-                                    <dt>Render frame (ms)</dt><dd x-text="$store.atc.mapPerformanceStats?.smoothingEnabled ? $store.atc.mapPerformanceStats?.animationFrameMs : '-'"></dd>
-                                    <dt>Render targets / frame</dt><dd x-text="$store.atc.mapPerformanceStats?.smoothingEnabled ? (($store.atc.mapPerformanceStats?.animationAnimatedThisFrame ?? 0) + ' / ' + ($store.atc.mapPerformanceStats?.animationVisibleTargets ?? 0)) : '-'"></dd>
-                                    <dt>Render marker updates /s</dt><dd x-text="$store.atc.mapPerformanceStats?.smoothingEnabled ? $store.atc.mapPerformanceStats?.animationMarkerUpdatesPerSec : '-'"></dd>
-                                    <dt>Map refresh /s</dt><dd x-text="$store.atc.mapPerformanceStats?.refreshPerSec"></dd>
-                                    <dt>Map refresh avg (ms)</dt><dd x-text="$store.atc.mapPerformanceStats?.avgRefreshMs"></dd>
-                                    <dt>Map marker ops /s</dt><dd x-text="$store.atc.mapPerformanceStats?.markerOpsPerSec"></dd>
-                                    <dt>Map visibility passes /s</dt><dd x-text="$store.atc.mapPerformanceStats?.fullVisibilityPassesPerSec"></dd>
-                                    <dt>Merge correct /s</dt><dd x-text="$store.atc.mapPerformanceStats?.animationCorrectedPerSec"></dd>
-                                    <dt>Predicted /s</dt><dd x-text="$store.atc.mapPerformanceStats?.animationPredictedPerSec"></dd>
-                                    <dt>Dropped frames</dt><dd x-text="$store.atc.mapPerformanceStats?.animationDroppedFrames"></dd>
-                                    <dt>Render quality</dt><dd x-text="$store.atc.mapPerformanceStats?.animationQuality"></dd>
-                                    <dt>WebSocket total /s</dt><dd x-text="$store.atc.mapPerformanceStats?.wsRates?.total ?? 0"></dd>
-                                    <dt>WS aircraft_update /s</dt><dd x-text="$store.atc.mapPerformanceStats?.wsRates?.aircraft_update ?? 0"></dd>
-                                    <dt>WS predicted /s</dt><dd x-text="$store.atc.mapPerformanceStats?.wsRates?.aircraft_predicted_state ?? 0"></dd>
-                                    <dt>WS add/remove /s</dt><dd x-text="($store.atc.mapPerformanceStats?.wsRates?.aircraft_added ?? 0) + ' / ' + ($store.atc.mapPerformanceStats?.wsRates?.aircraft_removed ?? 0)"></dd>
-                                    <dt>WS phase/transcription /s</dt><dd x-text="($store.atc.mapPerformanceStats?.wsRates?.phase_change ?? 0) + ' / ' + ($store.atc.mapPerformanceStats?.wsRates?.transcription ?? 0)"></dd>
-                                    <dt>WS parse errors /s</dt><dd x-text="$store.atc.mapPerformanceStats?.wsRates?.parse_errors ?? 0"></dd>
-                                    <dt>Tile cache controlled</dt><dd x-text="$store.atc.mapPerformanceStats?.tileCache?.controlled ? 'yes' : 'no'"></dd>
-                                    <dt>Tile cache hit rate</dt><dd x-text="($store.atc.mapPerformanceStats?.tileCache?.hitRatePct ?? 0) + '%'"></dd>
-                                    <dt>Tile cache hits / misses</dt><dd x-text="($store.atc.mapPerformanceStats?.tileCache?.hits ?? 0) + ' / ' + ($store.atc.mapPerformanceStats?.tileCache?.misses ?? 0)"></dd>
-                                    <dt>Heap (MB)</dt><dd x-text="$store.atc.mapPerformanceStats?.heapUsedMB !== null ? ($store.atc.mapPerformanceStats.heapUsedMB + ' / ' + $store.atc.mapPerformanceStats.heapLimitMB + ' (' + $store.atc.mapPerformanceStats.heapUsagePct + '%) • Δ ' + (($store.atc.mapPerformanceStats.heapDeltaMB === null || $store.atc.mapPerformanceStats.heapDeltaMB === undefined) ? '-' : (($store.atc.mapPerformanceStats.heapDeltaMB > 0 ? '+' : '') + $store.atc.mapPerformanceStats.heapDeltaMB)) + ' MB') : '-'"></dd>
-                                </dl>
                             </div>
                         </section>
+                    </div>
                                 </div>
                             </div>
                         </div>

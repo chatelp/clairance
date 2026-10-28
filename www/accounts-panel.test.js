@@ -27,7 +27,7 @@ test('an account not signed in says so, and where it is written when not by the 
     assert.equal(accountFacts({ sessions: 0, last_seen: '2026-10-27T14:00:00Z', source: 'file' }, now), 'not signed in');
 });
 
-test('an owner is the admin, in the owner\'s words', () => {
-    assert.equal(ACCOUNT_ROLES.owner, 'admin');
-    assert.equal(ACCOUNT_ROLES.viewer, 'viewer');
+test('an owner is the Admin, in the owner\'s words, one word each (D86)', () => {
+    assert.equal(ACCOUNT_ROLES.owner, 'Admin');
+    assert.equal(ACCOUNT_ROLES.viewer, 'Viewer');
 });

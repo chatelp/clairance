@@ -1,7 +1,8 @@
 // serverSettings(), the x-data of the settings page. Moved from app.js as it
 // was (docs-fr/32, palier 5.1): a global function, which index.html calls by
-// name. Since migration step 9 it also carries the page's own state: the
-// section in view, the folded parts, the light in its head.
+// name. Since 28/10 (D86) the settings are pages, one shown at a time, in
+// three groups; it carries the page shown, the reader's role, the folded
+// parts, the light in its head, and the list-then-page state on a phone.
 // ---------------------------------------------------------------- server panel
 //
 // The Server section of the settings panel. Everything else in that panel is a
@@ -34,50 +35,133 @@ const MATCHING_PRESETS = (() => {
 // The presets as the page offers them: name, label, and the bubble that says
 // what each measured.
 const MATCHING_PRESET_CHOICES = [
-    ['measured', 'Measured', 'The rules in force since 26/09, each measured against shuffled skies: letters in flight numbers, the airline heard roughly, three digits at least, the last letters and the last two digits of an aircraft just heard, the frequency\'s sector. Measured on 03 and 04/10: 2 557 and 1 699 matches, 95 % right. The default.'],
-    ['cautious', 'Cautious', 'Measured, plus the exact flight number required (score 0.9): a number heard in part, or an abbreviation alone, no longer names an aircraft. Measured on 03 and 04/10: 97 % right, for 27 % fewer matches. For when a wrong aircraft costs more than a missing one.'],
-    ['experimental', 'Experimental', 'Measured, plus the two rules the shuffled sky cannot judge: an airline named alone when one aircraft of it was just heard, and the first digits after the airline\'s name. Measured on 03 and 04/10: 25 % more matches, 95 % right by the shuffle -- but two aircraft of one airline on the frequency can be confused, which only an ear can tell. To try, and judge.'],
+    ['measured', 'Standard', 'The rules in force since 26/09, each measured against shuffled skies: letters in flight numbers, the airline heard roughly, three digits at least, the last letters and the last two digits of an aircraft just heard, the frequency\'s sector. Measured on 03 and 04/10: 2 557 and 1 699 matches, 95 % right. The default.'],
+    ['cautious', 'Cautious', 'Standard, plus the exact flight number required (score 0.9): a number heard in part, or an abbreviation alone, no longer names an aircraft. Measured on 03 and 04/10: 97 % right, for 27 % fewer matches. For when a wrong aircraft costs more than a missing one.'],
+    ['experimental', 'Experimental', 'Standard, plus the two rules the shuffled sky cannot judge: an airline named alone when one aircraft of it was just heard, and the first digits after the airline\'s name. Measured on 03 and 04/10: 25 % more matches, 95 % right by the shuffle -- but two aircraft of one airline on the frequency can be confused, which only an ear can tell. To try, and judge.'],
 ];
+
+// The settings' pages (D86, 28/10; docs-fr/design, SettingsPage): their group,
+// their name, the sentence under it, whether a viewer sees it (read only), and
+// whether it holds the server's settings (the light and "Reload" in the head).
+const SETTINGS_PAGES = [
+    { id: 'display', group: 'This browser', label: 'Display', lede: 'How this browser draws the screen. Kept in this browser only.', viewer: true },
+    { id: 'account', group: 'This browser', label: 'Account', lede: 'Who is signed in on this browser.', viewer: true },
+    { id: 'listening', group: 'Station', label: 'Listening', lede: 'What the station listens to, and the official names it reads.', viewer: true, server: true },
+    { id: 'matching', group: 'Station', label: 'Matching', lede: 'How a transmission is tied to the aircraft that spoke.', server: true },
+    { id: 'access', group: 'Administration', label: 'Access', lede: 'Who may open Clairance, and with which account.', server: true },
+    { id: 'usage', group: 'Administration', label: 'Usage', lede: 'What each account did these 7 days. Seen by admins only.' },
+    { id: 'server', group: 'Administration', label: 'Server', lede: "The server's log, its databases and their archive, then what it reports.", server: true },
+];
+
+// The pages a reader sees, in their groups: all for an admin; This browser and
+// Listening for a viewer. Pure, for the tests.
+function settingsNav(admin) {
+    const groups = [];
+    for (const p of SETTINGS_PAGES) {
+        if (!admin && !p.viewer) continue;
+        let g = groups.find((x) => x.name === p.group);
+        if (!g) groups.push(g = { name: p.group, pages: [] });
+        g.pages.push(p);
+    }
+    return groups;
+}
 
 function serverSettings() {
     return {
         presets: MATCHING_PRESETS,
         presetChoices: MATCHING_PRESET_CHOICES,
 
-        // The page's navigation: the section in view is lit, a click scrolls
-        // to it. Read from the scroll rather than an IntersectionObserver: the
-        // last sections are short and never reach the top, so "in view" is
-        // also "scrolled to the bottom".
-        sections: [['listening', 'Listening'], ['matching', 'Callsign matching'], ['regional', 'Regional data'], ['display', 'Display'], ['account', 'Account'], ['system', 'System']],
+        // The page shown; on a phone, whether it is shown (is-detail) or the
+        // list of pages (is-list).
+        page: 'listening',
+        phoneDetail: false,
+        phone: false,
+        // Who reads: /api/v1/auth/status, read once. The server stays the
+        // authority (403); this only spares a viewer the controls it cannot use.
+        me: null,
+        signingOut: false,
 
         // How sure a procedure's name must be (Q55): only measured settings,
         // with what each gave on the owner's listening of 77 cases.
-        namingChoices: [['surer', 'Surer', '9 names, all right'], ['measured', 'Measured', '18 names, all right'], ['more', 'More', '19 names, 18 right']],
-        current: 'listening',
+        namingChoices: [['surer', 'Surer', '9 names, all right'], ['measured', 'Standard', '18 names, all right'], ['more', 'More', '19 names, 18 right']],
         rulesOpen: false,
-        reportsOpen: false,
         debugOpen: false,
 
-        spy() {
-            const box = this.$refs.scroller;
-            if (!box) return;
-            if (box.scrollTop + box.clientHeight >= box.scrollHeight - 2) {
-                this.current = this.sections[this.sections.length - 1][0];
-                return;
-            }
-            const top = box.getBoundingClientRect().top;
-            let current = this.sections[0][0];
-            for (const [id] of this.sections) {
-                const el = document.getElementById('set-' + id);
-                if (el && el.getBoundingClientRect().top - top <= 32) current = id;
-            }
-            this.current = current;
+        // The role, the phone's width, and the server's state read at the
+        // first opening rather than with the page: the settings are closed
+        // most of the time.
+        init() {
+            fetch('/api/v1/auth/status', { credentials: 'same-origin', cache: 'no-store' })
+                .then((r) => (r.ok ? r.json() : null))
+                .then((s) => { if (s) this.me = s; })
+                .catch(() => {});
+            const narrow = window.matchMedia('(max-width: 767px)');
+            this.phone = narrow.matches;
+            narrow.addEventListener('change', (e) => { this.phone = e.matches; });
+            const opened = () => {
+                this.phoneDetail = false;
+                if (!this.state && !this.busy) this.load();
+            };
+            this.$watch('$store.atc.settingsOpen', (open) => { if (open) opened(); });
+            if (Alpine.store('atc').settingsOpen) opened();
         },
 
-        goTo(id) {
-            const el = document.getElementById('set-' + id);
-            if (el) el.scrollIntoView({ behavior: window.smoothScroll(), block: 'start' });
-            this.current = id;
+        // An admin, or a server without sign-in (where everyone is the owner).
+        get admin() {
+            return !this.me || this.me.role !== 'viewer';
+        },
+
+        roleLabel() {
+            return this.admin ? 'Admin' : 'Viewer';
+        },
+
+        navGroups() {
+            return settingsNav(this.admin);
+        },
+
+        pageInfo() {
+            return SETTINGS_PAGES.find((p) => p.id === this.page) || SETTINGS_PAGES[0];
+        },
+
+        // A viewer reads Listening as text: its sentence says who sets it.
+        pageLede() {
+            const p = this.pageInfo();
+            return p.lede + (!this.admin && p.server ? ' Set by an admin.' : '');
+        },
+
+        serverPage() {
+            return !!this.pageInfo().server;
+        },
+
+        open(id) {
+            this.page = id;
+            this.phoneDetail = true;
+            if (this.$refs.scroll) this.$refs.scroll.scrollTop = 0;
+        },
+
+        phoneState() {
+            if (!this.phone) return '';
+            return this.phoneDetail ? 'is-detail' : 'is-list';
+        },
+
+        // A page that needs a look, for an admin: its mark in the navigation,
+        // the status lights' shape, never a colour alone.
+        mark(id) {
+            if (!this.admin || !this.state) return null;
+            if (id === 'server' && this.archiveWarn()) {
+                const a = this.state.storage && this.state.storage.archive;
+                return { cls: 'is-warn', glyph: '▲', why: a && a.set ? 'Needs a look: the archive cannot be found' : 'Needs a look: no archive, the databases past the size are deleted' };
+            }
+            if (id === 'listening' && this.aip && this.aip.coverage !== 'none' && this.aipStale) {
+                return { cls: 'is-warn', glyph: '▲', why: 'Needs a look: the official names are out of date' };
+            }
+            return null;
+        },
+
+        // The reference airport as a viewer reads it.
+        referenceText() {
+            const c = this.airportChoices().find((x) => x.code === this.draft.reference_airport);
+            return c ? c.code + ' · ' + c.name + ' · ' + c.distance_nm + ' NM' : (this.draft.reference_airport || '—');
         },
 
         // The light in the page's head: what the last load or save did.
@@ -137,7 +221,7 @@ function serverSettings() {
             this.loading = true;
             this.error = '';
             try {
-                const r = await fetch('/api/v1/server', { credentials: 'same-origin' });
+                const r = await fetch('/api/v1/server', { credentials: 'same-origin', cache: 'no-store' });
                 if (r.status === 401) { this.error = 'Sign in to see the server state.'; return; }
                 if (!r.ok) { this.error = 'Server state unavailable (' + r.status + ')'; return; }
                 this.state = await r.json();
@@ -500,3 +584,5 @@ function serverSettings() {
         },
     };
 }
+
+if (typeof module !== 'undefined') module.exports = { SETTINGS_PAGES, settingsNav };
