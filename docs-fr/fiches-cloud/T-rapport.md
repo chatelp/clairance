@@ -30,10 +30,7 @@ cloud impose sa branche et interdit d'en pousser une autre sans accord (comme la
   attend un refus), `TestAnHourOfStream` (`goxiph/mp3`, durée sous `-race`), `TestASlowClientIsCutAndALongAnswerIsNot`
   (`cmd/server`, 1 passage complet sur 2 ; 3/3 vert seul).
 
-## Pas vérifié
-
-La vraie page, avec le serveur et la vraie liste de la station, le téléphone, le lecteur d'écran : à faire sur
-l'instance d'essai du Mac ; relecture par la session design.
+**Pas vérifié** : la vraie page, avec le serveur et la liste de la station, le téléphone, le lecteur d'écran.
 
 ## Doutes, à regarder en priorité sur le Mac
 
