@@ -205,16 +205,15 @@ class AudioClient {
             });
         };
 
-        if (context.state === 'suspended') {
-            context.resume().then(() => {
-                resumeContextAndPlay();
-            }).catch(e => {
-                console.error("Error resuming audio context:", e);
-                resumeContextAndPlay(); 
-            });
-        } else {
-            resumeContextAndPlay();
+        // The streams open at once, the context's resume asked for and not
+        // waited for: a context not running yet drops what arrives
+        // (live-player.js) and plays from the moment it runs. On the owner's
+        // iPhone the resume of the first tap never settled, and waiting for it
+        // opened no stream at all (28/10).
+        if (context.state !== 'running') {
+            context.resume().catch(e => console.error("Error resuming audio context:", e));
         }
+        resumeContextAndPlay();
     }
 
     /**
@@ -238,6 +237,7 @@ class AudioClient {
             this._resumeOnGesture(context);
         };
         context.onstatechange = update;
+        this._checkContext = update;
         update();
     }
 
@@ -492,6 +492,9 @@ class AudioClient {
     toggleMute(frequency) {
         if (!this.store.radiosStarted) {
             this.startAllRadios();
+        } else if (this.audioContext && this.audioContext.state !== 'running') {
+            // A tap is a gesture: the moment an iPhone lets the sound resume.
+            this.audioContext.resume().catch(() => {});
         }
 
         const frequencyId = this._normalizeFrequencyId(frequency?.id);
@@ -519,16 +522,14 @@ class AudioClient {
             this.store.unmutedFrequencies.add(frequencyId);
         }
         this._applyMute(frequencyId);
+        // A context still stopped now says so, and the next gesture resumes it.
+        if (this._checkContext) this._checkContext();
 
         if (audioElement.paused && this.store.unmutedFrequencies.has(frequencyId) && this.store.radiosStarted) {
             setTimeout(() => {
-                if (audioElement.paused && this.store.unmutedFrequencies.has(frequencyId)) {
-                    audioElement.play().catch(err => {
-                        if (err.name !== 'AbortError') {
-                            console.error(`Error playing audio for ${frequencyId} after unmute:`, err);
-                        }
-                    });
-                }
+                // Through connectToFrequency, which gives the player its
+                // address first: a bare play() could start it with none (28/10).
+                if (audioElement.paused && this.store.unmutedFrequencies.has(frequencyId)) this.connectToFrequency(frequency);
             }, 100);
         }
     }

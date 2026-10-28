@@ -37,3 +37,23 @@ for (const to of [44100, 48000]) {
         assert.ok(worst < 1e-3, `largest error ${worst}`);
     });
 }
+
+// The owner's iPhone, 28/10: started before its address was set, the player
+// fetched '' -- the page itself, in HTML -- and retried it forever.
+test('a player with no address fetches nothing', async () => {
+    const fetched = [];
+    const was = globalThis.fetch;
+    globalThis.fetch = (u) => { fetched.push(u); return new Promise(() => {}); };
+    try {
+        const ctx = { state: 'suspended', sampleRate: 48000, currentTime: 0, createGain: () => ({ gain: { value: 1 }, connect() {} }), destination: {} };
+        const p = new window.LiveStreamPlayer(ctx);
+        await p.play();
+        assert.deepEqual(fetched, []);
+        p.src = '/api/v1/stream/124350?format=ulaw';
+        await p.play();
+        assert.deepEqual(fetched, ['/api/v1/stream/124350?format=ulaw']);
+        p.pause();
+    } finally {
+        globalThis.fetch = was;
+    }
+});

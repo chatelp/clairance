@@ -126,6 +126,9 @@
         load() {}
 
         play() {
+            // No address yet: fetch('') would read the page itself, answered
+            // in HTML, and retry it forever (the owner's iPhone, 28/10).
+            if (!this.src) return Promise.resolve();
             if (!this.paused && this.currentSrc === this.src) return Promise.resolve();
             this.paused = false;
             this._connect();
