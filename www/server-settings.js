@@ -100,6 +100,44 @@ function alsoLines(choices, followed, line) {
     return { shown: sorted.filter((c) => keep.has(c.code)), more: sorted.filter((c) => !keep.has(c.code)) };
 }
 
+// The folder picker (FolderPicker, 28/10): the server's folders, browsed in
+// the page for the archive -- a page cannot open the system's folder window
+// for another machine. Pure, for the tests.
+
+// Each part of a path, as a button back up to it: "/" first.
+function folderCrumbs(path) {
+    const parts = String(path || '').split('/').filter(Boolean);
+    return [{ name: '/', path: '/' }].concat(parts.map((name, i) => ({ name, path: '/' + parts.slice(0, i + 1).join('/') })));
+}
+
+// The place that holds a folder: the longest root its path starts with.
+function folderPlace(roots, path) {
+    let best = null;
+    for (const r of roots || []) {
+        if ((path === r.path || path.startsWith(r.path.replace(/\/$/, '') + '/')) && (!best || r.path.length > best.path.length)) best = r;
+    }
+    return best;
+}
+
+// What choosing the open folder means, from the server's word on it.
+function folderFoot(here, place, fmtBytes) {
+    if (!here) return null;
+    if (here.why === 'databases') return { warn: true, text: 'The databases are kept here: choose a folder outside, best on another disk.' };
+    if (!here.choosable) return { warn: true, text: 'The server cannot write in this folder: choose another.' };
+    if (place && place.free_bytes) return { warn: false, text: fmtBytes(place.free_bytes) + ' free on ' + place.name + '.' };
+    return { warn: false, text: '' };
+}
+
+// The row a key moves to, from row i of n; -1 for a key that does not move.
+function folderStep(key, i, n) {
+    if (!n) return -1;
+    if (key === 'ArrowDown') return Math.min(n - 1, i + 1);
+    if (key === 'ArrowUp') return Math.max(0, i - 1);
+    if (key === 'Home') return 0;
+    if (key === 'End') return n - 1;
+    return -1;
+}
+
 function serverSettings() {
     return {
         presets: MATCHING_PRESETS,
@@ -175,6 +213,7 @@ function serverSettings() {
 
         open(id) {
             if (id === 'listening') this.alsoLine = null; // fixed again at each opening
+            this.picker.open = false;
             this.page = id;
             this.phoneDetail = true;
             if (this.$refs.scroll) this.$refs.scroll.scrollTop = 0;
@@ -663,6 +702,95 @@ function serverSettings() {
             setTimeout(() => { this.note = ''; }, bad ? 8000 : 3000);
         },
 
+        // The folder picker under the archive's field: closed, or what the
+        // server said of the open folder. The list is replaced only once the
+        // next one is read; "Reading..." shows only if that takes a while.
+        picker: { open: false, loading: false, slow: false, error: '', path: '', here: null, folders: [], truncated: false, roots: [] },
+
+        pickerToggle() {
+            if (this.picker.open) { this.pickerFold(); return; }
+            this.picker.open = true;
+            // At the field's folder, or the nearest above it that can be read;
+            // with none, where the server starts (the archive in force, the disks).
+            const typed = (this.draft.db_archive_dir || '').trim();
+            this.pickerGo(typed.startsWith('/') ? typed : '', true);
+        },
+
+        async pickerGo(path, nearest, from) {
+            const p = this.picker;
+            p.loading = true;
+            const slow = setTimeout(() => { if (p.loading) p.slow = true; }, 250);
+            try {
+                const q = new URLSearchParams();
+                if (path) q.set('path', path);
+                if (nearest) q.set('nearest', '1');
+                const r = await fetch('/api/v1/server/folders?' + q, { credentials: 'same-origin', cache: 'no-store' });
+                if (!p.open) return;
+                if (!r.ok) {
+                    // Places and path stay, to go elsewhere.
+                    p.error = r.status === 404 ? 'This folder cannot be read: is its disk plugged in?' : 'The server refused (' + r.status + ').';
+                    p.path = path || p.path;
+                    p.here = null;
+                    p.folders = [];
+                    p.truncated = false;
+                } else {
+                    const b = await r.json();
+                    Object.assign(p, { error: '', path: b.path, here: b.here, folders: b.folders || [], truncated: !!b.truncated, roots: b.roots || p.roots });
+                }
+            } catch (e) {
+                p.error = 'The server cannot be reached.';
+            } finally {
+                clearTimeout(slow);
+                p.loading = false;
+                p.slow = false;
+            }
+            // The focus on the first row, on the folder just left when going
+            // up, or on the path's last part when there is no row.
+            this.$nextTick(() => {
+                const rows = [...this.$root.querySelectorAll('.cl-folder__row')];
+                const back = from && rows.find((el) => el.dataset.path === from);
+                (back || rows[0] || this.$root.querySelector('.cl-folder__crumbs [aria-current="location"]'))?.focus();
+            });
+        },
+
+        pickerCrumbs() { return folderCrumbs(this.picker.path); },
+        pickerPlace() { return folderPlace(this.picker.roots, this.picker.path); },
+        pickerFoot() { return folderFoot(this.picker.here, this.pickerPlace(), (n) => this.fmtBytes(n)); },
+        pickerFree(root) { return root.name !== 'Home' && root.free_bytes ? '· ' + this.fmtBytes(root.free_bytes) + ' free' : ''; },
+
+        // Folded, the focus back on Choose...: Escape, Cancel, or after choosing.
+        pickerFold() {
+            this.picker.open = false;
+            this.picker.error = '';
+            this.$nextTick(() => this.$refs.pickerButton?.focus());
+        },
+
+        // The open folder becomes the archive, saved as a typed path is: the
+        // server checks it again, and the field's light says the result.
+        pickerChoose() {
+            const h = this.picker.here;
+            if (!h || !h.choosable) return;
+            this.draft.db_archive_dir = h.path;
+            this.pickerFold();
+            this.save();
+        },
+
+        pickerUp() {
+            const crumbs = this.pickerCrumbs();
+            if (crumbs.length > 1) this.pickerGo(crumbs[crumbs.length - 2].path, false, this.picker.path);
+        },
+
+        // On a row: up and down, Home and End, Enter or right to open (Enter is
+        // the button's own), left or Backspace up one folder.
+        pickerKey(e) {
+            const rows = [...this.$root.querySelectorAll('.cl-folder__row')];
+            const i = rows.indexOf(document.activeElement);
+            const to = folderStep(e.key, i, rows.length);
+            if (to >= 0) { e.preventDefault(); rows[to].focus(); rows[to].scrollIntoView({ block: 'nearest' }); return; }
+            if (e.key === 'ArrowRight' && i >= 0) { e.preventDefault(); this.pickerGo(rows[i].dataset.path); return; }
+            if (e.key === 'ArrowLeft' || e.key === 'Backspace') { e.preventDefault(); this.pickerUp(); }
+        },
+
         // The database archive in force (D85), "" for none.
         archiveDirOf(settings) {
             return (settings && settings.db_archive && settings.db_archive.dir) || '';
@@ -719,4 +847,4 @@ const SETTINGS_GLYPHS = {
     about: '<circle cx="8" cy="8" r="6"/><path d="M8 7.5v3.5M8 5h.01"/>',
 };
 
-if (typeof module !== 'undefined') module.exports = { SETTINGS_PAGES, SETTINGS_GLYPHS, settingsNav, alsoSplit, alsoLines };
+if (typeof module !== 'undefined') module.exports = { SETTINGS_PAGES, SETTINGS_GLYPHS, settingsNav, alsoSplit, alsoLines, folderCrumbs, folderPlace, folderFoot, folderStep };

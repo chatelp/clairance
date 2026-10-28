@@ -105,3 +105,49 @@ test('the line holds still during a visit to Listening', () => {
     assert.deepEqual(codes(now.shown), ['LFPN', 'LFPV', 'LFXU', 'LFPO', 'LFPG', 'LFOB']);
     assert.deepEqual(codes(now.more), ['LFPT']);
 });
+
+// The folder picker (FolderPicker, 28/10): the path's parts, the place that
+// holds it, what choosing it means, and the rows' keys.
+const { folderCrumbs, folderPlace, folderFoot, folderStep } = require('./server-settings.js');
+
+test('a path as buttons back up to each of its parts', () => {
+    assert.deepEqual(folderCrumbs('/Volumes/Archive/clairance'), [
+        { name: '/', path: '/' },
+        { name: 'Volumes', path: '/Volumes' },
+        { name: 'Archive', path: '/Volumes/Archive' },
+        { name: 'clairance', path: '/Volumes/Archive/clairance' },
+    ]);
+    assert.deepEqual(folderCrumbs('/'), [{ name: '/', path: '/' }]);
+});
+
+test('the place that holds a folder is the longest root it starts with', () => {
+    const roots = [{ name: 'Archive', path: '/Volumes/Archive' }, { name: 'Macintosh HD', path: '/Volumes/Macintosh HD' }, { name: 'Home', path: '/Users/pierre' }];
+    assert.equal(folderPlace(roots, '/Volumes/Archive/clairance').name, 'Archive');
+    assert.equal(folderPlace(roots, '/Volumes/Archive').name, 'Archive');
+    assert.equal(folderPlace(roots, '/Volumes/Archive2'), null); // a prefix of the name is not a parent
+    assert.equal(folderPlace(roots, '/Users/pierre/x').name, 'Home');
+    assert.equal(folderPlace(roots, '/Volumes'), null);
+});
+
+test('the foot says what choosing the open folder means', () => {
+    const tb = (n) => (n / 1024 ** 4).toFixed(1) + ' TB';
+    const place = { name: 'Archive', free_bytes: 1.8 * 1024 ** 4 };
+    assert.deepEqual(folderFoot({ choosable: true }, place, tb), { warn: false, text: '1.8 TB free on Archive.' });
+    assert.deepEqual(folderFoot({ choosable: false, why: 'databases' }, place, tb),
+        { warn: true, text: 'The databases are kept here: choose a folder outside, best on another disk.' });
+    assert.deepEqual(folderFoot({ choosable: false, why: 'readonly' }, place, tb),
+        { warn: true, text: 'The server cannot write in this folder: choose another.' });
+    assert.deepEqual(folderFoot({ choosable: true }, null, tb), { warn: false, text: '' });
+    assert.equal(folderFoot(null, place, tb), null);
+});
+
+test('the rows answer up, down, Home and End, and stop at the ends', () => {
+    assert.equal(folderStep('ArrowDown', 0, 3), 1);
+    assert.equal(folderStep('ArrowDown', 2, 3), 2);
+    assert.equal(folderStep('ArrowUp', 0, 3), 0);
+    assert.equal(folderStep('ArrowDown', -1, 3), 0); // from the list itself, the first row
+    assert.equal(folderStep('End', 0, 3), 2);
+    assert.equal(folderStep('Home', 2, 3), 0);
+    assert.equal(folderStep('Enter', 1, 3), -1);
+    assert.equal(folderStep('ArrowDown', 0, 0), -1);
+});

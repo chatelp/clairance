@@ -1067,13 +1067,64 @@
                                     </div>
                                     <!-- The database archive (28/10, D85): where a day goes before it
                                          leaves this disk. Checked by the server when it changes. -->
-                                    <div class="cl-field max-md:grid-cols-1">
+                                    <!-- The field, and under it the server's folders to choose from
+                                         (FolderPicker): Escape folds the panel first, the window stays. -->
+                                    <div class="flex flex-col gap-2" @keydown.escape="if (picker.open) { $event.preventDefault(); pickerFold(); }">
+                                    <div class="cl-field cl-field--text">
                                         <span class="cl-field__label cursor-help" data-help-title="Database archive"
                                               data-help="Where a day goes before it leaves this disk: copied there, compressed and checked against the original, then deleted here. An absolute path to an existing folder the server can write, outside the databases' own, usually on an external disk; the server never creates it. While it cannot be found nothing is deleted, and this disk keeps growing. Empty: no archive, the days past the size are deleted.">Archive old databases to</span>
-                                        <input type="text" class="cl-input" style="width: 22rem; max-width: 100%;" aria-label="Archive folder"
-                                               placeholder="none: deleted past the size" autocomplete="off" autocapitalize="none" spellcheck="false"
-                                               x-model="draft.db_archive_dir" @change="save()">
+                                        <span class="cl-pathfield">
+                                            <input type="text" class="cl-input" aria-label="Archive folder"
+                                                   placeholder="none: deleted past the size" autocomplete="off" autocapitalize="none" spellcheck="false"
+                                                   x-model="draft.db_archive_dir" @change="save()">
+                                            <button type="button" class="cl-btn" x-ref="pickerButton" :aria-expanded="picker.open" @click="pickerToggle()">Choose…</button>
+                                        </span>
                                         <span class="whitespace-normal" style="grid-column: 1 / -1;" :class="archiveWarn() ? 'cl-light cl-light--warn' : 'cl-field__help'" role="status" x-text="archiveLine()"></span>
+                                    </div>
+                                    <div class="cl-folder" role="group" aria-label="Choose the archive folder" x-show="picker.open" x-cloak>
+                                        <div class="cl-folder__places">
+                                            <template x-for="root in picker.roots" :key="root.path">
+                                                <button type="button" class="cl-folder__place" :aria-current="pickerPlace() && pickerPlace().path === root.path ? 'true' : 'false'" @click="pickerGo(root.path)">
+                                                    <template x-if="root.name !== 'Home'"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.75" y="5" width="12.5" height="6" rx="1.5"/><path d="M11.25 8h.01"/></svg></template>
+                                                    <template x-if="root.name === 'Home'"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 7.5 8 3l5.5 4.5M4 6.5V13h8V6.5"/></svg></template>
+                                                    <span x-text="root.name"></span>
+                                                    <span class="cl-folder__free" x-show="pickerFree(root)" x-text="pickerFree(root)"></span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                        <nav class="cl-folder__crumbs" aria-label="Open folder" x-show="picker.path">
+                                            <template x-for="(c, i) in pickerCrumbs()" :key="c.path">
+                                                <span class="contents">
+                                                    <span class="cl-folder__sep" aria-hidden="true" x-show="i > 1">/</span>
+                                                    <button type="button" :aria-current="i === pickerCrumbs().length - 1 ? 'location' : null" @click="pickerGo(c.path)" x-text="c.name"></button>
+                                                </span>
+                                            </template>
+                                        </nav>
+                                        <ul class="cl-folder__list" :aria-label="'Folders in ' + (pickerCrumbs().slice(-1)[0] || {}).name" @keydown="pickerKey($event)">
+                                            <template x-if="picker.slow">
+                                                <li class="cl-folder__empty"><span class="cl-light cl-light--switching">Reading…</span></li>
+                                            </template>
+                                            <template x-if="!picker.slow && picker.error">
+                                                <li class="cl-folder__empty"><span class="cl-light cl-light--bad" x-text="picker.error"></span></li>
+                                            </template>
+                                            <template x-if="!picker.slow && !picker.error && picker.here && !picker.folders.length">
+                                                <li class="cl-folder__empty">No folder inside.</li>
+                                            </template>
+                                            <template x-for="f in (picker.slow || picker.error ? [] : picker.folders)" :key="f.path">
+                                                <li><button type="button" class="cl-folder__row" :data-path="f.path" @click="pickerGo(f.path)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.25c0-.55.45-1 1-1h3.25l1.5 1.5H13c.55 0 1 .45 1 1v6c0 .55-.45 1-1 1H3c-.55 0-1-.45-1-1z"/></svg><span x-text="f.name"></span><template x-if="f.why"><span class="cl-folder__note" x-text="f.why === 'databases' ? 'the databases' : 'read only'"></span></template></button></li>
+                                            </template>
+                                            <template x-if="!picker.slow && !picker.error && picker.truncated">
+                                                <li class="cl-folder__empty">The first 500 folders. Type the path in the field for another.</li>
+                                            </template>
+                                        </ul>
+                                        <div class="cl-folder__foot">
+                                            <span :class="pickerFoot() && pickerFoot().warn ? 'cl-light cl-light--warn' : 'cl-plain'" x-text="pickerFoot() ? pickerFoot().text : ''"></span>
+                                            <span class="cl-row">
+                                                <button type="button" class="cl-btn cl-btn--quiet" @click="pickerFold()">Cancel</button>
+                                                <button type="button" class="cl-btn cl-btn--primary" :disabled="!picker.here || !picker.here.choosable || picker.loading" @click="pickerChoose()">Choose this folder</button>
+                                            </span>
+                                        </div>
+                                    </div>
                                     </div>
                                 </div>
                             </template>
