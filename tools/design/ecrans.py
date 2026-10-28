@@ -568,6 +568,9 @@ if __name__ == '__main__':
     write('reglages-serveur.html', page('Settings · Server', app + R.settings_page('server')))
     write('reglages-acces.html', page('Settings · Access', app + R.settings_page('access')))
     write('reglages-apropos.html', page('Settings · About Clairance', app + R.settings_page('about')))
+    # The window at the two ends of the computer's widths: a large screen, and the narrowest (owner, 28/10)
+    write('reglages-grand.html', page('Settings on a large screen', app + R.settings_page('server'), width=1920, height=1080))
+    write('reglages-etroit.html', page('Settings in the narrowest window', app + R.settings_page('access'), width=768, height=1024))
     # The page's own notices (28/10): tools/design/avis.py
     _aspec = importlib.util.spec_from_file_location('avis', os.path.join(os.path.dirname(__file__), 'avis.py'))
     A = importlib.util.module_from_spec(_aspec); _aspec.loader.exec_module(A)
@@ -597,12 +600,14 @@ if __name__ == '__main__':
         ('a-calques.html', 'A · Layers, an airport', 'The map controls (base map, layers, opacity) and an airport\'s card.', 1440, 900),
         ('a-journal.html', 'A · Event log', 'The bell: emergencies, go-arounds, runway changes, aircraft of interest, the station; its sounds.', 1440, 900),
         ('par.html', 'The PAR view', 'The existing PAR, with its header and arrival sequence, in the sky\'s place.', 1440, 900),
-        ('reglages.html', 'Settings · Listening', 'One page at a time, grouped: This browser, Station, Administration (D86). Listening holds the official names (AIP).', 1440, 900),
+        ('reglages.html', 'Settings · Listening', 'A window over the application, one page at a time, in tabs grouped This browser, Station, Administration (D86). Listening holds the official names (AIP).', 1440, 900),
         ('reglages-lecteur.html', 'Settings · a viewer', 'A viewer sees Display, Account and Listening, the values read, no control.', 1440, 900),
         ('reglages-acces.html', 'Settings · Access', 'Who may open Clairance, the accounts in two columns, the live figures of the sign-in page.', 1440, 900),
         ('reglages-usage.html', 'Settings · Usage', 'Who is here now, then each account\'s week in two columns.', 1440, 900),
-        ('reglages-serveur.html', 'Settings · Server', 'Log detail, databases and their archive (a page that needs a look carries ▲ in the nav), the reports in two columns.', 1440, 900),
-        ('telephone-reglages.html', 'Settings on a phone', 'The list of pages, grouped, in touch rows.', 390, 844),
+        ('reglages-serveur.html', 'Settings · Server', 'Log detail, databases and their archive (a page that needs a look carries ▲ on its tab), the reports in two columns.', 1440, 900),
+        ('reglages-grand.html', 'Settings on a large screen', 'The window keeps its size; the application stays in sight around it.', 1920, 1080),
+        ('reglages-etroit.html', 'Settings, the narrowest window', 'From 768 px: the eight tabs fit, the cards go in one column.', 768, 1024),
+        ('telephone-reglages.html', 'Settings on a phone', 'The list of pages, grouped, in touch rows, each with its glyph.', 390, 844),
         ('reglages-apropos.html', 'Settings · About Clairance', 'The version of this page and of the server, and what changed, for everyone.', 1440, 900),
         ('avis-mise-a-jour.html', 'A new version to load', 'The page is older than the server: a notice, top right, never blocking.', 1440, 900),
         ('avis-plus-tard.html', 'Later', 'The notice closed, a button stays in the top bar until the page reloads.', 1440, 900),
