@@ -1,11 +1,12 @@
 """The settings, in pages (D86, 28/10): the reference screens built by ecrans.py.
 
 A grouped navigation (This browser, Station, Administration), one page at a
-time, a page widened to 1 080 px whose fields keep their reading width, lists
-of cards in two columns; on a phone, the list of pages, then a page with
-"‹ Settings". Only cl-* classes; inline style only for an illustration (the
-usage bars). The fields are the page's own (www/index.html, 28/10), moved and
-renamed as D86 decided; the sample values are made up.
+time. From 768 px a window over the application, its pages in a row of tabs,
+each a glyph over its label (owner, 28/10); fields keep their reading width,
+lists of cards go in two columns. On a phone, the list of pages, then a page
+with "‹ Settings". Only cl-* classes; inline style only for an illustration
+(the usage bars). The fields are the page's own (www/index.html, 28/10), moved
+and renamed as D86 decided; the sample values are made up.
 """
 
 CLOSE = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg>'
@@ -27,6 +28,28 @@ LEDE = {
     'about': 'The version of this page and of the server, and what changed.',
 }
 TITLE = {k: t for _, items in PAGES for k, t in items}
+GROUP = {k: g for g, items in PAGES for k, _ in items}
+
+# Each page's glyph: the interface glyphs' 16 grid, 1.5 px strokes, round ends, drawn at 20 px
+_G = '<svg class="cl-page__glyph" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{}</svg>'
+GLYPH = {
+    # a screen on its stand: how this browser draws
+    'display': _G.format('<rect x="2" y="2.75" width="12" height="8.5" rx="1"/><path d="M8 11.25v2.5M5.5 13.75h5"/>'),
+    # a person: who is signed in
+    'account': _G.format('<circle cx="8" cy="5.25" r="2.75"/><path d="M2.75 14c.35-2.9 2.55-4.5 5.25-4.5s4.9 1.6 5.25 4.5"/>'),
+    # headphones: what the station listens to
+    'listening': _G.format('<path d="M2.75 10.5V8a5.25 5.25 0 0 1 10.5 0v2.5"/><rect x="2" y="9.25" width="3" height="4.75" rx="1"/><rect x="11" y="9.25" width="3" height="4.75" rx="1"/>'),
+    # two links: a transmission tied to the aircraft that spoke
+    'matching': _G.format('<path d="M7 9.5 9.5 7"/><path d="M8.6 4.4 9.7 3.3a2.55 2.55 0 0 1 3.6 3.6l-1.1 1.1"/><path d="M7.4 11.6 6.3 12.7a2.55 2.55 0 0 1-3.6-3.6l1.1-1.1"/>'),
+    # a padlock: who may open Clairance
+    'access': _G.format('<rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2M8 9.75v1.5"/>'),
+    # a week in bars: what each account did
+    'usage': _G.format('<path d="M2.5 13.5h11M4.75 11V8.5M8 11V4M11.25 11V6.5"/>'),
+    # two rack units: the server, its log and databases
+    'server': _G.format('<rect x="2.5" y="2.5" width="11" height="4.5" rx="1"/><rect x="2.5" y="9" width="11" height="4.5" rx="1"/><path d="M5 4.75h.01M5 11.25h.01"/>'),
+    # the information sign: the versions and what is new
+    'about': _G.format('<circle cx="8" cy="8" r="6"/><path d="M8 7.5v3.5M8 5h.01"/>'),
+}
 TITLE['about'] = 'About Clairance'
 MARKS = {'server': ('is-warn', '▲', 'Needs a look: the archive disk is missing')}
 
@@ -34,7 +57,8 @@ MARKS = {'server': ('is-warn', '▲', 'Needs a look: the archive disk is missing
 def nav(current, role):
     groups = PAGES if role == 'admin' else PAGES[:2]
     out = []
-    for name, items in groups:
+    link = lambda key, title, mark='': f'<a href="#" aria-current="{str(key == current).lower()}">{GLYPH[key]}<span>{title}</span>{mark}</a>'
+    for i, (name, items) in enumerate(groups):
         links = ''
         for key, title in items:
             if role != 'admin' and key == 'matching':
@@ -43,10 +67,10 @@ def nav(current, role):
             if role == 'admin' and key in MARKS:
                 cls, glyph, why = MARKS[key]
                 mark = f'<span class="cl-page__mark {cls}" title="{why}">{glyph}</span>'
-            links += f'<a href="#" aria-current="{str(key == current).lower()}">{title}{mark}</a>'
-        out.append(f'<div class="cl-page__group"><span class="cl-label">{name}</span>{links}</div>')
-    # About, below the groups and for everyone: the versions and what is new (28/10)
-    out.append(f'<div class="cl-page__group"><a href="#" aria-current="{str(current == "about").lower()}">About Clairance</a></div>')
+            links += link(key, title, mark)
+        out.append(f'<div class="cl-page__group" role="group" aria-labelledby="g{i}"><span class="cl-label" id="g{i}">{name}</span>{links}</div>')
+    # About, after the groups and for everyone: the versions and what is new (28/10)
+    out.append(f'<div class="cl-page__group">{link("about", "About Clairance")}</div>')
     return f'<nav class="cl-page__nav" aria-label="Settings pages">{"".join(out)}</nav>'
 
 
@@ -221,7 +245,8 @@ def settings_page(current='listening', role='admin', state=''):
             f'<span class="cl-row" style="margin-left: auto;">{reload_}<button class="cl-btn cl-btn--icon" aria-label="Close">{CLOSE}</button></span></div>')
     back = '<div class="cl-page__back"><button class="cl-btn cl-btn--icon cl-mono" aria-label="Back to Settings">‹</button><span class="cl-plain">Settings</span></div>'
     cls = f' {state}' if state else ''
+    eyebrow = f'<span class="cl-label cl-page__eyebrow">{GROUP[current]}</span>' if current in GROUP else ''
     return (f'<div class="cl-page" role="dialog" aria-label="Settings"><div class="cl-page__inner{cls}">'
             f'{nav(current if state != "is-list" else None, role)}<div class="cl-page__body">{head}{back}<div class="cl-page__scroll">'
-            f'<div class="cl-page__pagehead"><h2 class="cl-page__pagetitle">{TITLE[current]}</h2><p class="cl-page__lede">{lede}</p></div>'
+            f'<div class="cl-page__pagehead">{eyebrow}<h2 class="cl-page__pagetitle">{TITLE[current]}</h2><p class="cl-page__lede">{lede}</p></div>'
             f'{body}</div></div></div></div>')
