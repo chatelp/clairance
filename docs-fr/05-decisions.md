@@ -4925,6 +4925,37 @@ système de design : la séquence d'arrivée calculée dans le store pour tous l
 (la PAR la relit), les gabarits français des consignes, puis la migration elle-même
 (`04-migration.md`).
 
+### D85 — La rétention archive au lieu d'effacer, et le plafond local passe à 6 Go *(28/10)*
+
+> **Décision du propriétaire, 28/10**, après l'enquête sur la place disque (le disque interne du Mac
+> presque plein ; `32-audit-produit.md`, « État » 28/10 11:25) : archiver les vieilles bases plutôt que
+> les perdre, garder environ une semaine en local, compresser en gzip, et ne rien effacer quand le
+> disque d'archive manque.
+
+Le constat, mesuré : une base journalière, c'est plus de 99 % de positions ADS-B (≈ 0,8 Go par jour
+plein aujourd'hui), le serveur ne lit que celle du jour, et les jours passés ne servent qu'aux outils de
+mesure et au labo. La rétention de D65 (20 Go) les effaçait sans trace au-delà du plafond.
+
+Ce qui est décidé :
+
+- **Le plafond local passe de 20 à 6 Go** (≈ 7 jours), réglé depuis le panneau par le propriétaire.
+- **`[storage] archive_dir`** : quand il est réglé, un jour qui ne tient plus sous le plafond est
+  **copié en gzip** dans ce dossier (la base, et son `-wal` s'il n'est pas vide), la copie est **relue et
+  comparée** à l'original (SHA-256, ajouté à `SHA256SUMS` dans le dossier), et seulement alors la base
+  locale est effacée. Vide, la rétention efface comme avant (D65), pour qui n'a pas de disque d'archive.
+- **gzip plutôt que zstd** : intégré à Go, sans dépendance, lisible partout ; facteur 4,2 mesuré sur le
+  15/10, contre 4,9 pour zstd.
+- **Disque d'archive absent** (dossier introuvable) : rien n'est effacé, le dépassement est dit au journal
+  et au démarrage ; le disque interne dépasse le plafond le temps que le disque revienne. Le dossier
+  n'est jamais créé par le serveur (sous `/Volumes`, un disque absent laisserait sinon un dossier sur le
+  disque interne).
+- **Avec un dossier d'archive, la première passe se fait après le démarrage**, et non avant : archiver
+  plusieurs jours peut prendre des minutes, qui retarderaient la production.
+- Pour la production : `archive_dir = "/Volumes/Crucial X8/clairance-archive/bases"`, à côté de l'archive
+  faite à la main le 28/10 (zstd, 23/09 au 18/10). Pas de seconde copie (choix du propriétaire).
+
+**Fait le 28/10** (4f69da5, 7afc9b1) : tests (archive vérifiée puis effacement, WAL compris ; archive introuvable : rien d'effacé, rien de créé ; copie existante identique gardée, différente jamais écrasée ; contrôle de démarrage), instance d'essai démarrée avec une archive absente (nommée dans la santé détaillée, non créée, rien d'effacé). Plafond à 6 Go réglé par le propriétaire le 28/10 vers 11:40. **En production à la prochaine relance**, avec `archive_dir` dans `configs/config.toml`.
+
 ### D84 — Un suivi d'usage par compte, pour le propriétaire *(27/10)*
 
 > **Décision du propriétaire, 27/10**, après la première écoute de l'invité : « il y a moyen de
