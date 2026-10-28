@@ -756,7 +756,7 @@ function serverSettings() {
         pickerCrumbs() { return folderCrumbs(this.picker.path); },
         pickerPlace() { return folderPlace(this.picker.roots, this.picker.path); },
         pickerFoot() { return folderFoot(this.picker.here, this.pickerPlace(), (n) => this.fmtBytes(n)); },
-        pickerFree(root) { return root.name !== 'Home' && root.free_bytes ? '· ' + this.fmtBytes(root.free_bytes) + ' free' : ''; },
+        pickerFree(root) { return root.name !== 'Home' && root.free_bytes ? this.fmtBytes(root.free_bytes) + ' free' : ''; }, // the "·" is the style's
 
         // Folded, the focus back on Choose...: Escape, Cancel, or after choosing.
         pickerFold() {

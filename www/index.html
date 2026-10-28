@@ -1068,7 +1068,8 @@
                                     <!-- The database archive (28/10, D85): where a day goes before it
                                          leaves this disk. Checked by the server when it changes. -->
                                     <!-- The field, and under it the server's folders to choose from
-                                         (FolderPicker): Escape folds the panel first, the window stays. -->
+                                         (FolderPicker): Escape folds the panel first, the window stays; a
+                                         path longer than the field shows its end, the folder. -->
                                     <div class="flex flex-col gap-2" @keydown.escape="if (picker.open) { $event.preventDefault(); pickerFold(); }">
                                     <div class="cl-field cl-field--text">
                                         <span class="cl-field__label cursor-help" data-help-title="Database archive"
@@ -1076,7 +1077,8 @@
                                         <span class="cl-pathfield">
                                             <input type="text" class="cl-input" aria-label="Archive folder"
                                                    placeholder="none: deleted past the size" autocomplete="off" autocapitalize="none" spellcheck="false"
-                                                   x-model="draft.db_archive_dir" @change="save()">
+                                                   x-model="draft.db_archive_dir" @change="save()" :title="draft.db_archive_dir"
+                                                   x-effect="draft.db_archive_dir; page; $store.atc.settingsOpen; setTimeout(() => { if (document.activeElement !== $el) $el.scrollLeft = $el.scrollWidth; }, 200)">
                                             <button type="button" class="cl-btn" x-ref="pickerButton" :aria-expanded="picker.open" @click="pickerToggle()">Choose…</button>
                                         </span>
                                         <span class="whitespace-normal" style="grid-column: 1 / -1;" :class="archiveWarn() ? 'cl-light cl-light--warn' : 'cl-field__help'" role="status" x-text="archiveLine()"></span>
@@ -1088,7 +1090,7 @@
                                                     <template x-if="root.name !== 'Home'"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.75" y="5" width="12.5" height="6" rx="1.5"/><path d="M11.25 8h.01"/></svg></template>
                                                     <template x-if="root.name === 'Home'"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 7.5 8 3l5.5 4.5M4 6.5V13h8V6.5"/></svg></template>
                                                     <span x-text="root.name"></span>
-                                                    <span class="cl-folder__free" x-show="pickerFree(root)" x-text="pickerFree(root)"></span>
+                                                    <template x-if="pickerFree(root)"><span class="cl-folder__free" x-text="pickerFree(root)"></span></template>
                                                 </button>
                                             </template>
                                         </div>

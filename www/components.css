@@ -598,6 +598,7 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
 .cl-folder__place svg { width: 14px; height: 14px; flex: none; color: var(--color-text-secondary); }
 .cl-folder__place[aria-current="true"] { border-color: var(--color-accent-default); background: var(--color-surface-selected); }
 .cl-folder__free { color: var(--color-text-tertiary); }
+.cl-folder__free::before { content: "· "; }
 /* the open folder's path, each part a way back up */
 .cl-folder__crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-0-5); font-size: var(--font-size-small); line-height: var(--font-line-height-small); }
 .cl-folder__crumbs button { padding: 0 var(--space-1); border-radius: var(--radius-sm); color: var(--color-text-secondary); cursor: pointer; }
@@ -608,6 +609,8 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
 .cl-folder__row { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 32px; padding: 0 var(--space-2); text-align: left; font-size: var(--font-size-body); color: var(--color-text-primary); cursor: pointer; border-bottom: var(--border-width-default) solid var(--color-border-subtle); }
 .cl-folder__list li:last-child .cl-folder__row { border-bottom: 0; }
 @media (hover: hover) { .cl-folder__row:hover { background: var(--color-surface-hover); } }
+/* the list scrolls, so it would cut a ring drawn outside the row */
+.cl-folder__row:focus-visible { outline-offset: -2px; }
 .cl-folder__row svg { width: 16px; height: 16px; flex: none; color: var(--color-text-secondary); }
 .cl-folder__row::after { content: "›"; margin-left: auto; color: var(--color-text-tertiary); }
 /* why a folder cannot be chosen, in words, before its chevron: it can still be opened */
@@ -620,7 +623,12 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
 @media (max-width: 767px) {
   .cl-pathfield { width: 100%; }
   .cl-folder { padding: var(--space-2); }
-  .cl-folder__place { height: var(--size-control-touch); }
+  /* two places a line, the room under the name */
+  .cl-folder__places { display: grid; grid-template-columns: 1fr 1fr; }
+  .cl-folder__place { height: var(--size-control-touch); display: grid; grid-template-columns: auto 1fr; column-gap: var(--space-1-5); align-content: center; text-align: left; line-height: var(--font-line-height-caption); }
+  .cl-folder__place:has(.cl-folder__free) svg { grid-row: span 2; }
+  .cl-folder__free { font-size: var(--font-size-caption); }
+  .cl-folder__free::before { content: none; }
   .cl-folder__crumbs button { min-height: var(--size-target-touch); }
   .cl-folder__row { min-height: var(--size-row-desk); }
   .cl-folder__list { max-height: calc(6 * var(--size-row-desk) + 2px); }
