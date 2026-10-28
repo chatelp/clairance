@@ -88,6 +88,18 @@ function alsoSplit(choices, followed, n) {
     return { shown, more };
 }
 
+// The line of "Also follow" during a visit to Listening: the codes fixed at
+// its opening (alsoSplit's shown then), plus any ticked since. An aerodrome
+// unticked stays where it is until the next opening -- it does not leave
+// under the pointer (design, 28/10); the line may hold more than five
+// meanwhile. Pure, for the tests.
+function alsoLines(choices, followed, line) {
+    const keep = new Set([...(line || []), ...(followed || [])]);
+    const sorted = (choices || []).slice().sort((a, b) =>
+        (a.distance_nm || 0) - (b.distance_nm || 0) || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
+    return { shown: sorted.filter((c) => keep.has(c.code)), more: sorted.filter((c) => !keep.has(c.code)) };
+}
+
 function serverSettings() {
     return {
         presets: MATCHING_PRESETS,
@@ -109,6 +121,7 @@ function serverSettings() {
         rulesOpen: false,
         debugOpen: false,
         alsoMoreOpen: false,
+        alsoLine: null, // the codes of the line, fixed when Listening opens
 
         // The role, the phone's width, and the server's state read at the
         // first opening rather than with the page: the settings are closed
@@ -123,6 +136,7 @@ function serverSettings() {
             narrow.addEventListener('change', (e) => { this.phone = e.matches; });
             const opened = () => {
                 this.phoneDetail = false;
+                this.alsoLine = null;
                 if (!this.state && !this.busy) this.load();
                 // The focus on the page's tab.
                 // The focus on the page's tab, once the window shows.
@@ -160,6 +174,7 @@ function serverSettings() {
         },
 
         open(id) {
+            if (id === 'listening') this.alsoLine = null; // fixed again at each opening
             this.page = id;
             this.phoneDetail = true;
             if (this.$refs.scroll) this.$refs.scroll.scrollTop = 0;
@@ -610,9 +625,14 @@ function serverSettings() {
         alsoChoices() {
             return this.airportChoices().filter(c => c.code !== this.draft.reference_airport);
         },
-        // Shown and folded (alsoSplit): five on the line, the followed ones always.
+        // Shown and folded: five on the line at the opening (alsoSplit), the
+        // ones ticked since added, none unticked taken away (alsoLines).
         alsoLists() {
-            return alsoSplit(this.alsoChoices(), this.draft.also_airports, 5);
+            const choices = this.alsoChoices();
+            if (!this.alsoLine && choices.length) {
+                this.alsoLine = alsoSplit(choices, this.draft.also_airports, 5).shown.map((c) => c.code);
+            }
+            return alsoLines(choices, this.draft.also_airports, this.alsoLine);
         },
         // Ticked from the fold, a box moves up to the line: the keyboard
         // follows it there. The root is read before the render, which
@@ -629,6 +649,9 @@ function serverSettings() {
             if (list.length === this.draft.also_airports.length) {
                 if (list.length >= 3) { this.flash('Three further airports at most.', true); return; }
                 list.push(code);
+                // Ticked during the visit, it joins the line for good: unticked
+                // again, it stays there until Listening opens again.
+                if (this.alsoLine && !this.alsoLine.includes(code)) this.alsoLine = [...this.alsoLine, code];
             }
             this.draft.also_airports = list;
             this.save();
@@ -696,4 +719,4 @@ const SETTINGS_GLYPHS = {
     about: '<circle cx="8" cy="8" r="6"/><path d="M8 7.5v3.5M8 5h.01"/>',
 };
 
-if (typeof module !== 'undefined') module.exports = { SETTINGS_PAGES, SETTINGS_GLYPHS, settingsNav, alsoSplit };
+if (typeof module !== 'undefined') module.exports = { SETTINGS_PAGES, SETTINGS_GLYPHS, settingsNav, alsoSplit, alsoLines };

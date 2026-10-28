@@ -30,7 +30,7 @@ test('every page has a sentence, and the server pages are marked so', () => {
 });
 
 // "Also follow" (fiche T, 28/10): the followed and the nearest first, the rest folded.
-const { alsoSplit } = require('./server-settings.js');
+const { alsoSplit, alsoLines } = require('./server-settings.js');
 
 const codes = (list) => list.map((c) => c.code);
 // 21 aerodromes, LF01 nearest to LF21 farthest, given out of order.
@@ -85,4 +85,23 @@ test('Also follow: equal distances keep the order of the codes', () => {
     assert.deepEqual(codes(s.shown), ['LFPB', 'LFPG', 'LFPN', 'LFPO', 'LFPZ']);
     assert.deepEqual(codes(s.more), ['LFPV']);
     assertWhole(s, tied);
+});
+
+// During a visit, the line keeps what it opened with: a box ticked from the
+// fold comes up, a box unticked on the line stays (design, 28/10).
+test('the line holds still during a visit to Listening', () => {
+    const choices = [
+        { code: 'LFPN', distance_nm: 3 }, { code: 'LFPV', distance_nm: 5 }, { code: 'LFXU', distance_nm: 8 },
+        { code: 'LFPO', distance_nm: 10 }, { code: 'LFPT', distance_nm: 12 }, { code: 'LFPG', distance_nm: 20 },
+        { code: 'LFOB', distance_nm: 40 },
+    ];
+    const codes = (l) => l.map((c) => c.code);
+    const line = codes(alsoSplit(choices, ['LFOB'], 5).shown);
+    assert.deepEqual(line, ['LFPN', 'LFPV', 'LFXU', 'LFPO', 'LFOB']);
+    // LFOB unticked: it stays on the line
+    assert.deepEqual(codes(alsoLines(choices, [], line).shown), ['LFPN', 'LFPV', 'LFXU', 'LFPO', 'LFOB']);
+    // LFPG ticked from the fold: it comes up, six on the line for the visit
+    const now = alsoLines(choices, ['LFPG'], line);
+    assert.deepEqual(codes(now.shown), ['LFPN', 'LFPV', 'LFXU', 'LFPO', 'LFPG', 'LFOB']);
+    assert.deepEqual(codes(now.more), ['LFPT']);
 });
