@@ -107,8 +107,10 @@
     <script defer src="par/par-vac.js"></script>
     <script defer src="par/par-view.js"></script>
 </head>
-<body class="bg-background text-text m-0 p-0 font-mono overflow-hidden h-screen flex flex-col" x-data>
-    <div id="app-container" class="flex flex-col h-screen">
+<!-- The visible height (dvh), not 100vh: on an iPhone 100vh counts Safari's
+     bars as folded, and the tab bar slid under them (iOS 26, 28/10). -->
+<body class="bg-background text-text m-0 p-0 font-mono overflow-hidden flex flex-col" style="height: 100vh; height: 100dvh;" x-data>
+    <div id="app-container" class="flex flex-col" style="height: 100vh; height: 100dvh;">
         <!-- The top bar (design system, TopBar; migration step 3): the sign and the
              name, what the station has on air, the chain's lights, the time, the
              tools. cl-root scopes the system's styles to this bar for now. -->
