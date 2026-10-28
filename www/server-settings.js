@@ -51,6 +51,8 @@ const SETTINGS_PAGES = [
     { id: 'access', group: 'Administration', label: 'Access', lede: 'Who may open Clairance, and with which account.', server: true },
     { id: 'usage', group: 'Administration', label: 'Usage', lede: 'What each account did these 7 days. Seen by admins only.' },
     { id: 'server', group: 'Administration', label: 'Server', lede: "The server's log, its databases and their archive, then what it reports.", server: true },
+    // Below the groups, for everyone (D87).
+    { id: 'about', group: '', label: 'About Clairance', lede: 'The version of this page and of the server, and what changed.', viewer: true },
 ];
 
 // The pages a reader sees, in their groups: all for an admin; This browser and
@@ -147,6 +149,10 @@ function serverSettings() {
         // A page that needs a look, for an admin: its mark in the navigation,
         // the status lights' shape, never a colour alone.
         mark(id) {
+            const notices = Alpine.store('notices');
+            if (id === 'about' && notices && notices.updateAvailable) {
+                return { cls: 'is-warn', glyph: '▲', why: 'Needs a look: this page is older than the server' };
+            }
             if (!this.admin || !this.state) return null;
             if (id === 'server' && this.archiveWarn()) {
                 const a = this.state.storage && this.state.storage.archive;
@@ -585,7 +591,7 @@ function serverSettings() {
             if (!s && s !== 0) return '—';
             const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
             if (d) return d + ' d ' + h + ' h';
-            if (h) return h + ' h ' + String(m).padStart(2, '0');
+            if (h) return h + ' h ' + m + ' min'; // units, never "05": it reads as a clock
             if (m) return m + ' min';
             return 'under a minute';
         },

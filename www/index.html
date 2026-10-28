@@ -37,6 +37,30 @@
     <link rel="stylesheet" href="vendor/tailwind.css">
     
     <!-- 1) Runtime libraries (must load before map modules) -->
+    <!-- Notices (D87, 28/10; docs-fr/design, Notices: Notice): a new version to load,
+         then what is new; one at a time, never over the connection banner, the settings
+         or the sign-in, never taking the focus. See notices.js. -->
+    <div x-show="$store.notices && $store.notices.showUpdate" x-cloak class="cl-root cl-notice" role="status" aria-live="polite">
+        <div class="cl-notice__head"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.55"/><path d="M13 2.5v3h-3"/></svg><h2 class="cl-notice__title">Clairance has been updated</h2></div>
+        <p class="cl-notice__text" x-text="$store.notices.updateText()"></p>
+        <div class="cl-notice__actions">
+            <button class="cl-btn cl-btn--primary" @click="$store.notices.reload()">Reload</button>
+            <button class="cl-btn cl-btn--quiet" @click="$store.notices.later()">Later</button>
+        </div>
+    </div>
+    <div x-show="$store.notices && $store.notices.showNews" x-cloak class="cl-root cl-notice" role="status" aria-live="polite"
+         @keydown.escape.window="if ($store.notices.showNews) $store.notices.newsDone()">
+        <div class="cl-notice__head"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7.4" fill="#163020"/><circle cx="8" cy="8" r="6.6" fill="none" stroke="#4caf50" stroke-width="1.6"/><path d="M8 8 L8 1.6 A6.4 6.4 0 0 1 12.525 3.475 Z" fill="#4caf50" fill-opacity=".45"/><path d="M8 8 L12.525 3.475" fill="none" stroke="#66c56a" stroke-width="1.6" stroke-linecap="round"/><circle cx="9.78" cy="4.19" r="1.15" fill="#e0e0e0"/></svg><h2 class="cl-notice__title">What's new</h2>
+            <span class="cl-notice__when" x-text="$store.notices.unseen ? $store.notices.date($store.notices.unseen.date).replace(/ \d{4}$/, '') : ''"></span></div>
+        <ul class="cl-notice__list list-disc">
+            <template x-for="l in ($store.notices.unseen ? $store.notices.unseen.lines : [])" :key="l"><li x-text="l"></li></template>
+        </ul>
+        <div class="cl-notice__actions">
+            <button class="cl-btn" @click="$store.notices.newsDone()">OK</button>
+            <a class="cl-link" href="#" @click.prevent="$store.notices.allNews()">All the news</a>
+        </div>
+    </div>
+
     <script defer src="vendor/ol/ol.js"></script>
             
     <!-- 2) UI framework (store/app bindings) -->
@@ -135,6 +159,10 @@
             <template x-if="!$store.atc.showLocalDates">
                 <span class="cl-topbar__local" x-text="$store.atc.currentTime"></span>
             </template>
+            <!-- After "Later" on the notice of a new version (D87): it stays until the page reloads. -->
+            <button class="cl-btn" x-show="$store.notices && $store.notices.showNewVersionButton" x-cloak @click="$store.notices.reload()"
+                    aria-label="New version: reload the page to use it" data-help-title="New version"
+                    data-help="Clairance has been updated. Reload this page to use the new version."><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.55"/><path d="M13 2.5v3h-3"/></svg><span class="max-md:hidden">New version</span></button>
             <button class="cl-btn cl-btn--icon" aria-label="Event log" data-help-title="Event log"
                     data-help="Emergencies, go-arounds, runway changes, aircraft of interest, the station switching channels, streams lost or back."
                     :class="$store.events.open ? 'is-on' : ''" @click="$store.events.toggleOpen()" style="position: relative;">
@@ -354,14 +382,14 @@
                          pages, then a page with "‹ Settings" (is-list, is-detail). -->
                     <div x-show="$store.atc.settingsOpen" x-cloak
                          @keydown.escape.window="$store.atc.settingsOpen = false"
-                         x-data="serverSettings()" x-init="init()"
+                         x-data="serverSettings()" x-init="init()" @settings-page.window="open($event.detail)"
                          role="dialog" aria-modal="true" aria-label="Settings"
                          class="cl-root cl-page fixed inset-x-0 top-0 bottom-0" style="z-index: 10010;">
                         <div class="cl-page__inner" :class="phoneState()">
                             <nav class="cl-page__nav" aria-label="Settings pages">
                                 <template x-for="g in navGroups()" :key="g.name">
                                     <div class="cl-page__group">
-                                        <span class="cl-label" x-text="g.name"></span>
+                                        <span class="cl-label" x-show="g.name" x-text="g.name"></span>
                                         <template x-for="p in g.pages" :key="p.id">
                                             <a href="#" :aria-current="String(page === p.id)" @click.prevent="open(p.id)">
                                                 <span x-text="p.label"></span>
@@ -952,6 +980,37 @@
                                     </div>
                                 </template>
                             </div>
+                        </section>
+                    </div>
+
+                    <!-- About Clairance (D87): this page's version and the server's, then what changed. -->
+                    <div x-show="page === 'about'" class="contents">
+                        <section class="cl-page__section">
+                            <div class="cl-field">
+                                <span class="cl-field__label">This page</span>
+                                <span class="cl-field__value"><span x-text="$store.notices.when($store.notices.loaded, true)"></span>
+                                    <span class="cl-age" x-show="admin && $store.notices.loaded && $store.notices.loaded.commit" x-text="$store.notices.loaded && $store.notices.loaded.commit"></span></span>
+                            </div>
+                            <div class="cl-field">
+                                <span class="cl-field__label">The server</span>
+                                <span class="cl-field__value"><span x-text="$store.notices.when($store.notices.server, true)"></span>
+                                    <span class="cl-age" x-show="admin && $store.notices.server && $store.notices.server.commit" x-text="$store.notices.server && $store.notices.server.commit"></span></span>
+                                <span class="whitespace-normal" style="grid-column: 1 / -1;" :class="$store.notices.updateAvailable ? 'cl-light cl-light--warn' : 'cl-field__help'"
+                                      x-text="$store.notices.updateAvailable ? 'This page is older than the server: reload it to use the new version.' : 'This page and the server are the same version.'"></span>
+                            </div>
+                            <div class="cl-row" x-show="$store.notices.updateAvailable"><button class="cl-btn cl-btn--primary" @click="$store.notices.reload()">Reload</button></div>
+                        </section>
+                        <section class="cl-page__section">
+                            <h3>What's new</h3>
+                            <template x-for="e in $store.notices.news" :key="e.id">
+                                <div class="cl-field">
+                                    <span class="cl-field__label" x-text="$store.notices.date(e.date)"></span>
+                                    <span></span>
+                                    <ul class="cl-notice__list list-disc" style="grid-column: 1 / -1;">
+                                        <template x-for="l in e.lines" :key="l"><li x-text="l"></li></template>
+                                    </ul>
+                                </div>
+                            </template>
                         </section>
                     </div>
 
@@ -2082,6 +2141,7 @@
     <script defer src="altitude/altitude-filter.js"></script>
     <script defer src="altitude/altitude-legend.js"></script>
     <script defer src="events.js"></script>
+    <script defer src="notices.js"></script>
     <script defer src="help-tips.js"></script>
     <script defer src="favicon-state.js"></script>
     <!-- The store 'atc' is assembled by app.js from these domains (docs-fr/32,

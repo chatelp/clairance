@@ -20,7 +20,7 @@ import (
 // directory or a kind of file added at the top of www/ is added here:
 // TestEveryFileOfThePageIsBuiltIn names it.
 //
-//go:embed index.html *.js *.css altitude assets brand map now par phase sounds store story timeline vendor
+//go:embed index.html news.json *.js *.css altitude assets brand map now par phase sounds store story timeline vendor
 var files embed.FS
 
 // FS is the page as the server serves it: what is built in, less the tests

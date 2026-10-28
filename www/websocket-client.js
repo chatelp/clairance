@@ -56,6 +56,7 @@ class WebSocketClient {
             clearance_issued: [],
             frequency_status: [],
             frequency_activity: [],
+            heartbeat: [], // every 15 s, with the page's version and the server's (notices.js, D87)
             frequencies_changed: [],
             state_change: [],
             reconnect_scheduled: [],

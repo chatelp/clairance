@@ -12,6 +12,7 @@ test('an admin sees every page, in three groups', () => {
         'This browser: Display, Account',
         'Station: Listening, Matching',
         'Administration: Access, Usage, Server',
+        ': About Clairance',
     ]);
 });
 
@@ -19,6 +20,7 @@ test('a viewer sees This browser and Listening, nothing of Administration', () =
     assert.deepEqual(names(settingsNav(false)), [
         'This browser: Display, Account',
         'Station: Listening',
+        ': About Clairance',
     ]);
 });
 
