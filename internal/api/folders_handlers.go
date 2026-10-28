@@ -74,6 +74,9 @@ func (h *Handler) GetServerFolders(w http.ResponseWriter, r *http.Request) {
 		if err != nil || !info.IsDir() {
 			continue
 		}
+		if path == "/Volumes" && disk.Hidden(full) {
+			continue // a volume the system keeps out of sight, as the Finder does
+		}
 		folders = append(folders, folderOf(name, full, dataDir))
 	}
 	// Sorted, then cut: the first ones by name, never any taken at random.
@@ -138,8 +141,9 @@ func folderRoots(dataDir string) []folderRoot {
 	if runtime.GOOS == "darwin" {
 		if entries, err := os.ReadDir("/Volumes"); err == nil {
 			for _, e := range entries {
-				if !strings.HasPrefix(e.Name(), ".") {
-					add(e.Name(), filepath.Join("/Volumes", e.Name()))
+				full := filepath.Join("/Volumes", e.Name())
+				if !strings.HasPrefix(e.Name(), ".") && !disk.Hidden(full) {
+					add(e.Name(), full)
 				}
 			}
 		}
