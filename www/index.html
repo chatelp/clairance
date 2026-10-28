@@ -865,7 +865,7 @@
                                          it, today's never. -->
                                     <div class="cl-field">
                                         <span class="cl-field__label cursor-help" data-help-title="Databases kept"
-                                              data-help="A size, not a number of days: the oldest days are deleted past it, today's never. Lowering it asks first.">Keep databases up to</span>
+                                              data-help="A size, not a number of days: past it the oldest days leave this disk, today's never. They are copied to [storage] archive_dir first when one is set, and kept while it cannot be found; without one they are deleted. Lowering it asks first.">Keep databases up to</span>
                                         <span class="cl-row">
                                             <input type="number" min="1" max="1000" step="1" class="cl-input text-right" style="width: 72px;" aria-label="Gigabytes"
                                                    x-model.number="draft.db_retention_gb" @change="save()">
