@@ -28,3 +28,61 @@ test('every page has a sentence, and the server pages are marked so', () => {
     for (const p of SETTINGS_PAGES) assert.ok(p.lede && p.lede.endsWith('.'), p.id);
     assert.deepEqual(SETTINGS_PAGES.filter((p) => p.server).map((p) => p.id), ['listening', 'matching', 'access', 'server']);
 });
+
+// "Also follow" (fiche T, 28/10): the followed and the nearest first, the rest folded.
+const { alsoSplit } = require('./server-settings.js');
+
+const codes = (list) => list.map((c) => c.code);
+// 21 aerodromes, LF01 nearest to LF21 farthest, given out of order.
+const twentyOne = Array.from({ length: 21 }, (_, i) => ({ code: 'LF' + String(i + 1).padStart(2, '0'), distance_nm: 3 + i * 2 })).reverse();
+const nearest = (k) => codes(twentyOne).sort().slice(0, k);
+
+function assertWhole(split, choices) {
+    const all = codes(split.shown).concat(codes(split.more));
+    assert.equal(new Set(all).size, all.length, 'no aerodrome twice');
+    assert.deepEqual(all.slice().sort(), codes(choices).sort(), 'no aerodrome lost');
+}
+
+test('Also follow: nothing followed shows the five nearest, the sixteen others folded by distance', () => {
+    const s = alsoSplit(twentyOne, [], 5);
+    assert.deepEqual(codes(s.shown), nearest(5));
+    assert.deepEqual(codes(s.more), nearest(21).slice(5));
+    assertWhole(s, twentyOne);
+});
+
+test('Also follow: one or three followed among the near ones complete the five, in distance order', () => {
+    let s = alsoSplit(twentyOne, ['LF03'], 5);
+    assert.deepEqual(codes(s.shown), nearest(5));
+    assertWhole(s, twentyOne);
+    s = alsoSplit(twentyOne, ['LF02', 'LF04', 'LF07'], 5);
+    assert.deepEqual(codes(s.shown), ['LF01', 'LF02', 'LF03', 'LF04', 'LF07']);
+    assert.equal(s.more[0].code, 'LF05');
+    assertWhole(s, twentyOne);
+});
+
+test('Also follow: a far followed aerodrome is shown, the nearest others fill the rest', () => {
+    const s = alsoSplit(twentyOne, ['LF21'], 5);
+    assert.deepEqual(codes(s.shown), ['LF01', 'LF02', 'LF03', 'LF04', 'LF21']);
+    assert.deepEqual(codes(s.more), nearest(20).slice(4));
+    assertWhole(s, twentyOne);
+    const three = alsoSplit(twentyOne, ['LF19', 'LF20', 'LF21'], 5);
+    assert.deepEqual(codes(three.shown), ['LF01', 'LF02', 'LF19', 'LF20', 'LF21']);
+    assertWhole(three, twentyOne);
+});
+
+test('Also follow: fewer choices than five fold nothing; none gives two empty lists', () => {
+    const few = twentyOne.slice(-3);
+    const s = alsoSplit(few, ['LF02'], 5);
+    assert.deepEqual(codes(s.shown), ['LF01', 'LF02', 'LF03']);
+    assert.deepEqual(s.more, []);
+    assert.deepEqual(alsoSplit([], [], 5), { shown: [], more: [] });
+    assert.deepEqual(alsoSplit(undefined, undefined, 5), { shown: [], more: [] });
+});
+
+test('Also follow: equal distances keep the order of the codes', () => {
+    const tied = ['LFPZ', 'LFPB', 'LFPN', 'LFPV', 'LFPO', 'LFPG'].map((code) => ({ code, distance_nm: 10 }));
+    const s = alsoSplit(tied, ['LFPZ'], 5);
+    assert.deepEqual(codes(s.shown), ['LFPB', 'LFPG', 'LFPN', 'LFPO', 'LFPZ']);
+    assert.deepEqual(codes(s.more), ['LFPV']);
+    assertWhole(s, tied);
+});

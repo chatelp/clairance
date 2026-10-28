@@ -581,16 +581,34 @@
                                     <div class="cl-field grid-cols-1">
                                         <span class="cl-field__label cursor-help" data-help-title="Also follow"
                                               data-help="Each aircraft is judged against the airport whose runway axis it flies, else the nearest; its phase then shows that airport. Weather stays the reference airport's. Three at most.">Also follow</span>
+                                        <!-- The followed ones and the nearest first, the rest folded: twenty or
+                                             more in range, three at most to tick (fiche T, 28/10). -->
                                         <span class="cl-row gap-x-4">
-                                            <template x-for="c in alsoChoices()" :key="'also-' + c.code">
-                                                <label class="cl-check" :class="alsoFollowed(c.code) ? 'is-on' : ''"
+                                            <template x-for="c in alsoLists().shown" :key="'also-' + c.code">
+                                                <label class="cl-check" :class="alsoFollowed(c.code) ? 'is-on' : ''" :data-also="c.code"
                                                        role="checkbox" tabindex="0" :aria-checked="String(alsoFollowed(c.code))"
                                                        :data-help-title="c.code" :data-help="c.name + ' · ' + c.distance_nm + ' NM from the receiver'"
-                                                       @click.prevent="if (!busy) toggleAlso(c.code)" @keydown.space.prevent="if (!busy) toggleAlso(c.code)">
+                                                       @click.prevent="if (!busy) toggleAlso(c.code)" @keydown.space.prevent="if (!busy) { toggleAlso(c.code); keepAlsoFocus(c.code) }">
                                                     <span class="cl-check__box"></span><span x-text="c.code"></span>
                                                 </label>
                                             </template>
                                         </span>
+                                        <template x-if="alsoLists().more.length">
+                                            <div class="flex flex-col gap-2">
+                                                <button class="cl-disclosure" :aria-expanded="String(alsoMoreOpen)" @click="alsoMoreOpen = !alsoMoreOpen"
+                                                        x-text="'More aerodromes (' + alsoLists().more.length + ')'"></button>
+                                                <span x-show="alsoMoreOpen" class="cl-row gap-x-4">
+                                                    <template x-for="c in alsoLists().more" :key="'also-more-' + c.code">
+                                                        <label class="cl-check" :class="alsoFollowed(c.code) ? 'is-on' : ''" :data-also="c.code"
+                                                               role="checkbox" tabindex="0" :aria-checked="String(alsoFollowed(c.code))"
+                                                               :data-help-title="c.code" :data-help="c.name + ' · ' + c.distance_nm + ' NM from the receiver'"
+                                                               @click.prevent="if (!busy) toggleAlso(c.code)" @keydown.space.prevent="if (!busy) { toggleAlso(c.code); keepAlsoFocus(c.code) }">
+                                                            <span class="cl-check__box"></span><span x-text="c.code"></span>
+                                                        </label>
+                                                    </template>
+                                                </span>
+                                            </div>
+                                        </template>
                                         <span class="cl-field__help">Up to three: each gets a PAR and an arrival sequence.</span>
                                     </div>
                                 </div>

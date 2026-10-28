@@ -69,6 +69,25 @@ function settingsNav(admin) {
     return groups;
 }
 
+// The aerodromes offered under "Also follow", in two lists: shown, the
+// followed ones (always, however far) then the nearest others, n in all,
+// by distance; more, the rest, folded, by distance. Equal distances keep
+// the order of the codes. Pure, for the tests.
+function alsoSplit(choices, followed, n) {
+    const on = new Set(followed || []);
+    const sorted = (choices || []).slice().sort((a, b) =>
+        (a.distance_nm || 0) - (b.distance_nm || 0) || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
+    let room = n - sorted.filter((c) => on.has(c.code)).length;
+    const shown = [];
+    const more = [];
+    for (const c of sorted) {
+        if (on.has(c.code)) shown.push(c);
+        else if (room-- > 0) shown.push(c);
+        else more.push(c);
+    }
+    return { shown, more };
+}
+
 function serverSettings() {
     return {
         presets: MATCHING_PRESETS,
@@ -89,6 +108,7 @@ function serverSettings() {
         namingChoices: [['surer', 'Surer', '9 names, all right'], ['measured', 'Standard', '18 names, all right'], ['more', 'More', '19 names, 18 right']],
         rulesOpen: false,
         debugOpen: false,
+        alsoMoreOpen: false,
 
         // The role, the phone's width, and the server's state read at the
         // first opening rather than with the page: the settings are closed
@@ -590,6 +610,17 @@ function serverSettings() {
         alsoChoices() {
             return this.airportChoices().filter(c => c.code !== this.draft.reference_airport);
         },
+        // Shown and folded (alsoSplit): five on the line, the followed ones always.
+        alsoLists() {
+            return alsoSplit(this.alsoChoices(), this.draft.also_airports, 5);
+        },
+        // Ticked from the fold, a box moves up to the line: the keyboard
+        // follows it there. The root is read before the render, which
+        // detaches the box it was ticked from.
+        keepAlsoFocus(code) {
+            const root = this.$root;
+            this.$nextTick(() => root.querySelector('[data-also="' + code + '"]')?.focus());
+        },
         alsoFollowed(code) {
             return this.draft.also_airports.includes(code);
         },
@@ -665,4 +696,4 @@ const SETTINGS_GLYPHS = {
     about: '<circle cx="8" cy="8" r="6"/><path d="M8 7.5v3.5M8 5h.01"/>',
 };
 
-if (typeof module !== 'undefined') module.exports = { SETTINGS_PAGES, SETTINGS_GLYPHS, settingsNav };
+if (typeof module !== 'undefined') module.exports = { SETTINGS_PAGES, SETTINGS_GLYPHS, settingsNav, alsoSplit };
