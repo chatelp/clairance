@@ -110,22 +110,22 @@ def exchanges(selected='AFR47KX', wide=False):
     if wide:
         return f'''<article class="cl-exchange cl-exchange--wide">
   <div class="cl-exchange__who">{WHEN('13:10:02')}{WHEN('124.350')}</div>
-  <div class="cl-exchange__what"><div class="cl-exchange__head"><span class="cl-chip cl-chip--atc">ATC</span><span class="cl-exchange__to">→</span>{chip('CLB', 'dep', 'TVF61WB')}{STR3}<span class="cl-exchange__reply"><span>↩</span><span>pilot replied, 3 s later</span></span>{PLAYB}</div>
+  <div class="cl-exchange__what"><div class="cl-exchange__head"><span class="cl-chip cl-chip--atc">ATC</span><span class="cl-exchange__to">→</span>{chip('CLB', 'dep', 'TVF61WB')}{STR3}{PLAYB}</div>
   <p class="cl-exchange__text">Transavia six one Whiskey Bravo, climb flight level one two zero, direct Rambouillet.</p>
   <div class="cl-exchange__instr"><span class="cl-chip cl-chip--instr">Climb to FL 120</span><span class="cl-chip cl-chip--instr">Direct RBT</span></div></div>
 </article>
 <article class="cl-exchange cl-exchange--wide">
   <div class="cl-exchange__who">{WHEN('13:11:52')}{WHEN('124.350')}</div>
-  <div class="cl-exchange__what"><div class="cl-exchange__head"><span class="cl-chip cl-chip--atc">ATC</span><span class="cl-exchange__to">→</span>{chip('ARR', 'arr', 'EZY82QT')}{STR3}<span class="cl-exchange__reply"><span>↩</span><span>pilot replied, 12 s later</span></span>{PLAYB}</div>
+  <div class="cl-exchange__what"><div class="cl-exchange__head"><span class="cl-chip cl-chip--atc">ATC</span><span class="cl-exchange__to">→</span>{chip('ARR', 'arr', 'EZY82QT')}{STR3}{PLAYB}</div>
   <p class="cl-exchange__text">Easy eight two Quebec Tango, descend flight level seven zero, turn left heading two seven zero.</p>
   <div class="cl-exchange__instr"><span class="cl-chip cl-chip--instr">Descend to FL 070</span><span class="cl-chip cl-chip--instr">Turn left heading 270</span></div></div>
 </article>
 <article class="cl-exchange cl-exchange--wide{sel('AFR47KX')}" lang="fr">
   <div class="cl-exchange__who">{WHEN('13:12:31')}{WHEN('124.350')}</div>
-  <div class="cl-exchange__what"><div class="cl-exchange__head" lang="en"><span class="cl-chip cl-chip--atc">ATC</span><span class="cl-exchange__to">→</span>{chip('APP', 'arr', 'AFR47KX', sel('AFR47KX'))}{STR2}<span class="cl-exchange__reply"><span>↩</span><span>pilot replied, 4 s later</span></span>{PLAYB}</div>
+  <div class="cl-exchange__what"><div class="cl-exchange__head" lang="en"><span class="cl-chip cl-chip--atc">ATC</span><span class="cl-exchange__to">→</span>{chip('APP', 'arr', 'AFR47KX', sel('AFR47KX'))}{STR2}{PLAYB}</div>
   <p class="cl-exchange__text">Air France quatre sept Kilo X-ray, autorisé ILS piste deux six gauche, contactez la tour un deux zéro décimal six cinq.</p>
-  <div class="cl-exchange__instr" lang="en"><span class="cl-chip cl-chip--instr cl-chip--clearance">Cleared ILS runway 26L</span><span class="cl-chip cl-chip--instr">Contact 120.650</span></div>
-  <div class="cl-exchange__explain">Autorisé à l'approche ILS, piste 26L. Contactez 120.650.</div></div>
+  <div class="cl-exchange__instr" lang="en"><span class="cl-chip cl-chip--instr cl-chip--clearance">Cleared for the approach, runway 26L</span><span class="cl-chip cl-chip--instr">Contact 120.650</span></div>
+  <div class="cl-exchange__explain">Autorisé à l'approche, piste 26L ; Contactez 120.650.</div></div>
 </article>
 <article class="cl-exchange cl-exchange--wide is-live">
   <div class="cl-exchange__who">{WHEN('now')}{WHEN('124.350')}</div>
@@ -134,19 +134,16 @@ def exchanges(selected='AFR47KX', wide=False):
     return f'''<article class="cl-exchange">
   <div class="cl-exchange__head">{WHEN('12:58:31 · 126.425')}{chip('ARR', 'arr', 'AFR47KX', sel('AFR47KX'))}<span class="cl-exchange__to">→</span><span class="cl-chip cl-chip--atc">ATC</span>{STR3}{PLAYB}</div>
   <p class="cl-exchange__text" lang="fr">De Gaulle bonjour, Air France quatre sept Kilo X-ray, niveau un huit zéro en descente vers un cinq zéro.</p>
-  <div class="cl-exchange__explain">First call on this frequency.</div>
 </article>
 <article class="cl-exchange">
   <div class="cl-exchange__head">{WHEN('13:10:02 · 124.350')}<span class="cl-chip cl-chip--atc">ATC</span><span class="cl-exchange__to">→</span>{chip('CLB', 'dep', 'TVF61WB', sel('TVF61WB'))}{STR3}{PLAYB}</div>
   <p class="cl-exchange__text">Transavia six one Whiskey Bravo, climb flight level one two zero, direct Rambouillet.</p>
   <div class="cl-exchange__instr"><span class="cl-chip cl-chip--instr">Climb to FL 120</span><span class="cl-chip cl-chip--instr">Direct RBT</span></div>
-  <div class="cl-exchange__reply"><span>↩</span><span>Pilot replied, 3 s later</span></div>
 </article>
 <article class="cl-exchange">
   <div class="cl-exchange__head">{WHEN('13:11:52 · 124.350')}<span class="cl-chip cl-chip--atc">ATC</span><span class="cl-exchange__to">→</span>{chip('ARR', 'arr', 'EZY82QT', sel('EZY82QT'))}{STR3}{PLAYB}</div>
   <p class="cl-exchange__text">Easy eight two Quebec Tango, descend flight level seven zero, turn left heading two seven zero.</p>
   <div class="cl-exchange__instr"><span class="cl-chip cl-chip--instr">Descend to FL 070</span><span class="cl-chip cl-chip--instr">Turn left heading 270</span></div>
-  <div class="cl-exchange__reply"><span>↩</span><span>Pilot replied, 12 s later</span></div>
 </article>
 <article class="cl-exchange is-unmatched">
   <div class="cl-exchange__head">{WHEN('13:12:04 · 126.425')}<span class="cl-chip cl-chip--callsign is-away">?</span><span class="cl-plain">no aircraft in range was named</span>{PLAYB}</div>
@@ -155,9 +152,8 @@ def exchanges(selected='AFR47KX', wide=False):
 <article class="cl-exchange{sel('AFR47KX')}" lang="fr">
   <div class="cl-exchange__head" lang="en">{WHEN('13:12:31 · 124.350')}<span class="cl-chip cl-chip--atc">ATC</span><span class="cl-exchange__to">→</span>{chip('APP', 'arr', 'AFR47KX', sel('AFR47KX'))}{STR2}{PLAYB}</div>
   <p class="cl-exchange__text">Air France quatre sept Kilo X-ray, autorisé ILS piste deux six gauche, contactez la tour un deux zéro décimal six cinq.</p>
-  <div class="cl-exchange__instr" lang="en"><span class="cl-chip cl-chip--instr cl-chip--clearance">Cleared ILS runway 26L</span><span class="cl-chip cl-chip--instr">Contact 120.650</span></div>
-  <div class="cl-exchange__explain cl-exchange__explain--boxed">Autorisé à l'approche ILS, piste 26L. Contactez 120.650.</div>
-  <div class="cl-exchange__reply" lang="en"><span>↩</span><span>Pilot replied, 4 s later</span></div>
+  <div class="cl-exchange__instr" lang="en"><span class="cl-chip cl-chip--instr cl-chip--clearance">Cleared for the approach, runway 26L</span><span class="cl-chip cl-chip--instr">Contact 120.650</span></div>
+  <div class="cl-exchange__explain cl-exchange__explain--boxed">Autorisé à l'approche, piste 26L ; Contactez 120.650.</div>
 </article>
 <article class="cl-exchange is-live">
   <div class="cl-exchange__head">{WHEN('now · 124.350')}<span class="cl-level"><i style="height:6px"></i><i style="height:12px"></i><i style="height:9px"></i><i style="height:14px"></i><i style="height:7px"></i></span><span class="cl-plain">someone is speaking</span></div>
@@ -571,6 +567,16 @@ if __name__ == '__main__':
     write('reglages-usage.html', page('Settings · Usage', app + R.settings_page('usage')))
     write('reglages-serveur.html', page('Settings · Server', app + R.settings_page('server')))
     write('reglages-acces.html', page('Settings · Access', app + R.settings_page('access')))
+    write('reglages-apropos.html', page('Settings · About Clairance', app + R.settings_page('about')))
+    # The page's own notices (28/10): tools/design/avis.py
+    _aspec = importlib.util.spec_from_file_location('avis', os.path.join(os.path.dirname(__file__), 'avis.py'))
+    A = importlib.util.module_from_spec(_aspec); _aspec.loader.exec_module(A)
+    write('avis-mise-a-jour.html', page('A new version to load', app + A.update(listening=True)))
+    later_bar = topbar().replace('<button class="cl-btn cl-btn--icon" aria-label="Event log">', A.later_button() + '<button class="cl-btn cl-btn--icon" aria-label="Event log">', 1)
+    write('avis-plus-tard.html', page('Later: the button in the top bar', later_bar + '<div class="cl-app__main">' + thread() + sky() + column_now() + '</div>'))
+    write('avis-nouveautes.html', page("What's new", app + A.whats_new(SIGN_ON)))
+    narrow = '<div class="cl-threadhead"><div class="cl-threadhead__row">' + channel('124.350', 'Approche', '', on=True) + channel('126.425', 'App. (L)', '') + '</div></div><div class="cl-app__bottom">' + exchanges() + '</div>'
+    write('telephone-avis.html', page('A new version, on a phone', '<div style="position: relative; width: 390px; height: 844px;">' + phone('Radio', narrow) + A.update(listening=True) + '</div>', width=390, height=844))
     write('telephone-reglages.html', page('Settings on a phone: the pages', R.settings_page('listening', state='is-list'), width=390, height=844))
     write('telephone-reglages-page.html', page('Settings on a phone: a page', R.settings_page('listening', state='is-detail'), width=390, height=844))
     write('connexion.html', page('Sign in', signin(), width=1440, height=900))
@@ -597,6 +603,11 @@ if __name__ == '__main__':
         ('reglages-usage.html', 'Settings · Usage', 'Who is here now, then each account\'s week in two columns.', 1440, 900),
         ('reglages-serveur.html', 'Settings · Server', 'Log detail, databases and their archive (a page that needs a look carries ▲ in the nav), the reports in two columns.', 1440, 900),
         ('telephone-reglages.html', 'Settings on a phone', 'The list of pages, grouped, in touch rows.', 390, 844),
+        ('reglages-apropos.html', 'Settings · About Clairance', 'The version of this page and of the server, and what changed, for everyone.', 1440, 900),
+        ('avis-mise-a-jour.html', 'A new version to load', 'The page is older than the server: a notice, top right, never blocking.', 1440, 900),
+        ('avis-plus-tard.html', 'Later', 'The notice closed, a button stays in the top bar until the page reloads.', 1440, 900),
+        ('avis-nouveautes.html', "What's new", 'Once per account and version, in a listener\'s words.', 1440, 900),
+        ('telephone-avis.html', 'A new version, on a phone', 'Above the tab bar.', 390, 844),
         ('telephone-reglages-page.html', 'Settings on a phone: a page', 'A page, with ‹ Settings to go back.', 390, 844),
         ('connexion.html', 'Sign in', "The sky: the page is the sign's scope; the station's console; the form at the centre.", 1440, 900),
         ('premier-lancement.html', 'First run', 'Who may open Clairance: this machine, or the network with a password.', 1440, 900),
