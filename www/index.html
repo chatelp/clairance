@@ -233,9 +233,12 @@
                                         @click.stop="$store.atc.toggleThreadMenu(freq.id)">
                                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4.5 6.5 3.5 3.5 3.5-3.5"/></svg>
                                 </button>
-                                <!-- ChannelMenu: under its own button, left edges aligned. -->
+                                <!-- ChannelMenu: under its own button, left edges aligned; slid
+                                     left just enough to stay on the screen when the button is near
+                                     its right edge (a phone, 28/10). -->
                                 <div class="cl-menu absolute left-0 top-full z-[1100] mt-1 whitespace-normal cursor-auto"
                                      x-show="$store.atc.threadMenuFor === freq.id" x-cloak @click.stop role="dialog" :aria-label="$store.atc.freqLabel(freq.id) + ' ' + freq.name"
+                                     x-effect="if ($store.atc.threadMenuFor === freq.id) $nextTick(() => { $el.style.left = ''; const r = $el.getBoundingClientRect(); const over = r.right - (document.documentElement.clientWidth - 8); if (over > 0) $el.style.left = -Math.min(over, r.left - 8) + 'px'; })"
                                     
                                      @click.outside="if ($store.atc.threadMenuFor === freq.id) $store.atc.threadMenuFor = null" @keydown.escape.window="$store.atc.threadMenuFor = null">
                                     <div class="cl-menu__head"><span class="cl-channel__freq cl-menu__title" x-text="$store.atc.freqLabel(freq.id)"></span><span class="cl-menu__title" x-text="$store.atc.freqShortName(freq)"></span></div>
