@@ -541,7 +541,7 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
 /* computer: a window of fixed size, centred, never closer than 24 px to the screen's edges */
 @media (min-width: 768px) {
   .cl-page { display: grid; place-items: center; padding: var(--space-6); }
-  .cl-page__inner { width: clamp(720px, 60vw, 880px); max-width: 100%; height: clamp(520px, 84vh, 800px); max-height: 100%;
+  .cl-page__inner { width: clamp(720px, 60vw, 880px); max-width: calc(100vw - 2 * var(--space-6)); height: clamp(520px, 84vh, 800px); max-height: calc(100dvh - 2 * var(--space-6));
     display: flex; flex-direction: column; overflow: hidden;
     border: var(--border-width-default) solid var(--color-border-default); border-radius: var(--radius-lg); box-shadow: var(--shadow-overlay); }
   /* the head (title, light, close), then the tabs, then the page: the body's parts join the window's column */
