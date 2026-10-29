@@ -169,9 +169,10 @@
                     data-help="Emergencies, go-arounds, runway changes, aircraft of interest, the station switching channels, streams lost or back."
                     :class="$store.events.open ? 'is-on' : ''" @click="$store.events.toggleOpen()" style="position: relative;">
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 11V7a4 4 0 0 1 8 0v4l1.5 1.5h-11L4 11ZM6.5 14h3"/></svg>
-                <span x-show="$store.events.unread > 0" x-cloak class="cl-counter"
+                <!-- Over the bell's corner; inside it on a phone, where the
+                     button reaches the bar's top edge (29/10). -->
+                <span x-show="$store.events.unread > 0" x-cloak class="cl-counter absolute -top-1 -right-1 max-md:top-0.5 max-md:right-0.5"
                       :class="$store.events.unreadUrgent > 0 ? 'cl-counter--urgent' : ''"
-                      style="position: absolute; top: -4px; right: -4px;"
                       x-text="$store.events.unread > 99 ? '99+' : $store.events.unread"></span>
             </button>
             <button class="cl-btn cl-btn--icon" aria-label="Settings" data-help-title="Settings"
