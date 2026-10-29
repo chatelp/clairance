@@ -126,3 +126,43 @@ func TestASourceThisVersionDoesNotReadIsRefusedWithTheReason(t *testing.T) {
 		t.Errorf("raw PCM over UDP: %v", err)
 	}
 }
+
+// "connecting" then "connected" in a row: the last change is the one that
+// stays, though each callback runs on its own goroutine (126425 stayed
+// "connecting" while it played, relance 14, 28/10).
+func TestTheLastStatusStays(t *testing.T) {
+	for i := 0; i < 200; i++ {
+		p := &CentralAudioProcessor{id: "126425"}
+		var mu sync.Mutex
+		last := ConnectionStatus("")
+		calls := 0
+		p.statusCallback = func(_ string, st ConnectionStatus, _ string) {
+			mu.Lock()
+			last = st
+			calls++
+			mu.Unlock()
+		}
+		p.notifyStatusChange(StatusConnecting, "")
+		p.notifyStatusChange(StatusConnected, "")
+		deadline := time.Now().Add(time.Second)
+		for {
+			mu.Lock()
+			l, c := last, calls
+			mu.Unlock()
+			if l == StatusConnected {
+				time.Sleep(time.Millisecond) // a late "connecting" would land now
+				mu.Lock()
+				l = last
+				mu.Unlock()
+				if l != StatusConnected {
+					t.Fatalf("run %d: %q after %q", i, l, StatusConnected)
+				}
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("run %d: last %q after %d calls", i, l, c)
+			}
+			time.Sleep(50 * time.Microsecond)
+		}
+	}
+}

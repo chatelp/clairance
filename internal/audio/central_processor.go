@@ -57,6 +57,12 @@ type CentralAudioProcessor struct {
 	reconnectDelay time.Duration
 	statusCallback StatusChangeCallback // Callback for status changes
 	currentStatus  ConnectionStatus     // Current connection status
+	// statusSent orders the callbacks, each on its own goroutine: change n
+	// is delivered after change n-1 (statusSeq given, statusDone delivered).
+	statusSent sync.Mutex
+	statusTurn *sync.Cond
+	statusSeq  uint64
+	statusDone uint64
 	flow           flowMeter            // bytes decoded, the last minute (flow.go)
 
 	// decodeCancel stops the decoder running, decoded is the end of its pipe
@@ -150,8 +156,27 @@ func (p *CentralAudioProcessor) SetStatusCallback(callback StatusChangeCallback)
 func (p *CentralAudioProcessor) notifyStatusChange(status ConnectionStatus, errorMsg string) {
 	p.currentStatus = status
 	if p.statusCallback != nil {
-		// Call callback in a goroutine to prevent blocking
-		go p.statusCallback(p.id, status, errorMsg)
+		// Call callback in a goroutine to prevent blocking, in the order the
+		// changes came: "connecting" then "connected" in a row raced, and a
+		// frequency could stay "connecting" while it played (28/10).
+		p.statusSent.Lock()
+		if p.statusTurn == nil {
+			p.statusTurn = sync.NewCond(&p.statusSent)
+		}
+		p.statusSeq++
+		seq := p.statusSeq
+		p.statusSent.Unlock()
+		callback := p.statusCallback
+		go func() {
+			p.statusSent.Lock()
+			defer p.statusSent.Unlock()
+			for p.statusDone != seq-1 {
+				p.statusTurn.Wait()
+			}
+			callback(p.id, status, errorMsg)
+			p.statusDone = seq
+			p.statusTurn.Broadcast()
+		}()
 	}
 }
 
