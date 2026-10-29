@@ -36,14 +36,15 @@
     font-family: var(--font-family-text); font-size: var(--font-size-small); white-space: nowrap;
     transition: background var(--motion-duration-fast) var(--motion-easing-standard);
 }
-.cl-btn:hover { background: var(--color-surface-hover); }
+/* every hover only where a pointer hovers: on a touch screen it sticks to what was touched last (iOS, 28/10) */
+@media (hover: hover) { .cl-btn:hover { background: var(--color-surface-hover); } }
 .cl-btn.cl-mono { font-family: var(--font-family-mono); }
 .cl-btn--primary { background: var(--color-accent-fill); border-color: var(--color-accent-fill); color: var(--color-text-on-accent); font-weight: var(--font-weight-strong); }
-.cl-btn--primary:hover { background: var(--color-accent-fill); filter: brightness(0.92); }
+@media (hover: hover) { .cl-btn--primary:hover { background: var(--color-accent-fill); filter: brightness(0.92); } }
 .cl-btn--quiet { border-color: transparent; color: var(--color-text-secondary); }
-.cl-btn--quiet:hover { color: var(--color-text-primary); }
+@media (hover: hover) { .cl-btn--quiet:hover { color: var(--color-text-primary); } }
 .cl-btn--icon { width: var(--size-target-desk); padding: 0; justify-content: center; color: var(--color-text-secondary); border-color: var(--color-border-default); }
-.cl-btn--icon:hover { color: var(--color-text-primary); }
+@media (hover: hover) { .cl-btn--icon:hover { color: var(--color-text-primary); } }
 .cl-btn--icon svg { width: 14px; height: 14px; }
 .cl-btn:disabled { color: var(--color-text-disabled); border-color: var(--color-border-subtle); background: transparent; cursor: default; filter: none; }
 /* a button that opens a card below it (TAF, NOTAM, Earlier): open reads as selected */
@@ -57,7 +58,7 @@
     border-radius: var(--radius-md); border: var(--border-width-default) solid var(--color-border-control);
     color: var(--color-text-secondary); background: transparent; cursor: pointer; font-size: var(--font-size-small);
 }
-.cl-toggle:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+@media (hover: hover) { .cl-toggle:hover { background: var(--color-surface-hover); color: var(--color-text-primary); } }
 .cl-toggle.is-on { background: var(--color-surface-selected); border-color: var(--color-accent-default); color: var(--color-accent-strong); }
 .cl-toggle__count { font-family: var(--font-family-mono); font-size: var(--font-size-caption); color: var(--color-text-tertiary); }
 .cl-toggle.is-on .cl-toggle__count { color: var(--color-accent-strong); }
@@ -79,7 +80,7 @@
     border: 0; background: none; cursor: pointer; color: var(--color-text-secondary); font-size: var(--font-size-small);
     border-bottom: var(--border-width-strong) solid transparent; margin-bottom: -1px;
 }
-.cl-tabs__tab:hover { color: var(--color-text-primary); }
+@media (hover: hover) { .cl-tabs__tab:hover { color: var(--color-text-primary); } }
 .cl-tabs__tab[aria-selected="true"] { color: var(--color-text-primary); border-bottom-color: var(--color-accent-default); }
 .cl-tabs__count { font-family: var(--font-family-mono); font-size: var(--font-size-caption); color: var(--color-text-tertiary); }
 /* the context column's header: larger tabs, a fold button at the end */
@@ -94,7 +95,7 @@
     height: var(--size-target-desk); padding: 0 var(--space-2); border: 0; border-radius: var(--radius-sm); background: transparent;
     color: var(--color-text-secondary); font-size: var(--font-size-small); cursor: pointer; display: inline-flex; align-items: center; gap: var(--space-1);
 }
-.cl-seg__item:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+@media (hover: hover) { .cl-seg__item:hover { background: var(--color-surface-hover); color: var(--color-text-primary); } }
 .cl-seg__item[aria-pressed="true"] { background: var(--color-surface-selected); color: var(--color-accent-strong); }
 
 /* ------------------------------------------------------------ SearchField */
@@ -184,7 +185,7 @@
 .cl-chip--callsign { position: relative; font-family: var(--font-family-mono); font-weight: var(--font-weight-strong); cursor: pointer; }
 /* drawn 20 px high, clicked on 24: the target grows, not the chip */
 .cl-chip--callsign::after { content: ""; position: absolute; inset: -3px -1px; }
-.cl-chip--callsign:hover { border-color: var(--color-border-control); }
+@media (hover: hover) { .cl-chip--callsign:hover { border-color: var(--color-border-control); } }
 .cl-chip--callsign.is-selected { border-color: var(--color-accent-default); }
 .cl-chip--callsign.is-away { color: var(--color-text-tertiary); border-style: dashed; cursor: default; font-weight: var(--font-weight-regular); }
 .cl-chip--callsign.is-guess { border-color: var(--color-status-warn); font-weight: var(--font-weight-regular); }
@@ -195,7 +196,7 @@
 /* an official AIP name proposed from the sound of the words (Q55): a reading, not a fact; dashed as a proposal */
 .cl-chip--place { font-family: var(--font-family-mono); border-style: dashed; border-color: var(--color-border-control); background: transparent; color: var(--color-text-primary); }
 button.cl-chip--place { cursor: pointer; }
-button.cl-chip--place:hover { background: var(--color-surface-hover); }
+@media (hover: hover) { button.cl-chip--place:hover { background: var(--color-surface-hover); } }
 .cl-exchange__text .is-place { text-decoration: underline dotted var(--color-text-tertiary); text-underline-offset: 3px; }
 .cl-value { font-family: var(--font-family-mono); font-size: var(--font-size-small); color: var(--color-text-primary); white-space: nowrap; }
 
@@ -216,7 +217,7 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
     border: var(--border-width-default) solid var(--color-border-default); border-radius: var(--radius-md);
     background: var(--color-surface-panel); color: var(--color-text-secondary); font-size: var(--font-size-small); cursor: pointer; white-space: nowrap;
 }
-.cl-channel:hover { background: var(--color-surface-hover); }
+@media (hover: hover) { .cl-channel:hover { background: var(--color-surface-hover); } }
 .cl-channel__freq { font-family: var(--font-family-mono); }
 .cl-channel__age { font-family: var(--font-family-mono); font-size: var(--font-size-caption); color: var(--color-text-tertiary); }
 .cl-channel svg { width: 14px; height: 14px; flex: none; }
@@ -234,7 +235,7 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
 .cl-exchange__when { font-family: var(--font-family-mono); font-size: var(--font-size-caption); line-height: var(--font-line-height-caption); color: var(--color-text-tertiary); }
 .cl-exchange__to { color: var(--color-text-tertiary); }
 .cl-exchange__play { margin-left: auto; width: var(--size-target-desk); height: var(--size-target-desk); border: 0; background: none; color: var(--color-text-secondary); display: inline-grid; place-items: center; border-radius: var(--radius-md); cursor: pointer; }
-.cl-exchange__play:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+@media (hover: hover) { .cl-exchange__play:hover { background: var(--color-surface-hover); color: var(--color-text-primary); } }
 .cl-exchange__text { margin: 0; font-size: var(--font-size-body); line-height: var(--font-line-height-body); color: var(--color-text-primary); }
 /* the words that named the aircraft: the tool's reading, so its voice (accent-strong, 6.6:1 on the
    selected surface, 8.1:1 on panel; dE 38 from the transcript under deuteranopia) and weight */
@@ -263,7 +264,7 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
     background: var(--color-surface-panel); cursor: pointer;
 }
 .cl-strip::before { content: ""; position: absolute; left: 4px; top: 7px; bottom: 7px; width: 3px; border-radius: 2px; background: var(--cl-fam, var(--color-phase-unknown)); }
-.cl-strip:hover { background: var(--color-surface-hover); }
+@media (hover: hover) { .cl-strip:hover { background: var(--color-surface-hover); } }
 .cl-strip__col { display: flex; flex-direction: column; min-width: 0; }
 .cl-strip__col--end { align-items: flex-end; text-align: right; }
 .cl-strip__v { font-family: var(--font-family-mono); font-size: var(--font-size-body); line-height: var(--font-line-height-body); color: var(--color-text-primary); white-space: nowrap; }
@@ -286,7 +287,7 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
 .cl-table td { padding: var(--space-1) var(--space-2) var(--space-1) 0; border-top: var(--border-width-default) solid var(--color-border-subtle); color: var(--color-text-primary); white-space: nowrap; }
 .cl-table .is-num { text-align: right; }
 .cl-table .is-dim { color: var(--color-text-tertiary); }
-.cl-table tr:hover td { background: var(--color-surface-hover); }
+@media (hover: hover) { .cl-table tr:hover td { background: var(--color-surface-hover); } }
 .cl-table .is-tight { color: var(--color-status-warn); }
 
 /* ------------------------------------------------------------ SummarySentence */
@@ -407,11 +408,11 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
 
 /* ChannelButton, split: the frequency toggles listening, the caret opens its menu */
 .cl-channel--split { padding: 0; gap: 0; cursor: default; }
-.cl-channel--split:hover { background: var(--color-surface-panel); }
+@media (hover: hover) { .cl-channel--split:hover { background: var(--color-surface-panel); } }
 .cl-channel__main { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; height: 100%; padding: 0 var(--space-2); border-radius: var(--radius-md) 0 0 var(--radius-md); color: inherit; cursor: pointer; }
-.cl-channel__main:hover { background: var(--color-surface-hover); }
+@media (hover: hover) { .cl-channel__main:hover { background: var(--color-surface-hover); } }
 .cl-channel__caret { height: 100%; width: var(--size-target-desk); display: inline-grid; place-items: center; border: 0; border-left: var(--border-width-default) solid var(--color-border-default); background: none; color: var(--color-text-secondary); cursor: pointer; border-radius: 0 var(--radius-md) var(--radius-md) 0; }
-.cl-channel__caret:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+@media (hover: hover) { .cl-channel__caret:hover { background: var(--color-surface-hover); color: var(--color-text-primary); } }
 .cl-channel.is-on .cl-channel__caret { border-left-color: var(--color-accent-default); }
 .cl-channel.is-menu-open .cl-channel__caret { background: var(--color-surface-hover); color: var(--color-text-primary); }
 
@@ -473,7 +474,7 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
 .cl-disclosure { display: flex; align-items: center; gap: var(--space-1-5); width: 100%; height: var(--size-control-desk); color: var(--color-text-secondary); cursor: pointer; text-align: left; }
 .cl-disclosure::before { content: "▸"; font-size: var(--font-size-caption); color: var(--color-text-tertiary); }
 .cl-disclosure[aria-expanded="true"]::before { content: "▾"; }
-.cl-disclosure:hover { color: var(--color-text-primary); }
+@media (hover: hover) { .cl-disclosure:hover { color: var(--color-text-primary); } }
 
 /* ------------------------------------------------------------ Badge: a tiny code on a row (LP, S, a followed airport) */
 .cl-badge { display: inline-flex; align-items: center; height: 14px; padding: 0 3px; border: var(--border-width-default) solid var(--color-border-control); border-radius: var(--radius-sm); font: var(--font-weight-strong) var(--font-size-caption) / 1 var(--font-family-mono); color: var(--color-text-secondary); }
@@ -483,7 +484,7 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
 .cl-events .is-urgent { color: var(--color-status-urgent); }
 .cl-events .is-info { color: var(--color-status-info); }
 .cl-events li.is-clickable { cursor: pointer; margin: 0 calc(-1 * var(--space-1)); padding-inline: var(--space-1); border-radius: var(--radius-md); }
-.cl-events li.is-clickable:hover { background: var(--color-surface-hover); }
+@media (hover: hover) { .cl-events li.is-clickable:hover { background: var(--color-surface-hover); } }
 .cl-phone .cl-events li.is-clickable { min-height: var(--size-target-touch); align-items: center; }
 @media (max-width: 767px) { .cl-events li.is-clickable { min-height: var(--size-target-touch); align-items: center; } }
 
@@ -493,7 +494,7 @@ button.cl-chip--place:hover { background: var(--color-surface-hover); }
 .cl-parhead__sep { color: var(--color-text-tertiary); }
 .cl-parhead b { font-family: var(--font-family-mono); font-weight: var(--font-weight-strong); }
 .cl-link { color: var(--color-accent-strong); text-decoration: none; border: var(--border-width-default) solid var(--color-accent-default); border-radius: var(--radius-sm); padding: 0 var(--space-1); font-size: var(--font-size-caption); }
-.cl-link:hover { background: var(--color-surface-selected); }
+@media (hover: hover) { .cl-link:hover { background: var(--color-surface-selected); } }
 .cl-parview { position: absolute; inset: 0; overflow: hidden; background: var(--color-surface-page); z-index: var(--z-map-overlay); }
 .cl-parview .cl-parframe { margin: 0 var(--space-4) var(--space-3); border: var(--border-width-default) solid var(--color-border-default); border-radius: var(--radius-lg); }
 .cl-parview .cl-parframe.is-in-use { border-color: var(--color-accent-default); }

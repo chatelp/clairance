@@ -4,6 +4,9 @@
 // class names, Alpine's :class objects included. Build with ./build.sh.
 module.exports = {
     darkMode: 'class',
+    // hover: classes only where a pointer hovers: an iPhone kept a tapped
+    // element in its hover style (29/10).
+    future: { hoverOnlyWhenSupported: true },
     // Every script under www/ but the vendored libraries: a folder added later
     // (www/store/ on 12/10 went unlisted for a day, and eight classes of the
     // aircraft sheet went uncompiled) is scanned without anyone remembering to.
