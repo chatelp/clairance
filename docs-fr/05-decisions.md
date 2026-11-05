@@ -4943,7 +4943,7 @@ prévenu, aucune purge sans accord. Le premier chargement ajoute ≈ 4 s. Mesur�
 à part avec la commande de production, cache vide hors ligne puis cache normal, deux extraits du 31/10
 retranscrits à l'identique. Copie interne à la Corbeille (5,3 Mo restent dans `huggingface`) ; l'espace
 n'est rendu qu'une fois la Corbeille vidée par le propriétaire. Configuration d'avant :
-`runs/config.toml.avant-modele-crucial`.
+`runs/config.toml.avant-modele-crucial`. **En production depuis le 05/11 à 15:05.**
 
 ### D87 — Un avis quand une nouvelle version est prête, et les nouveautés *(28/10)*
 
