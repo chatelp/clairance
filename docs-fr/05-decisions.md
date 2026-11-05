@@ -4925,6 +4925,26 @@ système de design : la séquence d'arrivée calculée dans le store pour tous l
 (la PAR la relit), les gabarits français des consignes, puis la migration elle-même
 (`04-migration.md`).
 
+### D88 — Le modèle anglais de la production lu sur le disque externe *(05/11)*
+
+> **Décision du propriétaire, 05/11** (« oui on déplace »), pour libérer 2,9 Go du disque interne.
+
+La production lisait `sfabriece/whisper-large-v3-atco2-asr-mlx` dans `~/.cache/huggingface` ; le labo en
+gardait une copie identique octet par octet sur le Crucial (`whisper-models/hf`). `configs/config.toml`
+(non suivi) passe désormais `--model-en "/Volumes/Crucial X8/whisper-models/whisper-large-v3-atco2-asr-mlx"`,
+un lien ajouté vers la révision du labo, plutôt qu'une variable `HF_HOME` : un chemin au nom lisible garde
+l'affichage « Whisper large-v3 ATCO2 » (`ModelFamily` ne lit que le dernier segment, une empreinte de
+cache serait illisible) et donne au sidecar le diagnostic « an external drive may be unplugged », qu'un
+nom Hugging Face ne permet pas. La valeur par défaut de `sidecar/config.py` ne change pas.
+
+**Ce que ça engage.** Crucial débranché, la production perd aussi l'anglais, en plus du français et de
+l'archive (non essayé). Le dossier `hub` du labo devient une dépendance de la production : agent du labo
+prévenu, aucune purge sans accord. Le premier chargement ajoute ≈ 4 s. Mesuré le 05/11 : sidecar démarré
+à part avec la commande de production, cache vide hors ligne puis cache normal, deux extraits du 31/10
+retranscrits à l'identique. Copie interne à la Corbeille (5,3 Mo restent dans `huggingface`) ; l'espace
+n'est rendu qu'une fois la Corbeille vidée par le propriétaire. Configuration d'avant :
+`runs/config.toml.avant-modele-crucial`.
+
 ### D87 — Un avis quand une nouvelle version est prête, et les nouveautés *(28/10)*
 
 > **Demande du propriétaire, 28/10** : « si on met à jour le back ou le front, il y ait un popup qui informe
