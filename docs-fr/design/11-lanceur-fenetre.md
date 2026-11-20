@@ -3,9 +3,10 @@
 *20/11/2026, session design, à la demande de la session principale (étape 2 de `docs-fr/34-lanceur.md`).
 Le propriétaire, le 20/11 : « améliorer l'app pour qu'elle indique qui est connecté au serveur — et aussi ne pas
 tout passer par le menu déroulant, il faudrait une vraie fenêtre », « en respectant la charte graphique si
-possible (voir avec l'agent design) mais ça doit rester une app franchement macOS ». Proposée, à valider par le
-propriétaire. Maquette approchée : `docs-fr/design/lanceur/` (`tools/design/lanceur.py`) ; la vraie fenêtre
-prend les contrôles du système, que la maquette imite.*
+possible (voir avec l'agent design) mais ça doit rester une app franchement macOS ». Validée par le propriétaire
+le 20/11 (D89), codée le jour même (acfdc2b, 360b656, 7fc07de), relue sur captures de la vraie application : six
+retouches demandées (« Au codage », en fin de fiche). Maquette approchée : `docs-fr/design/lanceur/`
+(`tools/design/lanceur.py`) ; la vraie fenêtre prend les contrôles du système, que la maquette imite.*
 
 ## Le principe
 
@@ -19,8 +20,10 @@ mots de la fenêtre sont ceux du menu : une même chose ne porte jamais deux nom
 
 ## La fenêtre
 
-- **Une seule fenêtre**, scène `Window` (macOS 13), titrée **« Dashboard »**. Taille par défaut 560 × 680
-  points, minimum 480 × 420, redimensionnable ; macOS retient son cadre. Fermer la fenêtre (⌘W) ne quitte rien :
+- **Une seule fenêtre**, titrée **« Dashboard »** : une `NSWindow` et sa `NSToolbar` qui portent la vue SwiftUI
+  (une scène `Window` s'ouvrirait d'elle-même à chaque lancement). Taille par défaut 600 × 680 points (à 560, les
+  trois boutons de la barre, 316 points, ne tenaient plus à côté du titre), minimum 480 × 420, redimensionnable ;
+  macOS retient son cadre. Fermer la fenêtre (⌘W) ne quitte rien :
   le lanceur reste dans la barre des menus.
 - **Une colonne**, un formulaire groupé (`Form { Section … }.formStyle(.grouped)`), qui défile. **Pas de barre
   latérale** : la fenêtre doit dire d'un coup d'œil où en est Clairance, et ses quatre sections tiennent dans la
@@ -121,7 +124,9 @@ Des durées, pas des heures (« for 40 min ») : on lit d'un coup d'œil qui est
 - connexion non obligatoire, ou suivi de l'usage éteint : « Not known: Clairance opens without an account here ».
   `present[]` est alors vide comme quand il n'y a personne ; `health/detail` dit lequel des deux par
   `accounts.sign_in` et `accounts.usage` (ajoutés le 20/11, 7db54f8). « No one connected » seulement quand les deux
-  sont vrais et la liste vide ; « Not known… » dès que l'un est faux.
+  sont vrais et la liste vide ; « Not known… » dès que l'un est faux ;
+- serveur d'avant le 20/11, qui n'a pas ces champs : « Not known: this version of Clairance does not say » (ajouté
+  au codage).
 
 ### Instances
 
@@ -190,3 +195,46 @@ coup, une ligne apparaît ou disparaît.
 Chaque ligne se lit nom puis fait. La forme d'un voyant a son mot pour libellé : « OK », « fault », « down »,
 « unknown », « off », « switching ». Le signe de l'en-tête a le libellé de l'icône du menu (« Clairance:
 production running, on air »).
+
+## Au codage (20/11)
+
+Relu sur les captures de la vraie application (`runs/lanceur/fenetre/captures/`, 01 à 10, dont la production
+réelle), avec `clairance --status` et `health/detail` lus à côté.
+
+**Écarts acceptés**, avec leur raison (détail dans `docs-fr/34-lanceur.md`, « L'étape 2 ») :
+1. 600 points de large par défaut, et non 560 (« La fenêtre », plus haut).
+2. `NSWindow` et `NSToolbar` plutôt qu'une scène `Window`.
+3. Une ligne **Activity** dans le détail d'une instance : « 50 aircraft · 1 129 transmissions today · 37 %
+   matched ». La ligne Server dit « Answering » ou « Not answering » quand le serveur ne donne pas sa version.
+4. Un cinquième état vide pour Connected : un serveur d'avant le 20/11 ne dit pas qui est là (voir R6).
+5. Le menu Fenêtre porte « Show Dashboard » (⌘0) en plus de la fenêtre que le système liste.
+6. Pas de filet entre les lignes d'une instance dépliée : c'est le rendu d'un `DisclosureGroup` dans un
+   formulaire groupé (voir R4).
+
+**Retouches demandées** :
+- **R1. Une seule source pour la version.** L'en-tête disait « acfdc2b · up to date » et la ligne Server
+  « 1 commit behind local » dans la même fenêtre. L'en-tête lit `repository.commits_behind`, que le serveur relit
+  une fois par minute. La ligne Server lançait git elle-même. Les deux lignes prennent la même lecture. La ligne
+  Server perd « dev », comme l'en-tête l'a déjà perdu : « acfdc2b, 3 commits behind local ».
+- **R2. Une ligne de santé passe en défaut en même temps que l'icône.** « ▲ Memory » s'affichait à côté d'un signe
+  vert, parce que la ligne n'attendait pas la retenue de 120 s du constat. Une ligne prend ▲ ou ■ quand son constat
+  est retenu : au même moment que l'icône, la ligne du menu et la notification. Avant, elle garde ● « Normal ».
+- **R3. Les mots du détail d'une instance** (ce sont aussi ceux de `--status`) :
+  - l'initiale en capitale, comme dans Health ;
+  - « Simulated, answering » et « Real model, answering » pour « fake, ok » et « real model, ok » ;
+  - « Queue 0 » comme dans Health, pour « queue 0/0 » ;
+  - « From local at 7db54f8 » et « From a copy » pour « local @ 7db54f8 » et « copy » ;
+  - le commit d'une instance d'essai, plutôt que « dev » seul.
+- **R4. Le détail déplié** :
+  - paires et boutons décalés jusqu'au texte du titre (environ 12 points) : sans filets, le retrait dit à quelle
+    instance ils appartiennent ;
+  - les boutons rangés par sens. Les adresses : Open in Browser · Copy Address · Copy Remote Address. Les
+    fichiers : Show Log · Show Config ;
+  - « Stop Instance… » aligné sur la première rangée.
+- **R5. La barre d'outils qui rétrécit** cède d'abord Restart, le geste le plus rare, et garde Open Clairance,
+  celui de tous les jours (`visibilityPriority`).
+- **R6. Le serveur trop ancien** se dit sans le nom du binaire : « Not known: this version of Clairance does not
+  say » ; au menu, « Not watched: this version of Clairance is too old ».
+
+**Pas encore relu**, pas encore à l'image : le défaut avec sa cause longue et ses boutons du moment, la section
+Permissions, le serveur muet (○), le menu allégé.
