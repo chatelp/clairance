@@ -348,6 +348,43 @@ pas voulu me laisser prendre en pilotant l'écran ; le niveau « sensible au tem
 notifications de panne, non vérifié, qui demande peut-être un droit que la signature de
 développeur ne donne pas ; le démarrage de la vraie production par ce lanceur.
 
+## L'étape 2, ouverte le 20/11 : la fenêtre, et qui est connecté
+
+> **Demande du propriétaire, 20/11** : « améliorer l'app pour qu'elle indique qui est connecté au serveur — et
+> aussi ne pas tout passer par le menu déroulant, il faudrait une vraie fenêtre — au passage la fenêtre settings
+> n'est pas implémentée dans l'app », puis : « en respectant la charte graphique si possible (voir avec l'agent
+> design) mais ça doit rester une app franchement macOS ». L'agent du lanceur n'a plus de session depuis le
+> 26/10 : la session principale mène l'étape, la session design en donne la forme.
+
+**Fait le 20/11, avant toute forme :**
+
+- **La fenêtre des réglages s'ouvrait vide** (65e8b49). Reproduit dans l'app installée (build du 27/10) : « Clairance
+  Settings » de 420 × 32 points, la barre de titre seule. Un formulaire groupé défile, il ne demande donc aucune
+  hauteur ; posé dans une fenêtre ordinaire, il en reçoit zéro. Mesuré avec la même fenêtre hors de l'app : contenu
+  420 × 0 avant, 420 × 101 après, l'interrupteur et sa phrase visibles. Pas encore installé.
+- **Le serveur dit qui est là** (af8eebe) : `present[]` dans `/api/v1/health/detail` (contrat, `36`), par compte :
+  pages ouvertes, depuis quand, fréquences écoutées. Testé de bout en bout (un viewer avec une page et un flux,
+  lu depuis la boucle locale). En production à la prochaine relance du serveur.
+
+**Ce que la fenêtre contiendrait** (proposition de la session principale, à mettre en forme par le design ; les
+huit blocs du « 2 » ci-dessus restent la cible, ceci est la première livraison) :
+
+| Bloc | Contenu | D'où |
+|---|---|---|
+| État | le signe et sa phrase (« Production running · 2 h 14 min »), version et commit ; Start, Stop, Restart, Open Clairance | ce que dit l'en-tête du menu |
+| Santé | Station, ADS-B, Audio, Transcription, Disk, Memory : une ligne chacun, voyant et mots | les lignes « Health » du menu |
+| **Connectés** | par compte : nom, pages ouvertes, depuis quand, ce qu'il écoute ; « No one connected » | `present[]`, nouveau |
+| Instances | la production et les instances d'essai, avec ce que portent aujourd'hui leurs sous-menus (adresse, journal, configuration, arrêt) | la section « Instances » du menu |
+| Autorisations | seulement quand il en manque une | les lignes d'autorisations du menu |
+
+**Le menu, allégé** : l'en-tête d'état, une ligne « N connected » quand il y a quelqu'un, « Show Clairance » (la
+fenêtre), « Open Clairance » (la page), Start / Stop / Restart, Settings…, Quit. Les instances et le détail de la
+santé passent dans la fenêtre. Le clic sur l'icône du Dock ouvre la fenêtre (prévu par la fiche du design), plus
+les réglages.
+
+**À trancher par le propriétaire** : ce qui reste dans le menu (proposition ci-dessus) ; si la fenêtre s'ouvre au
+lancement de l'app.
+
 ## Les garde-fous
 
 - **Jamais toucher la station** : le lanceur la lit, comme aujourd'hui ; il ne bascule pas
