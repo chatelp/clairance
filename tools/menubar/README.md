@@ -139,6 +139,7 @@ been gone for 10 s, and is written to `events.jsonl` beside the socket:
 | No audio on a frequency | nothing decoded for 60 s | Fault |
 | Station link stopped | radio-ctl-sync gone, held 15 s | Fault |
 | Transcription | sidecar silent 45 s, or a language not loaded for 60 s | Fault |
+| Transcription slow | the server's mean over about the last ten transmissions above 10 s, held 15 s; ends under 7 s, or after 5 min without a text | Fault |
 | Nothing transcribed | no transmission cut for 10 min from 8 h to 23 h, 45 min at night, while audio arrives and the station is on air | Fault |
 | Archive disk missing, disk under 20 GB (5 GB), memory pressure for 2 min | | Fault |
 | A test instance running 12 h, a helper left 10 min without an instance | | — |

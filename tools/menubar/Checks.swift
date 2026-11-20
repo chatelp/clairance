@@ -34,6 +34,7 @@ struct Observation: Sendable {
     var detail: HealthDetail?
     var detailMissing = false          // the server answers 404 there: built before the route
     var secondsPerTransmission: Double?
+    var slowOpen = false               // the "slow" incident is open: it ends lower than it begins
     var station = StationRead()
     var sourceAnswersLauncher: Bool?   // the launcher's own read of production's ADS-B source, when co-atc reads nothing
     var pressure: Int32 = 1
@@ -55,6 +56,14 @@ let deafAfter: TimeInterval = 30          // no ADS-B read for 30 s, then held 1
 let silentAudioAfter: TimeInterval = 60   // no byte decoded for 60 s
 let diskFault: Int64 = 20_000_000_000
 let diskCritical: Int64 = 5_000_000_000
+// Slow transcription (owner's request, 20/11): the server's rolling mean, about
+// the last ten transmissions, over 10 s. Replayed on that day's log, the mean
+// crossed 10 s five times in bursts of 5 to 25 s (peak 13.1 s) around a Mac
+// short of memory: held 15 s and ended only under 7 s, two incidents, not five.
+let slowAbove = 10.0
+let slowEndsUnder = 7.0
+let slowHold: TimeInterval = 15
+let paceGoesStale: TimeInterval = 300     // no text back for 5 min: the mean says nothing of now
 
 /// From 8 h to 23 h, the longest silence of an hour was 83 s (03 and 16/10):
 /// 10 min then; at night it reached 21 min: 45 min then.
@@ -289,6 +298,37 @@ func assess(_ o: Observation) -> (findings: [Finding], lines: [HealthLine], fact
                     notice: Notice(title: "\(name) transcription unavailable", body: "The \(name) model is not loaded\(fallback)", click: .log),
                     recovery: { lasted, _ in Notice(title: "\(name) transcription back", body: "After \(brandDuration(lasted)).", level: .passive) }))
                 transcription = HealthLine(light: .fault, name: "Transcription", fact: "\(name) model not loaded", holds: "degraded-\(lang)")
+            }
+            // Slow: the mean is of transmissions that came back as text, so it
+            // only says something of now while some still do.
+            let lastText = d?.frequencies.compactMap(\.last_transcribed_at).max()
+            let fresh = lastText.map { now.timeIntervalSince($0) < paceGoesStale } ?? false
+            if transcription == nil, fresh, let pace = o.secondsPerTransmission {
+                let each = String(format: "%.1f", pace)
+                if pace > (o.slowOpen ? slowEndsUnder : slowAbove) {
+                    let waiting = s.queue?.first ?? 0
+                    let short = o.pressure >= 2 ? " macOS is short of memory." : ""
+                    f.append(Finding(key: "slow", kind: "transcription", hold: slowHold,
+                        cause: "Transcription slow: \(each) s a transmission",
+                        notice: Notice(title: "Transcription slow",
+                                       body: "The last ten transmissions took \(each) s each on average\(waiting > 0 ? ", \(waiting) waiting" : "").\(short)",
+                                       click: .activityMonitor),
+                        recovery: { lasted, facts in
+                            if let pace = facts["pace"] {
+                                return Notice(title: "Transcription back to speed", body: "\(pace) s a transmission, after \(brandDuration(lasted)) slow.", level: .passive)
+                            }
+                            if facts["idle"] != nil {
+                                return Notice(title: "Transcription idle", body: "No transmission for \(brandDuration(paceGoesStale)), after \(brandDuration(lasted)) slow.", level: .passive)
+                            }
+                            return Notice(title: "Transcription speed unknown", body: "After \(brandDuration(lasted)) slow.", level: .passive)
+                        }))
+                    transcription = HealthLine(light: .fault, name: "Transcription",
+                                               fact: "slow, \(each) s a transmission\(waiting > 0 ? ", queue \(waiting)" : "")", holds: "slow")
+                } else {
+                    facts["pace"] = each
+                }
+            } else if transcription == nil, !fresh {
+                facts["idle"] = "yes"
             }
         }
     } else if !p.sidecarURL.isEmpty && p.sidecarHealth == "not answering" {

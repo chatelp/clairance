@@ -577,6 +577,7 @@ final class Production: ObservableObject {
             forgetGone()
             follow(prod, &o)
         }
+        o.slowOpen = guardian.open["slow"] != nil
         observation = o
         let (findings, lines, facts) = assess(o)
         if serving { guardian.update(findings + assessOthers(o), facts: facts) }
