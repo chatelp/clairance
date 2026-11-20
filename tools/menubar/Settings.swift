@@ -43,6 +43,9 @@ struct LauncherSettings: View {
         }
         .formStyle(.grouped)
         .frame(width: 420)
+        // A grouped form scrolls, so it asks for no height of its own: without
+        // this the window opened as a title bar alone (seen on macOS 27, 20/11).
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
