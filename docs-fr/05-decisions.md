@@ -4941,6 +4941,13 @@ système de design : la séquence d'arrivée calculée dans le store pour tous l
 - **Le serveur dit qui est là** dans sa santé détaillée (`present[]`, `accounts`), lisible de la boucle locale ou
   par le propriétaire : c'est le contrat du lanceur (`36`), on y ajoute sans rien casser.
 
+- **Complété le 20/11 à 14:50** (« prévoie une notif macOS quand un utilisateur se connecte », « avec option pour
+  notif ou non, et d'ailleurs les options oui/non pour toutes les notifs existantes ») : **une notification quand
+  un compte se connecte**, et **un interrupteur par famille de notifications** dans les réglages du lanceur, toutes
+  allumées par défaut. Choix de la session principale, à corriger si le propriétaire le veut autrement : ses
+  propres visites ne sont pas annoncées ; une page rouverte dans les 10 minutes non plus ; une famille coupée se
+  voit toujours sur l'icône et dans la fenêtre. **L'app s'installe dans `/Applications`** (demande du même jour).
+
 Livraison, mesures et écarts à la fiche : `34-lanceur.md`, « L'étape 2 ».
 
 ### D88 — Le modèle anglais de la production lu sur le disque externe *(05/11)*

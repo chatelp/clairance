@@ -438,8 +438,39 @@ flux décodés à la seconde près (1,9 Mo par minute chacun), une transcription
 lanceur retrouve la production (« Production running · 5 min », « Depends on: Clairance »). Ce qui s'arrête avec
 lui : l'icône, le gardien et ses notifications — personne ne prévient plus si la production tombe.
 
-**Reste** : la relecture du design sur captures ; les trois points non vérifiés ; l'étape 3 (journal, ressources,
-barre latérale). **Question ouverte (Q64)** : le premier démarrage sous le porteur d'un nouveau build échoue sur
+**Relecture du design, 20/11, 14:5x** (fiche 11, « Au codage ») : livraison acceptée, les six écarts aussi, six
+retouches demandées (R1 à R6), **toutes faites dans 0eef3fa** : une seule lecture du retard d'un build pour
+l'en-tête et la ligne Server (elles se contredisaient jusqu'à une minute après un commit) ; une ligne de santé ne
+passe en défaut que quand son constat a tenu son temps, comme l'icône (on voyait « ▲ Memory » à côté d'un signe
+vert pendant les 120 s de retenue) ; les mots du détail d'une instance (« Simulated, answering », « From local at
+7db54f8 », les deux files dites à part : « queue 4, 15 for a second reading ») ; le détail en retrait, les boutons
+par sens ; « Open Clairance » reste dans une fenêtre étroite ; « this version of Clairance » au lieu de « this
+co-atc ». Le dépliage d'une instance au clic marche (confirmé par le propriétaire).
+
+**La notification de connexion et les interrupteurs (demandes du propriétaire, 20/11, 14:50 ; 0eef3fa, 6aa1d6e) :**
+
+- **« gabriel connected »**, avec ses pages et ce qu'il écoute ; un clic ouvre la fenêtre. Trois silences
+  voulus : ceux qui étaient là quand le lanceur ou le serveur a démarré (les pages reviennent seules dans les deux
+  minutes qui suivent une relance) ; une page rouverte dans les 10 minutes (la même visite, comme la compte le
+  suivi d'usage) ; les visites du propriétaire lui-même (`present[].role`, ajouté au contrat).
+- **Réglages, « Notify when »** : un interrupteur par famille de notifications, toutes allumées par défaut :
+  production, station, audio, transcription, disques, mémoire, instances laissées en marche, connexions. Une
+  famille coupée se voit toujours sur l'icône, au menu et dans la fenêtre ; `events.jsonl` marque ses événements
+  `muted`.
+- **Mesuré sur le banc** (15:00) : l'invité d'essai annoncé 5 s après sa connexion (« invite-essai connected ·
+  1 page open, listening to Essai 1. ») ; le propriétaire d'essai connecté en même temps, pas annoncé ; l'invité
+  reconnecté 12 s plus tard, pas annoncé de nouveau ; un second invité, interrupteur coupé : événement écrit
+  `muted`, rien de posté. La bannière elle-même n'a pas été vue par un outil : c'est le journal qui est mesuré.
+- **Installé à 15:02** (build 0eef3fa), production en marche, sans perte de lecture. **Le rôle n'est en
+  production qu'à la prochaine relance du serveur (18)** : d'ici là le serveur ne le dit pas, et les visites du
+  propriétaire sont annoncées comme les autres.
+- `clairance --snapshot --settings` écrit la fenêtre des réglages.
+
+**Q64, un point de mesure de plus** : sur le banc, à 14:57, le premier démarrage sous le porteur d'un build tout
+neuf a joint la station du premier coup. L'échec n'est donc pas systématique.
+
+**Reste** : les captures des états en défaut et du menu, attendues par le design ; la relance 18 ; l'étape 3
+(journal, ressources, barre latérale). **Question ouverte (Q64)** : le premier démarrage sous le porteur d'un nouveau build échoue sur
 « no route to host » (24/10, 20/11), alors que le porteur vient de joindre la station ; faut-il que le lanceur
 réessaie une fois de lui-même dans ce cas précis ?
 
