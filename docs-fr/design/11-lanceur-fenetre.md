@@ -119,8 +119,9 @@ Des durées, pas des heures (« for 40 min ») : on lit d'un coup d'œil qui est
 - production arrêtée : « No one: production is stopped » ;
 - serveur muet : « ○ Not known: the server does not answer » ;
 - connexion non obligatoire, ou suivi de l'usage éteint : « Not known: Clairance opens without an account here ».
-  `present[]` est alors vide comme quand il n'y a personne : **le serveur doit dire lequel des deux** (un champ
-  de `health/detail`, à ajouter s'il n'y est pas), sinon la fenêtre dirait « No one » à tort.
+  `present[]` est alors vide comme quand il n'y a personne ; `health/detail` dit lequel des deux par
+  `accounts.sign_in` et `accounts.usage` (ajoutés le 20/11, 7db54f8). « No one connected » seulement quand les deux
+  sont vrais et la liste vide ; « Not known… » dès que l'un est faux.
 
 ### Instances
 
