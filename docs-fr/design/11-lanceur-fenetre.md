@@ -236,5 +236,35 @@ réelle), avec `clairance --status` et `health/detail` lus à côté.
 - **R6. Le serveur trop ancien** se dit sans le nom du binaire : « Not known: this version of Clairance does not
   say » ; au menu, « Not watched: this version of Clairance is too old ».
 
+**Deuxième relecture** (captures 20 à 31). R1 à R6 sont faits (0eef3fa) :
+- R1 : une seule lecture, celle du lanceur dans le dépôt, pour l'en-tête et pour la ligne Server ; le commit est lu
+  pour toutes les instances.
+- R2 : une ligne garde ce qu'elle disait en bon état tant que son constat n'est pas retenu, sauf si le lanceur démarre
+  pendant la retenue, sans bon état connu.
+- R3 : les deux nombres de la file s'écrivent « queue 4, 15 for a second reading ».
+- R5 : à 480, Stop part dans « » » avec Restart (deux gestes rares, qui sont aussi au menu), et Open Clairance reste.
+
+Deux ajouts du propriétaire, codés le même jour et relus :
+- **une notification quand un compte se connecte** : titre « gabriel connected », corps « 1 page open, listening to
+  124.350. », un clic ouvre la fenêtre. Rien pendant les deux minutes qui suivent un démarrage, le temps que les pages
+  reviennent d'elles-mêmes, ni pour une page rouverte dans les 10 min, ni pour un compte Admin ;
+- **dans les réglages, un interrupteur par sorte de notification**, tous allumés par défaut.
+
+Retouches de ce tour :
+- **N1.** La ligne Transcription d'une instance se coupe en deux : « Real model, answering · uses the GPU », puis
+  une ligne « Queue » (« 4, 15 for a second reading »). Sinon, à 600 points, la valeur passe seule sous son
+  libellé.
+- **N2.** L'en-tête d'un binaire qui n'est pas dans la branche lit le jour du commit sans « -dirty », et finit
+  comme la ligne Server : « Version of 20 November 2026 · 25d83ce-dirty · not in local ».
+- **N3.** Les réglages des notifications, en deux sections :
+  - « Notify when » et les sept défauts, avec le pied « A fault shows on the icon, in the menu and in the window
+    either way. » ;
+  - à part, « Notify when someone connects », avec le pied « Visits from Admin accounts are not notified. ».
+
+  « owner » n'est pas un mot de l'écran : le rôle s'y appelle Admin.
+- **N4.** « A test instance, a sidecar or a station link is left running » remplace « … or a helper … » : ce sont
+  les mots du menu et de la fenêtre.
+
 **Pas encore relu**, pas encore à l'image : le défaut avec sa cause longue et ses boutons du moment, la section
-Permissions, le serveur muet (○), le menu allégé.
+Permissions, le serveur muet (○), le menu allégé. Leurs captures envoient de vraies notifications : elles se feront
+à un moment convenu avec le propriétaire.
