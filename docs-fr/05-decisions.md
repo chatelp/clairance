@@ -5498,6 +5498,11 @@ co-atc lui-même qui est refusée. **À décider** : le lanceur réessaie-t-il u
 relance qui dure 15 s de plus et un « did not start » à lire ; mesurer d'abord si l'échec se reproduit à chaque
 nouveau build.
 
+**Mesuré le 20/11** : en production, l'échec s'est reproduit aux deux relances du jour (17 à 14:41:49, 18 à
+15:09:14), chaque fois au premier démarrage après l'installation d'un nouveau build du lanceur, et le démarrage
+suivant a passé (14 s puis 6 s plus tard). Sur le banc, à 14:57, un build neuf a démarré du premier coup : pas
+systématique, mais deux fois sur deux là où cela compte.
+
 ### Q63 — Comment la page joue le son *(26/10 — **tranchée par le propriétaire : la page joue le son elle-même, en μ-law**)*
 
 **Le constat (26/10, mesuré)** : la page confiait chaque fréquence à un élément `<audio>`, et chaque navigateur

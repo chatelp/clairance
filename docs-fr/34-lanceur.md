@@ -461,9 +461,7 @@ co-atc ». Le dépliage d'une instance au clic marche (confirmé par le proprié
   1 page open, listening to Essai 1. ») ; le propriétaire d'essai connecté en même temps, pas annoncé ; l'invité
   reconnecté 12 s plus tard, pas annoncé de nouveau ; un second invité, interrupteur coupé : événement écrit
   `muted`, rien de posté. La bannière elle-même n'a pas été vue par un outil : c'est le journal qui est mesuré.
-- **Installé à 15:02** (build 0eef3fa), production en marche, sans perte de lecture. **Le rôle n'est en
-  production qu'à la prochaine relance du serveur (18)** : d'ici là le serveur ne le dit pas, et les visites du
-  propriétaire sont annoncées comme les autres.
+- **Installé à 15:02** (build 0eef3fa), production en marche, sans perte de lecture. Le rôle est en production depuis la relance 18 (15:09).
 - `clairance --snapshot --settings` écrit la fenêtre des réglages.
 
 **Seconde relecture du design, 15:1x** (fiche 11) : R1 à R6 acceptés, la notification de connexion acceptée telle
@@ -471,13 +469,20 @@ quelle, quatre retouches (N1 à N4) **faites** : la file d'une instance sur sa p
 d'un binaire hors de la branche (« … · 25d83ce-dirty · not in local ») ; les réglages en deux sections, les sept
 défauts puis « Notify when someone connects » à part, « Visits from Admin accounts are not notified » ; « a sidecar
 or a station link » au lieu de « a helper ». Vues à l'image (captures 40 et 41), sauf l'en-tête « -dirty », qui
-demande un binaire construit d'un dépôt modifié. **Pas encore installées** : elles partiront avec la relance 18.
+demande un binaire construit d'un dépôt modifié. Installées avec la relance 18.
+
+**La relance 18 (20/11, 15:08:45 – 15:09:24, 39 s)**, à la demande du propriétaire (« fais la relance 18
+maintenant ») : serveur d267851 (le rôle des comptes dans `present[]`), essayé d'abord sur 8020, tous les tests
+passés ; lanceur réinstallé production arrêtée (build d267851, avec N1 à N4). **Le premier démarrage a de nouveau
+échoué** (15:09:14, « no route to host » à la première connexion sous le porteur du nouveau build) ; le second, à
+15:09:20, a passé, et cette fois `clairance --start` l'a dit juste (« production running », correctif 360b656).
+49 connexions gardées, première transcription à 15:09:51, accès public répond.
 
 **Q64, un point de mesure de plus** : sur le banc, à 14:57, le premier démarrage sous le porteur d'un build tout
-neuf a joint la station du premier coup. L'échec n'est donc pas systématique.
+neuf a joint la station du premier coup. L'échec n'est donc pas systématique sur le banc ; **en production il s'est produit aux deux relances du jour** (17 et 18), chaque fois après l'installation d'un nouveau build.
 
-**Reste** : les captures des états en défaut et du menu, attendues par le design ; la relance 18 ; l'étape 3
-(journal, ressources, barre latérale). **Question ouverte (Q64)** : le premier démarrage sous le porteur d'un nouveau build échoue sur
+**Reste** : les captures des états en défaut, du menu et de l'en-tête « -dirty », attendues par le design ; Q64 ;
+un seuil éventuel sur la durée de transcription ; l'étape 3 (journal, ressources, barre latérale). **Question ouverte (Q64)** : le premier démarrage sous le porteur d'un nouveau build échoue sur
 « no route to host » (24/10, 20/11), alors que le porteur vient de joindre la station ; faut-il que le lanceur
 réessaie une fois de lui-même dans ce cas précis ?
 
