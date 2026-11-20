@@ -120,6 +120,9 @@ func TestTheOwnerSeesWhatEachAccountDid(t *testing.T) {
 			seenByLauncher = &detail.Present[i]
 		}
 	}
+	if !detail.Accounts.SignIn || !detail.Accounts.Usage {
+		t.Errorf("accounts, in the health detail: %+v, want sign-in and usage both on", detail.Accounts)
+	}
 	if p := seenByLauncher; p == nil || p.Pages != 1 || p.Since == nil || len(p.Listening) != 1 || p.Listening[0].Freq != "station" {
 		t.Errorf("the viewer, in the health detail: %+v (all: %+v)", p, detail.Present)
 	}

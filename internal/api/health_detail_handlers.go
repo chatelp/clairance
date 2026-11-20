@@ -56,6 +56,9 @@ type HealthDetail struct {
 	// Who has a page or a stream open now, by account (internal/usage): the
 	// launcher's "who is connected" (20/11). Empty without sign-in or usage.
 	Present []usage.Present `json:"present"`
+	// Whether present can say it: accounts sign in here, and their usage is
+	// recorded. Without both, an empty present means "not known", not "no one".
+	Accounts HealthAccounts `json:"accounts"`
 
 	// What the startup check found missing, with what suffers from each
 	// (internal/startcheck); empty when nothing is. Said at start: a program
@@ -66,6 +69,13 @@ type HealthDetail struct {
 	Contract   int               `json:"contract"`
 	Process    HealthProcess     `json:"process"`
 	Companions []HealthCompanion `json:"companions"`
+}
+
+// HealthAccounts is what makes present a reading: sign-in required, and the
+// usage journal on (D84).
+type HealthAccounts struct {
+	SignIn bool `json:"sign_in"`
+	Usage  bool `json:"usage"`
 }
 
 type HealthADSB struct {
@@ -244,6 +254,7 @@ func (h *Handler) computeHealthDetail(r *http.Request) HealthDetail {
 
 	d.Receiver = h.receiverNow()
 	d.Present = h.usage.Present()
+	d.Accounts = HealthAccounts{SignIn: h.auth != nil && h.auth.Enabled(), Usage: h.usage != nil}
 	d.Missing = h.missing
 	if d.Missing == nil {
 		d.Missing = []startcheck.Missing{}

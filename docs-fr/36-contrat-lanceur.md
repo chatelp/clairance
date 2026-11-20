@@ -102,7 +102,9 @@ l'antenne**, relayé par la liaison depuis `/radio/etat` ; une liaison qui ne ra
 Ajouté le 20/11 (demande du propriétaire : le lanceur dit qui est connecté) : `present[]`, **qui a une page ou un
 flux ouvert maintenant**, par compte : `user`, `pages`, `since` (sa plus ancienne page ouverte, absent sans page),
 `listening[]` (`freq`, `since`). Liste vide sans connexion obligatoire ou sans suivi d'usage (D84). Même lecture que
-le « now » de `/api/v1/usage`, sans les sept jours ; elle a 5 s au plus, comme le reste de la réponse.
+le « now » de `/api/v1/usage`, sans les sept jours ; elle a 5 s au plus, comme le reste de la réponse. Avec
+`accounts` (`sign_in`, `usage`) : sans connexion obligatoire ou sans suivi d'usage, une liste vide veut dire « on ne
+sait pas », pas « personne » (question de la session design, fiche 11).
 
 ## 6. La description du processus : `process`
 
