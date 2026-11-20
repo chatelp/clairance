@@ -49,7 +49,7 @@ struct LauncherSettings: View {
     }
 }
 
-/// The settings window, opened from the menu, from the Dock icon, or with ⌘,.
+/// The settings window, opened from the menu or with ⌘,.
 @MainActor
 final class SettingsWindow: NSObject, NSWindowDelegate {
     static let shared = SettingsWindow()
@@ -70,15 +70,25 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     }
 }
 
-/// The launcher's app delegate: the Dock policy at launch, the Dock icon's
-/// click, and a quit from the Dock that goes through the menu's confirmation.
+/// The launcher's app delegate: the Dock policy and the window at launch, the
+/// Dock icon's click, and a quit from the Dock that goes through the menu's
+/// confirmation.
 final class LauncherDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        MainActor.assumeIsolated { applyDockPolicy(showsInDock) }
+        // The window opens when its owner opens the app (Finder, Dock, Spotlight):
+        // not when a command opened the launcher, nor at login (design 11).
+        let event = NSAppleEventManager.shared().currentAppleEvent
+        let atLogin = event?.eventID == kAEOpenApplication
+            && event?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+        MainActor.assumeIsolated {
+            applyDockPolicy(showsInDock)
+            if !openedInBackground && !atLogin { DashboardWindow.shared.show() }
+        }
     }
 
+    // A click on the Dock icon brings the window back, as any app's main window.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        MainActor.assumeIsolated { SettingsWindow.shared.show() }
+        MainActor.assumeIsolated { DashboardWindow.shared.show() }
         return false
     }
 

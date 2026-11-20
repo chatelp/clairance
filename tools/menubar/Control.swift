@@ -21,10 +21,14 @@ let supportDir = ProcessInfo.processInfo.environment["CLAIRANCE_SUPPORT_DIR"]
 let socketPath = (supportDir as NSString).appendingPathComponent("launcher.sock")
 
 struct ControlRequest: Codable {
-    var cmd: String              // start, stop, start-test, stop-test, status
+    var cmd: String              // start, stop, start-test, stop-test, status, snapshot
     var config: String?          // a test instance's config, absolute
     var binary: String?          // a test instance's co-atc, absolute
     var seconds: Double?         // how long a test instance may run
+    var file: String?            // snapshot: the PNG to write, absolute
+    var look: String?            // snapshot: "light" or "dark"; the system's otherwise
+    var size: [Double]?          // snapshot: the content's width and height; the window's otherwise
+    var unfold: Bool?            // snapshot: every instance unfolded
 }
 
 struct ControlReply: Codable {

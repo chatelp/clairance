@@ -63,6 +63,9 @@ let carrierName = "Clairance Server"
 /// build differs, and names the folder of its carrier's copy.
 let buildStamp = "@BUILD@"
 let planningMarker = "(menu bar launcher)"
+/// The launcher was opened for a command (`clairance --start`, or
+/// `open -g Clairance.app --args --background`): it does not show its window.
+var openedInBackground = false
 
 func loadLauncherConfig() -> LauncherConfig {
     let path = ProcessInfo.processInfo.environment["CLAIRANCE_LAUNCHER_CONFIG"].map { URL(fileURLWithPath: $0) }
@@ -465,7 +468,9 @@ final class Production: ObservableObject {
     private var noFrequencySince: Date?
     private var sidecarPID: Int32?
     private var orphanSince: [Int32: Date] = [:]
-    private(set) var observation = Observation()
+    @Published private(set) var observation = Observation()
+    /// Production's build, for the window's header: nil while it does not say.
+    @Published private(set) var build: BuildInfo?
 
     init(serving: Bool = false) {
         cfg = loadLauncherConfig()
@@ -529,6 +534,7 @@ final class Production: ObservableObject {
         instances = found
         orphans = scan.orphans
         let prod = production
+        build = prod.flatMap { buildInfo($0, o.detail) }
         running = prod != nil
         elapsed = prod?.elapsed ?? ""
         sidecar = prod.map { $0.sidecarURL.isEmpty ? "—" : $0.sidecarHealth } ?? "—"
@@ -581,6 +587,32 @@ final class Production: ObservableObject {
             : n == 0 ? "\(commit), as \(branch)" : "\(commit), \(n!) commit\(n == 1 ? "" : "s") behind \(branch)"
         buildCache = (commit + head, line)
         return line
+    }
+
+    private var buildDays: [String: String] = [:]
+
+    /// "Version of 20 November 2026 · 9a4b5ce · up to date" (design 11): the day
+    /// of the commit the binary was built from, read in the checkout, and how far
+    /// behind its branch the server says it is.
+    private func buildInfo(_ prod: Instance, _ detail: HealthDetail?) -> BuildInfo? {
+        guard let commit = prod.build.split(separator: ",").first.map(String.init), prod.build != "commit unknown" else { return nil }
+        if buildDays[commit] == nil {
+            let day = run("/usr/bin/git", ["-C", repo, "show", "-s", "--format=%cd", "--date=format:%Y-%m-%d", commit])
+            let parse = DateFormatter()
+            parse.dateFormat = "yyyy-MM-dd"
+            let write = DateFormatter()
+            write.locale = Locale(identifier: "en_GB")
+            write.dateFormat = "d MMMM yyyy"
+            buildDays[commit] = day.status == 0
+                ? parse.date(from: day.out.trimmingCharacters(in: .whitespacesAndNewlines)).map(write.string) ?? "" : ""
+        }
+        var behind = ""
+        if let r = detail?.process?.repository, let n = r.commits_behind {
+            behind = n == 0 ? "up to date" : "\(brandNumber(n)) commit\(n == 1 ? "" : "s") behind \(r.branch ?? "its branch")"
+        }
+        // A build without a tag calls itself "dev", or by its commit again.
+        let tag = ["", "dev", commit].contains(prod.version) ? "" : prod.version
+        return BuildInfo(version: tag, day: buildDays[commit] ?? "", commit: commit, behind: behind)
     }
 
     /// Follows production between refreshes: a start under way, a stop asked
@@ -900,6 +932,21 @@ final class Production: ObservableObject {
         updateSign([])
     }
 
+    /// "Stop production…", from the menu or the window: asked first, since
+    /// whoever listens loses the sound (design 11). The command line and a quit
+    /// that stops have asked already.
+    func askStop() {
+        guard production != nil, !busy else { return }
+        let alert = NSAlert()
+        alert.messageText = "Stop production?"
+        alert.informativeText = "Nothing is transcribed or archived until it starts again. Listeners lose the sound and the page."
+        alert.addButton(withTitle: "Stop")   // the default: it was just asked for
+        alert.addButton(withTitle: "Cancel") // Escape
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        stop()
+    }
+
     // MARK: Test instances
 
     /// Starts a test instance in a carrier, for a given time: co-atc with its
@@ -994,7 +1041,8 @@ final class Production: ObservableObject {
             let notices = notifier.allowed.map { $0 ? "notifications allowed" : "notifications not allowed by macOS" + (notifier.refusal.isEmpty ? "" : ": " + notifier.refusal) } ?? "notifications not answered yet"
             // The launcher's own lines: it follows durations a single read cannot know.
             let lines = permissions.map(\.line) + (health.isEmpty ? [] : ["", "health:"] + health.map { "  " + $0.text })
-            reply(.end(true, (["launcher running, pid \(getpid()), build \(buildStamp), \(notices)"] + header + lines).joined(separator: "\n")))
+            let here = connectedLine.map { [$0] } ?? []
+            reply(.end(true, (["launcher running, pid \(getpid()), build \(buildStamp), \(notices)"] + header + here + lines).joined(separator: "\n")))
         case "start":
             await startForCommandLine(reply)
         case "stop":
@@ -1029,6 +1077,16 @@ final class Production: ObservableObject {
             }
             await refresh()
             reply(t.contains(where: { $0.proc.alive }) ? .end(false, "still running after 30 s") : .end(true, "\(i.name) stopped"))
+        case "snapshot":
+            // The window as it is drawn, for a review without a screen recording.
+            guard let file = r.file else { return reply(.end(false, "no file given")) }
+            guard let png = await DashboardWindow.shared.snapshot(look: r.look, size: r.size, unfold: r.unfold ?? false) else { return reply(.end(false, "the window could not be drawn")) }
+            do {
+                try png.write(to: URL(fileURLWithPath: file))
+                reply(.end(true, "wrote \(file)"))
+            } catch {
+                reply(.end(false, "could not write \(file)"))
+            }
         default:
             reply(.end(false, "unknown command \(r.cmd)"))
         }
@@ -1269,7 +1327,9 @@ enum Entry {
         signal(SIGPIPE, SIG_IGN)
         let args = Array(CommandLine.arguments.dropFirst())
         if args.first == "--carry" { carry(Array(args.dropFirst())) }
-        if let cmd = args.first, cmd.hasPrefix("--") {
+        // Opened for a command, not by its owner: the launcher without its window.
+        openedInBackground = args.first == "--background"
+        if let cmd = args.first, cmd.hasPrefix("--"), !openedInBackground {
             MainActor.assumeIsolated { cli(cmd, Array(args.dropFirst())) }
             return
         }
@@ -1279,7 +1339,7 @@ enum Entry {
         // it, and leaves. A second launcher leaves too.
         let bundle = Bundle.main.bundleURL
         if getppid() != 1, bundle.pathExtension == "app" {
-            run("/usr/bin/open", ["-n", "-g", bundle.path])
+            run("/usr/bin/open", ["-n", "-g", bundle.path] + (openedInBackground ? ["--args", "--background"] : []))
             exit(0)
         }
         if let other = connectControl() {
@@ -1371,6 +1431,8 @@ enum Entry {
 
     static let usage = """
         usage: clairance --status
+               clairance --background              (the launcher, without its window)
+               clairance --snapshot <file.png> [--light | --dark] [--unfold] [600x680]
                clairance --start | --stop
                clairance --start-test <config> [--for 2h] [--binary <co-atc>]
                clairance --stop-test <config>
@@ -1398,8 +1460,9 @@ enum Entry {
         }
         print("opening the launcher (\(bundle.path))")
         // A new instance: a carrier of a build before A3 ran from Clairance.app
-        // itself, and macOS would only have brought it forward.
-        run("/usr/bin/open", ["-n", "-g", bundle.path])
+        // itself, and macOS would only have brought it forward. Without its
+        // window: a command asked for it, not its owner.
+        run("/usr/bin/open", ["-n", "-g", bundle.path, "--args", "--background"])
         for _ in 0..<60 {
             Thread.sleep(forTimeInterval: 0.25)
             if let fd = connectControl() { return fd }
@@ -1482,6 +1545,21 @@ enum Entry {
                 ok = !t.contains(where: { $0.proc.alive })
                 print(ok ? "\(i.name) stopped" : "still running after 30 s")
             }
+        case "--snapshot":
+            // The Dashboard window written to a PNG by the running launcher.
+            guard let file = rest.first, !file.hasPrefix("--") else {
+                print(usage)
+                exit(2)
+            }
+            var request = ControlRequest(cmd: "snapshot")
+            request.file = absolute(file)
+            for option in rest.dropFirst() {
+                let size = option.split(separator: "x").compactMap { Double($0) }
+                if size.count == 2 { request.size = size }
+                else if option == "--unfold" { request.unfold = true }
+                else { request.look = String(option.dropFirst(2)) }
+            }
+            exit(send(request, open: false) ? 0 : 1)
         default:
             print(usage)
             exit(2)
@@ -1521,36 +1599,57 @@ enum Entry {
     }
 }
 
-// What an instance's menu says, and the command line's --status.
-func instanceLines(_ i: Instance) -> [String] {
-    var lines: [String] = []
-    lines.append("Page: \(i.www)")
-    if !i.version.isEmpty { lines.append("Server: \(i.version)" + (i.build.isEmpty ? "" : " · " + i.build)) }
-    lines.append(i.summary.isEmpty ? (i.answers ? "Server answering" : "Server not answering") : i.summary)
+/// A fact of an instance: its name and its value, and the whole path when the
+/// value is one.
+struct InstanceFact: Sendable {
+    let name: String
+    let value: String
+    var path = ""
+}
+
+// What the window says of an instance, and the command line's --status.
+func instanceFacts(_ i: Instance) -> [InstanceFact] {
+    var facts: [InstanceFact] = []
+    facts.append(InstanceFact(name: "Page", value: i.www))
+    if !i.version.isEmpty {
+        // A build without a tag calls itself by its commit: said once.
+        facts.append(InstanceFact(name: "Server", value: i.build.isEmpty ? i.version
+                                  : i.build.hasPrefix(i.version) ? i.build : i.version + " · " + i.build))
+    } else {
+        facts.append(InstanceFact(name: "Server", value: i.answers ? "answering" : "not answering"))
+    }
+    if !i.summary.isEmpty { facts.append(InstanceFact(name: "Activity", value: i.summary)) }
     if !i.sidecarURL.isEmpty {
         let kind = i.sidecarKind.isEmpty ? "" : "\(i.sidecarKind), "
-        lines.append("Transcription: \(kind)\(i.sidecarHealth)" + (i.sidecarKind == "real model" ? " · uses the GPU" : ""))
+        facts.append(InstanceFact(name: "Transcription",
+                                  value: "\(kind)\(i.sidecarHealth)" + (i.sidecarKind == "real model" ? " · uses the GPU" : "")))
     }
     if i.stationLinks.isEmpty {
-        lines.append("Station link: none")
+        facts.append(InstanceFact(name: "Station link", value: "none"))
     } else {
-        for h in i.stationLinks { lines.append("Station link: \(h.what == "station link" ? "running" : h.what), \(h.elapsed)") }
+        for h in i.stationLinks {
+            facts.append(InstanceFact(name: "Station link", value: "\(h.what == "station link" ? "running" : h.what), \(h.elapsed)"))
+        }
     }
     // Measured on 24/10: when the app a process depends on quits, macOS makes the
     // process depend on itself, and a bare program has no Local Network access.
     if let d = i.dependence {
-        lines.append(d.pid == i.pid ? "Depends on: no app · no local network" : "Depends on: \(d.app)")
+        facts.append(InstanceFact(name: "Depends on", value: d.pid == i.pid ? "no app · no local network" : d.app))
     }
     if let u = i.until {
         let left = u.timeIntervalSinceNow
-        lines.append(left > 0 ? "Stops at \(clockTime(u)) (in \(shortElapsed(left)))"
-                              : "Was to stop at \(clockTime(u)) (\(shortElapsed(-left)) ago)")
+        facts.append(left > 0 ? InstanceFact(name: "Stops at", value: "\(clockTime(u)) (in \(shortElapsed(left)))")
+                              : InstanceFact(name: "Was to stop at", value: "\(clockTime(u)) (\(shortElapsed(-left)) ago)"))
     }
     let ports = ([i.port].compactMap { $0 } + i.extraPorts).map(String.init).joined(separator: ", ")
-    if !ports.isEmpty { lines.append("Ports: \(ports)") }
-    lines.append("Config: \(i.config)")
-    if !i.database.isEmpty { lines.append("Databases: \(i.database)") }
-    return lines
+    if !ports.isEmpty { facts.append(InstanceFact(name: "Ports", value: ports)) }
+    facts.append(InstanceFact(name: "Config", value: i.config, path: i.configPath))
+    if !i.database.isEmpty { facts.append(InstanceFact(name: "Databases", value: i.database, path: i.database)) }
+    return facts
+}
+
+func instanceLines(_ i: Instance) -> [String] {
+    instanceFacts(i).map { "\($0.name): \($0.value)" }
 }
 
 // The sign's six states (docs-fr/design/10-lanceur.md), from the bundle's
@@ -1559,7 +1658,10 @@ func instanceLines(_ i: Instance) -> [String] {
 // air, Fault and Down keep their colours on a dark disc, on purpose
 // (05-identite.md). Without the bundle (the command-line form), the system
 // symbols stand in.
-func menuBarIcon(_ s: SignState) -> NSImage {
+func menuBarIcon(_ s: SignState) -> NSImage { signImage(s, size: 18) }
+
+/// The sign in one of its states, at the menu bar's 18 pt or the window's 48.
+func signImage(_ s: SignState, size: CGFloat) -> NSImage {
     let (name, template): (String, Bool) = {
         switch s {
         case .stopped: return ("barre-menus-arret", true)
@@ -1573,7 +1675,7 @@ func menuBarIcon(_ s: SignState) -> NSImage {
     if let url = Bundle.main.url(forResource: name, withExtension: "svg"),
        let image = NSImage(contentsOf: url) {
         image.isTemplate = template
-        image.size = NSSize(width: 18, height: 18)
+        image.size = NSSize(width: size, height: size)
         return image
     }
     let fallback = s == .stopped ? "antenna.radiowaves.left.and.right.slash" : "dot.radiowaves.left.and.right"
@@ -1587,8 +1689,9 @@ func orphanTitle(_ o: Orphan) -> String {
         : "▲ Station link without an instance"
 }
 
-// The menu of docs-fr/design/10-lanceur.md: the state and its cause, the
-// health lines, the actions the state allows, the instances.
+// The menu of docs-fr/design/10-lanceur.md, lightened by 11-lanceur-fenetre.md:
+// the state and its cause, what needs a look, who is connected, and the few
+// actions one reaches for from the bar. The rest is in the window (Dashboard.swift).
 struct ClairanceLauncher: App {
     @NSApplicationDelegateAdaptor(LauncherDelegate.self) private var delegate
     @StateObject private var p = Production(serving: true)
@@ -1609,12 +1712,19 @@ struct ClairanceLauncher: App {
                 Button("Restart from Clairance") { p.restart() }.disabled(p.busy)
             }
             if !p.note.isEmpty && !p.busy { Text(p.note) }
-            if !p.health.isEmpty {
-                Divider()
-                Section("Health") {
-                    ForEach(p.health, id: \.self) { Text($0.text).monospacedDigit() }
-                }
+            // Health keeps only what needs a look: all well, the icon says so already.
+            ForEach(p.health.filter { [.fault, .down, .unknown].contains($0.light) }, id: \.self) { Text($0.text).monospacedDigit() }
+            if let line = p.connectedLine {
+                Button(line) { DashboardWindow.shared.show() }
             }
+            Divider()
+            Button("Show Dashboard") { DashboardWindow.shared.show() }
+                .keyboardShortcut("0")
+            Button("Open Clairance") { if let u = p.production?.url { p.open(u) } }
+                .keyboardShortcut("o")
+                .disabled(!(p.production?.answers ?? false))
+            Button("Show production log") { p.openLog() }
+                .keyboardShortcut("l")
             Divider()
             switch p.sign {
             case .switching:
@@ -1625,42 +1735,8 @@ struct ClairanceLauncher: App {
                 Button("Start production") { Task { await p.start() } }
                 Button("Leave stopped") { p.leaveStopped() }
             default:
-                Button("Stop production") { p.stop() }
-                Button("Restart production") { p.restart() }
-            }
-            Button("Open Clairance") { if let u = p.production?.url { p.open(u) } }
-                .keyboardShortcut("o")
-                .disabled(!(p.production?.answers ?? false))
-            if p.cfg.tailscale_url != nil { Button("Copy remote address") { p.copyRemoteAddress() } }
-            Button("Show production log") { p.openLog() }
-                .keyboardShortcut("l")
-            Divider()
-            Section("Instances") {
-                if p.instances.isEmpty && p.orphans.isEmpty { Text("No instance running") }
-                ForEach(p.instances) { i in
-                    Menu(i.title) {
-                        ForEach(instanceLines(i), id: \.self) { Text($0).monospacedDigit() }
-                        Divider()
-                        if let u = i.url {
-                            Button("Open \(u)") { p.open(u) }
-                            Button("Copy address") { p.copy(u) }
-                        }
-                        Button("Open log") { p.openFile(i.log) }.disabled(i.log.isEmpty || !i.log.hasPrefix("/"))
-                        Button("Show config") { p.openFile(i.configPath) }
-                        if !i.production {
-                            Divider()
-                            Button("Stop this instance…") { p.stopInstance(i) }
-                        }
-                    }
-                }
-                ForEach(p.observation.orphans, id: \.helper.pid) { o in
-                    Menu(orphanTitle(o)) {
-                        Text("PID \(o.helper.pid) · \(o.helper.elapsed)").monospacedDigit()
-                        Text(o.helper.command)
-                        Divider()
-                        Button("Stop it…") { p.stopHelper(o.helper) }
-                    }
-                }
+                Button("Stop production…") { p.askStop() }
+                Button("Restart production…") { p.restart() }
             }
             Divider()
             Button("Settings…") { SettingsWindow.shared.show() }
@@ -1673,9 +1749,13 @@ struct ClairanceLauncher: App {
         }
         .menuBarExtraStyle(.menu)
         .commands {
-            // In the Dock, the app's own menu: its settings at ⌘, as every Mac app.
+            // In the Dock, the app's own menu: its settings at ⌘, as every Mac app,
+            // and its window at ⌘0.
             CommandGroup(replacing: .appSettings) {
                 Button("Settings…") { SettingsWindow.shared.show() }.keyboardShortcut(",")
+            }
+            CommandGroup(before: .windowList) {
+                Button("Dashboard") { DashboardWindow.shared.show() }.keyboardShortcut("0")
             }
         }
     }
