@@ -63,6 +63,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         case .none: break
         case .log: info["click"] = "log"
         case .clairance: info["click"] = "clairance"
+        case .dashboard: info["click"] = "dashboard"
         case .finder(let path): info["click"] = "finder:" + path
         case .activityMonitor: info["click"] = "activity"
         case .settings(let pane): info["click"] = "settings:" + pane
@@ -82,7 +83,8 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         let info = response.notification.request.content.userInfo as? [String: String] ?? [:]
         let action = NoticeAction(rawValue: response.actionIdentifier)
         let c = info["click"] ?? ""
-        let click: Notice.Click = c == "log" ? .log : c == "clairance" ? .clairance : c == "activity" ? .activityMonitor
+        let click: Notice.Click = c == "log" ? .log : c == "clairance" ? .clairance : c == "dashboard" ? .dashboard
+            : c == "activity" ? .activityMonitor
             : c.hasPrefix("finder:") ? .finder(String(c.dropFirst("finder:".count)))
             : c.hasPrefix("settings:") ? .settings(String(c.dropFirst("settings:".count))) : .none
         Task { @MainActor in self.handle(action, click, info) }

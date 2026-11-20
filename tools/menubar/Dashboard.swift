@@ -66,13 +66,14 @@ func pagesLine(_ a: HealthDetail.Present, now: Date = Date()) -> String {
 /// "Listening to 124.350 for 40 min, 126.425 for 5 min"; nil without a stream.
 func listeningLine(_ a: HealthDetail.Present, _ detail: HealthDetail?, now: Date = Date()) -> String? {
     guard !a.listening.isEmpty else { return nil }
-    let parts = a.listening.map { l -> String in
-        let known = detail?.frequencies.first { $0.id == l.freq }
-        let label = known.map(frequencyLabel)
-            ?? (l.freq.count == 6 && l.freq.allSatisfy(\.isNumber) ? "\(l.freq.prefix(3)).\(l.freq.suffix(3))" : l.freq)
-        return "\(label) for \(shortElapsed(now.timeIntervalSince(l.since)))"
-    }
+    let parts = a.listening.map { "\(frequencyName($0.freq, detail)) for \(shortElapsed(now.timeIntervalSince($0.since)))" }
     return "Listening to " + parts.joined(separator: ", ")
+}
+
+/// "124.350" for a frequency's id, as the health lines name it.
+func frequencyName(_ id: String, _ detail: HealthDetail?) -> String {
+    if let known = detail?.frequencies.first(where: { $0.id == id }) { return frequencyLabel(known) }
+    return id.count == 6 && id.allSatisfy(\.isNumber) ? "\(id.prefix(3)).\(id.suffix(3))" : id
 }
 
 extension Production {
@@ -222,7 +223,7 @@ struct Dashboard: View {
         case .noAccounts:
             Text("Not known: Clairance opens without an account here").foregroundStyle(.secondary)
         case .tooOld:
-            Text("Not known: this co-atc is too old to say").foregroundStyle(.secondary)
+            Text("Not known: this version of Clairance does not say").foregroundStyle(.secondary)
         }
     }
 
@@ -239,38 +240,46 @@ struct Dashboard: View {
         }
         ForEach(p.instances) { i in
             DisclosureGroup(isExpanded: unfolding(i.pid)) {
-                ForEach(Array(instanceFacts(i).enumerated()), id: \.offset) { _, f in
-                    LabeledContent(f.name) {
-                        if f.path.isEmpty {
-                            Text(f.value).monospacedDigit().multilineTextAlignment(.trailing)
-                        } else {
-                            Text(f.value)
-                                .font(.callout.monospaced())
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                                .help(f.path)
+                // No rules between the lines: the indent, to the title's text, says
+                // whose they are.
+                Group {
+                    ForEach(Array(instanceFacts(i).enumerated()), id: \.offset) { _, f in
+                        LabeledContent(f.name) {
+                            if f.path.isEmpty {
+                                Text(f.value).monospacedDigit().multilineTextAlignment(.trailing)
+                            } else {
+                                Text(f.value)
+                                    .font(.callout.monospaced())
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .help(f.path)
+                            }
                         }
                     }
+                    instanceButtons(i).padding(.top, 2)
                 }
-                instanceButtons(i).padding(.top, 2)
+                .padding(.leading, 12)
             } label: {
                 Text(i.title).monospacedDigit()
             }
         }
         ForEach(p.observation.orphans, id: \.helper.pid) { o in
             DisclosureGroup(isExpanded: unfolding(o.helper.pid)) {
-                LabeledContent("Process") { Text("PID \(String(o.helper.pid)) · \(o.helper.elapsed)").monospacedDigit() }
-                LabeledContent("Command") {
-                    Text(o.helper.command)
-                        .font(.callout.monospaced())
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .help(o.helper.command)
+                Group {
+                    LabeledContent("Process") { Text("PID \(String(o.helper.pid)) · \(o.helper.elapsed)").monospacedDigit() }
+                    LabeledContent("Command") {
+                        Text(o.helper.command)
+                            .font(.callout.monospaced())
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .help(o.helper.command)
+                    }
+                    HStack {
+                        Spacer()
+                        Button("Stop It…") { p.stopHelper(o.helper) }
+                    }
                 }
-                HStack {
-                    Spacer()
-                    Button("Stop It…") { p.stopHelper(o.helper) }
-                }
+                .padding(.leading, 12)
             } label: {
                 Text(orphanTitle(o)).monospacedDigit()
             }
@@ -278,18 +287,15 @@ struct Dashboard: View {
     }
 
     @ViewBuilder private func instanceButtons(_ i: Instance) -> some View {
-        let remote = i.production && p.cfg.tailscale_url != nil
-        HStack {
-            // Two rows when one does not hold them all.
-            ViewThatFits(in: .horizontal) {
-                HStack { browse(i); files(i); if remote { remoteAddress } }
-                VStack(alignment: .leading) {
-                    HStack { browse(i) }
-                    HStack { files(i); if remote { remoteAddress } }
-                }
+        // By meaning: its addresses, then its files; stopping stands apart, on the first row.
+        VStack(alignment: .leading) {
+            HStack(alignment: .firstTextBaseline) {
+                browse(i)
+                if i.production && p.cfg.tailscale_url != nil { remoteAddress }
+                Spacer(minLength: 8)
+                if !i.production { Button("Stop Instance…") { p.stopInstance(i) } }
             }
-            Spacer(minLength: 8)
-            if !i.production { Button("Stop Instance…") { p.stopInstance(i) } }
+            HStack(alignment: .firstTextBaseline) { files(i) }
         }
     }
 
@@ -493,7 +499,9 @@ final class DashboardWindow: NSObject, NSToolbarDelegate, NSMenuItemValidation {
         item.label = title
         item.toolTip = id == Self.page ? "Open Clairance's page in the browser" : "\(title) production"
         item.view = b
-        // In a window too narrow for them all, the toolbar's own menu takes over.
+        // In a window too narrow for them all, the toolbar's own menu takes over:
+        // the rarest action first, the everyday one last.
+        item.visibilityPriority = id == Self.page ? .high : id == Self.restart ? .low : .standard
         let inMenu = NSMenuItem(title: title, action: action, keyEquivalent: "")
         inMenu.target = self
         item.menuFormRepresentation = inMenu

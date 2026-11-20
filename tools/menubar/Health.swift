@@ -61,6 +61,7 @@ struct HealthDetail: Decodable, Sendable {
             let since: Date
         }
         let user: String
+        let role: String?   // "owner" or "viewer"; absent before 20/11 afternoon
         let pages: Int
         let since: Date?
         let listening: [Listening]
@@ -124,6 +125,9 @@ struct HealthLine: Hashable, Sendable {
     let light: Light
     let name: String
     let fact: String
+    /// The incident this fault waits for: until it has held for its time, the
+    /// line keeps what it last said in good health, as the icon does (design 11).
+    var holds: String? = nil
     var text: String { "\(light.rawValue) \(name) · \(fact)" }
 }
 
@@ -202,7 +206,7 @@ func memoryPressure() -> Int32 {
 /// What a notification says and does (design 10, "Les notifications").
 struct Notice: Sendable {
     enum Level: Sendable { case timeSensitive, active, passive }
-    enum Click: Sendable { case none, log, clairance, finder(String), activityMonitor, settings(String) }
+    enum Click: Sendable { case none, log, clairance, dashboard, finder(String), activityMonitor, settings(String) }
     var title: String
     var body: String
     var sound = false

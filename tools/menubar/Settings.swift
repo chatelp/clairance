@@ -8,6 +8,35 @@ import SwiftUI
 
 let showInDockKey = "showInDock"
 
+/// The kinds of notifications, each with its switch (owner's request, 20/11):
+/// the guard's threads (Checks.swift) and who connects. All on by default.
+let noticeKinds: [(kind: String, label: String)] = [
+    ("production", "Production stops, does not start or stops answering"),
+    ("station", "Production stops hearing the station"),
+    ("audio", "A frequency goes silent"),
+    ("transcription", "Transcription stops or degrades"),
+    ("disk", "A disk is missing or almost full"),
+    ("memory", "macOS is short of memory"),
+    ("instances", "A test instance or a helper is left running"),
+    ("connections", "Someone connects"),
+]
+
+func notifies(_ kind: String) -> Bool {
+    UserDefaults.standard.object(forKey: "notify." + kind) as? Bool ?? true
+}
+
+struct NoticeSwitch: View {
+    let label: String
+    @AppStorage private var on: Bool
+
+    init(kind: String, label: String) {
+        self.label = label
+        _on = AppStorage(wrappedValue: true, "notify." + kind)
+    }
+
+    var body: some View { Toggle(label, isOn: $on) }
+}
+
 /// Whether the launcher shows in the Dock: yes unless switched off; never a
 /// test bench's, which would stand beside the owner's own.
 var showsInDock: Bool {
@@ -40,9 +69,17 @@ struct LauncherSettings: View {
                 Text("Clairance stays in the menu bar either way.")
                     .foregroundStyle(.secondary)
             }
+            Section {
+                ForEach(noticeKinds, id: \.kind) { NoticeSwitch(kind: $0.kind, label: $0.label) }
+            } header: {
+                Text("Notify when")
+            } footer: {
+                Text("A fault shows on the icon, in the menu and in the window either way. Your own visits as an owner are not notified.")
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
-        .frame(width: 420)
+        .frame(width: 460)
         // A grouped form scrolls, so it asks for no height of its own: without
         // this the window opened as a title bar alone (seen on macOS 27, 20/11).
         .fixedSize(horizontal: false, vertical: true)

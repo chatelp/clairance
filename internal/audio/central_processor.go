@@ -63,7 +63,7 @@ type CentralAudioProcessor struct {
 	statusTurn *sync.Cond
 	statusSeq  uint64
 	statusDone uint64
-	flow           flowMeter            // bytes decoded, the last minute (flow.go)
+	flow       flowMeter // bytes decoded, the last minute (flow.go)
 
 	// decodeCancel stops the decoder running, decoded is the end of its pipe
 	// the readers are fed from.

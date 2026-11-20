@@ -103,7 +103,7 @@ struct Instance: Identifiable, Sendable {
     let port: Int?
     let extraPorts: [Int]
     let staticDir: String
-    let www: String             // "migration @ cad595f", or "copy" when not a checkout
+    let www: String             // "From migration at cad595f", or "From a copy" when not a checkout
     let database: String
     let log: String
     let sidecarURL: String
@@ -120,7 +120,8 @@ struct Instance: Identifiable, Sendable {
     var answers = false         // its /api/v1/health answered
     var lastFetch: Date?        // its last ADS-B read, from /api/v1/health
     var version = ""
-    var build = ""              // "c707f65 · 3 commits behind local", the binary's own commit
+    var build = ""              // "c707f65, 3 commits behind local", the binary's own commit
+    var behind = ""             // "up to date", "3 commits behind local", or nothing when not known
     var summary = ""            // vitalsLine, empty when the server did not answer
     var sidecarHealth = ""
 
@@ -197,12 +198,12 @@ func listener(onPort port: Int) -> Int32? {
 func wwwOrigin(_ staticDir: String) -> String {
     let top = run("/usr/bin/git", ["-C", staticDir, "rev-parse", "--show-toplevel"]).out
         .trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !top.isEmpty, resolve("www", from: top) == staticDir else { return "copy" }
+    guard !top.isEmpty, resolve("www", from: top) == staticDir else { return "From a copy" }
     let branch = run("/usr/bin/git", ["-C", top, "rev-parse", "--abbrev-ref", "HEAD"]).out
         .trimmingCharacters(in: .whitespacesAndNewlines)
     let commit = run("/usr/bin/git", ["-C", top, "rev-parse", "--short", "HEAD"]).out
         .trimmingCharacters(in: .whitespacesAndNewlines)
-    return "\(branch) @ \(commit)"
+    return "From \(branch) at \(commit)"
 }
 
 func sidecarKind(_ p: Proc) -> String {
@@ -366,8 +367,13 @@ func sidecarHealthLine(_ h: [String: Any]) -> String {
     let status = h["status"] as? String ?? "?"
     let degraded = (h["degraded"] as? [String]) ?? []
     let q = h["queue"] as? [String: Any]
-    let queue = q.map { " · queue \(($0["first"] as? NSNumber)?.intValue ?? 0)/\(($0["second"] as? NSNumber)?.intValue ?? 0)" } ?? ""
-    return (degraded.isEmpty ? status : "\(status): \(degraded.joined(separator: ", "))") + queue
+    // Two queues: what waits for its first reading, and what waits for a second one.
+    let queue = q.map { q -> String in
+        let first = (q["first"] as? NSNumber)?.intValue ?? 0, second = (q["second"] as? NSNumber)?.intValue ?? 0
+        return " · queue \(brandNumber(first))" + (second > 0 ? ", \(brandNumber(second)) for a second reading" : "")
+    } ?? ""
+    let word = status == "ok" ? "answering" : status
+    return (degraded.isEmpty ? word : "\(word): \(degraded.map(languageName).joined(separator: ", ")) not loaded") + queue
 }
 
 /// "2h", "90m", "1h30", "45s"; a number alone is minutes.
@@ -487,7 +493,12 @@ final class Production: ObservableObject {
                 await self.checkPermissions()
             }
             notifier.handle = { [weak self] action, click, target in self?.answer(action, click, target) }
-            guardian.post = { [weak self] key, thread, n in self?.notifier.post(key, thread: thread, n) }
+            // Each kind of notification has its switch in the settings; an incident
+            // shows on the icon, in the menu and in the window either way.
+            guardian.post = { [weak self] key, thread, n in
+                guard notifies(thread) else { return }
+                self?.notifier.post(key, thread: thread, n)
+            }
             timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
                 Task { @MainActor in await self?.refresh() }
             }
@@ -517,7 +528,7 @@ final class Production: ObservableObject {
                 }
                 if let v = await getJSON(u + "api/v1/vitals") {
                     found[i].version = v["version"] as? String ?? ""
-                    if found[i].production { found[i].build = buildLine(v["commit"] as? String ?? "") }
+                    (found[i].build, found[i].behind) = buildLine(v["commit"] as? String ?? "")
                     found[i].summary = vitalsLine(v)
                     if found[i].production { o.secondsPerTransmission = (v["seconds_per_transmission"] as? NSNumber)?.doubleValue }
                 }
@@ -534,7 +545,7 @@ final class Production: ObservableObject {
         instances = found
         orphans = scan.orphans
         let prod = production
-        build = prod.flatMap { buildInfo($0, o.detail) }
+        build = prod.flatMap { buildInfo($0) }
         running = prod != nil
         elapsed = prod?.elapsed ?? ""
         sidecar = prod.map { $0.sidecarURL.isEmpty ? "—" : $0.sidecarHealth } ?? "—"
@@ -565,36 +576,84 @@ final class Production: ObservableObject {
         }
         observation = o
         let (findings, lines, facts) = assess(o)
-        health = lines
         if serving { guardian.update(findings + assessOthers(o), facts: facts) }
+        health = serving ? settled(lines) : lines
+        if serving { noticeConnections(o) }
         if serving, permissionsCheckedAt != nil, permissionsDue() { Task { await checkPermissions() } }
         updateSign(findings)
     }
 
-    private var buildCache: (key: String, line: String)?
+    private var lastGood: [String: HealthLine] = [:]
 
-    /// The commit production's binary was built from (its /api/v1/vitals), against
+    /// A fault that still waits for its time keeps the line's last good word: a
+    /// line turns to a fault when the icon, the menu and the notification do,
+    /// not two minutes before them (design 11, 20/11: "▲ Memory" beside a green sign).
+    private func settled(_ lines: [HealthLine]) -> [HealthLine] {
+        lines.map { line in
+            if line.light == .good { lastGood[line.name] = line }
+            guard let key = line.holds, guardian.open[key] == nil, let calm = lastGood[line.name] else { return line }
+            return calm
+        }
+    }
+
+    private var lastHere: [String: Date] = [:]
+    private var hereKnown = false
+
+    /// A notification when an account connects (owner's request, 20/11). Not for
+    /// who was there when the launcher or the server started: pages come back by
+    /// themselves in the two minutes after a restart. Not for a page reloaded
+    /// or reopened within 10 min, which the server's usage counts as one visit.
+    /// Not for an owner's own visit, when the server says the role.
+    private func noticeConnections(_ o: Observation) {
+        guard case .accounts(let here) = connected else {
+            hereKnown = false
+            return
+        }
+        let now = o.now
+        let settling = !hereKnown || (o.detail?.uptime_s ?? 0) < 120
+        for a in here {
+            let last = lastHere[a.user]
+            lastHere[a.user] = now
+            guard !settling, a.role != "owner", last.map({ now.timeIntervalSince($0) > 600 }) ?? true else { continue }
+            let pages = a.pages > 0 ? "\(brandNumber(a.pages)) page\(a.pages == 1 ? "" : "s") open" : ""
+            let sound = a.listening.isEmpty ? "" : "listening to " + a.listening.map { frequencyName($0.freq, o.detail) }.joined(separator: ", ")
+            let body = [pages, sound].filter { !$0.isEmpty }.joined(separator: ", ")
+            guardian.event("connected-" + a.user, thread: "connections",
+                           Notice(title: "\(a.user) connected", body: body.isEmpty ? "" : capitalised(body) + ".",
+                                  level: .active, click: .dashboard))
+        }
+        hereKnown = true
+        lastHere = lastHere.filter { now.timeIntervalSince($0.value) < 86_400 }
+    }
+
+    private var buildCache: [String: (line: String, behind: String)] = [:]
+
+    /// The commit an instance's binary was built from (its /api/v1/vitals), against
     /// the checkout's branch: the script writes the checkout's, not the binary's
-    /// (26/10: "commit c707f65" for a binary of 16/10).
-    private func buildLine(_ commit: String) -> String {
-        guard !commit.isEmpty else { return "commit unknown" }
+    /// (26/10: "commit c707f65" for a binary of 16/10). One reading for the
+    /// instance's line and for the window's header, which then never disagree.
+    private func buildLine(_ commit: String) -> (line: String, behind: String) {
+        guard !commit.isEmpty else { return ("commit unknown", "") }
         let head = run("/usr/bin/git", ["-C", repo, "rev-parse", "HEAD"]).out.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let c = buildCache, c.key == commit + head { return c.line }
+        if let c = buildCache[commit + head] { return c }
         let branch = run("/usr/bin/git", ["-C", repo, "rev-parse", "--abbrev-ref", "HEAD"]).out.trimmingCharacters(in: .whitespacesAndNewlines)
         let count = run("/usr/bin/git", ["-C", repo, "rev-list", "--count", commit + "..HEAD"])
         let n = Int(count.out.trimmingCharacters(in: .whitespacesAndNewlines))
+        let behind = count.status != 0 || n == nil ? "" : n == 0 ? "up to date"
+            : "\(brandNumber(n!)) commit\(n == 1 ? "" : "s") behind \(branch)"
         let line = count.status != 0 || n == nil ? "\(commit), not in \(branch)"
-            : n == 0 ? "\(commit), as \(branch)" : "\(commit), \(n!) commit\(n == 1 ? "" : "s") behind \(branch)"
-        buildCache = (commit + head, line)
-        return line
+            : n == 0 ? "\(commit), as \(branch)" : "\(commit), \(behind)"
+        if buildCache.count > 32 { buildCache.removeAll() }
+        buildCache[commit + head] = (line, behind)
+        return (line, behind)
     }
 
     private var buildDays: [String: String] = [:]
 
     /// "Version of 20 November 2026 · 9a4b5ce · up to date" (design 11): the day
-    /// of the commit the binary was built from, read in the checkout, and how far
-    /// behind its branch the server says it is.
-    private func buildInfo(_ prod: Instance, _ detail: HealthDetail?) -> BuildInfo? {
+    /// of the commit the binary was built from and how far behind its branch it
+    /// is, both read in the checkout.
+    private func buildInfo(_ prod: Instance) -> BuildInfo? {
         guard let commit = prod.build.split(separator: ",").first.map(String.init), prod.build != "commit unknown" else { return nil }
         if buildDays[commit] == nil {
             let day = run("/usr/bin/git", ["-C", repo, "show", "-s", "--format=%cd", "--date=format:%Y-%m-%d", commit])
@@ -606,13 +665,9 @@ final class Production: ObservableObject {
             buildDays[commit] = day.status == 0
                 ? parse.date(from: day.out.trimmingCharacters(in: .whitespacesAndNewlines)).map(write.string) ?? "" : ""
         }
-        var behind = ""
-        if let r = detail?.process?.repository, let n = r.commits_behind {
-            behind = n == 0 ? "up to date" : "\(brandNumber(n)) commit\(n == 1 ? "" : "s") behind \(r.branch ?? "its branch")"
-        }
         // A build without a tag calls itself "dev", or by its commit again.
         let tag = ["", "dev", commit].contains(prod.version) ? "" : prod.version
-        return BuildInfo(version: tag, day: buildDays[commit] ?? "", commit: commit, behind: behind)
+        return BuildInfo(version: tag, day: buildDays[commit] ?? "", commit: commit, behind: prod.behind)
     }
 
     /// Follows production between refreshes: a start under way, a stop asked
@@ -1126,7 +1181,7 @@ final class Production: ObservableObject {
             // Then its station link, which the script starts once co-atc answers
             // (20 s at most: a bench has none), and its sidecar.
             let linked = !p.stationLinks.isEmpty || Date().timeIntervalSince(answeredAt!) > 20
-            if linked && (p.sidecarURL.isEmpty || p.sidecarHealth.hasPrefix("ok")) {
+            if linked && (p.sidecarURL.isEmpty || p.sidecarHealth.hasPrefix("answering")) {
                 return reply(.end(true, "production running, pid \(p.pid)"))
             }
         }
@@ -1273,6 +1328,7 @@ final class Production: ObservableObject {
             case .none: break
             case .log: openLog()
             case .clairance: if let p = production, p.answers, let u = p.url { open(u) }
+            case .dashboard: DashboardWindow.shared.show()
             case .finder(let path): NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: path)
             case .activityMonitor: run("/usr/bin/open", ["-a", "Activity Monitor"])
             case .settings(let pane): if let u = URL(string: pane) { NSWorkspace.shared.open(u) }
@@ -1618,30 +1674,32 @@ struct InstanceFact: Sendable {
 func instanceFacts(_ i: Instance) -> [InstanceFact] {
     var facts: [InstanceFact] = []
     facts.append(InstanceFact(name: "Page", value: i.www))
-    if !i.version.isEmpty {
-        // A build without a tag calls itself by its commit: said once.
-        facts.append(InstanceFact(name: "Server", value: i.build.isEmpty ? i.version
-                                  : i.build.hasPrefix(i.version) ? i.build : i.version + " · " + i.build))
+    // Its commit against the branch; its tag first when it has one ("dev", or the
+    // commit again, is none).
+    let tagged = !["", "dev"].contains(i.version) && !i.build.hasPrefix(i.version)
+    if !i.build.isEmpty, i.build != "commit unknown" {
+        facts.append(InstanceFact(name: "Server", value: tagged ? i.version + " · " + i.build : i.build))
     } else {
-        facts.append(InstanceFact(name: "Server", value: i.answers ? "answering" : "not answering"))
+        facts.append(InstanceFact(name: "Server", value: i.answers ? "Answering" : "Not answering"))
     }
     if !i.summary.isEmpty { facts.append(InstanceFact(name: "Activity", value: i.summary)) }
     if !i.sidecarURL.isEmpty {
-        let kind = i.sidecarKind.isEmpty ? "" : "\(i.sidecarKind), "
+        let kind = ["real model": "Real model", "fake": "Simulated"][i.sidecarKind] ?? i.sidecarKind
         facts.append(InstanceFact(name: "Transcription",
-                                  value: "\(kind)\(i.sidecarHealth)" + (i.sidecarKind == "real model" ? " · uses the GPU" : "")))
+                                  value: capitalised(kind.isEmpty ? i.sidecarHealth : "\(kind), \(i.sidecarHealth)")
+                                      + (i.sidecarKind == "real model" ? " · uses the GPU" : "")))
     }
     if i.stationLinks.isEmpty {
-        facts.append(InstanceFact(name: "Station link", value: "none"))
+        facts.append(InstanceFact(name: "Station link", value: "None"))
     } else {
         for h in i.stationLinks {
-            facts.append(InstanceFact(name: "Station link", value: "\(h.what == "station link" ? "running" : h.what), \(h.elapsed)"))
+            facts.append(InstanceFact(name: "Station link", value: "\(h.what == "station link" ? "Running" : capitalised(h.what)), \(h.elapsed)"))
         }
     }
     // Measured on 24/10: when the app a process depends on quits, macOS makes the
     // process depend on itself, and a bare program has no Local Network access.
     if let d = i.dependence {
-        facts.append(InstanceFact(name: "Depends on", value: d.pid == i.pid ? "no app · no local network" : d.app))
+        facts.append(InstanceFact(name: "Depends on", value: d.pid == i.pid ? "No app · no local network" : d.app))
     }
     if let u = i.until {
         let left = u.timeIntervalSinceNow

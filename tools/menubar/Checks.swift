@@ -126,7 +126,7 @@ func assess(_ o: Observation) -> (findings: [Finding], lines: [HealthLine], fact
     // pass for health (26/10: production had no ffmpeg, and nothing said so).
     if o.detailMissing {
         f.append(Finding(key: "unwatched", kind: "production",
-            cause: "Audio not watched: this co-atc is too old for the launcher",
+            cause: "Audio not watched: this version of Clairance is too old",
             notice: Notice(title: "Production not fully watched",
                            body: "This co-atc has no health detail (/api/v1/health/detail): its audio, transcription and disks are not watched. A co-atc built from local has it.",
                            click: .log)))
@@ -170,7 +170,7 @@ func assess(_ o: Observation) -> (findings: [Finding], lines: [HealthLine], fact
                                sound: true, level: .timeSensitive, click: .log, category: "deaf"),
                 recovery: { lasted, _ in Notice(title: "Production hears the station again",
                                                 body: "After \(brandDuration(lasted)) deaf.", level: .passive, click: .clairance) }))
-            deafLine = HealthLine(light: .fault, name: "Station", fact: "answers this Mac, not co-atc")
+            deafLine = HealthLine(light: .fault, name: "Station", fact: "answers this Mac, not co-atc", holds: "deaf")
         } else {
             let because = why.isEmpty ? "" : " (\(why))"
             f.append(Finding(key: "deaf", kind: "station", hold: 15, began: since,
@@ -180,7 +180,7 @@ func assess(_ o: Observation) -> (findings: [Finding], lines: [HealthLine], fact
                                sound: true, level: .timeSensitive, click: .log),
                 recovery: { lasted, _ in Notice(title: "Production hears the station again",
                                                 body: "After \(brandDuration(lasted)) deaf.", level: .passive, click: .clairance) }))
-            deafLine = HealthLine(light: .fault, name: "Station", fact: "not reached for \(brandDuration(readAge))" + because)
+            deafLine = HealthLine(light: .fault, name: "Station", fact: "not reached for \(brandDuration(readAge))" + because, holds: "deaf")
         }
     }
 
@@ -196,7 +196,7 @@ func assess(_ o: Observation) -> (findings: [Finding], lines: [HealthLine], fact
     if let l = deafLine {
         lines.append(l)
     } else if let lost = o.linkLostAt {
-        lines.append(HealthLine(light: .fault, name: "Station", fact: "link stopped \(brandDuration(now.timeIntervalSince(lost))) ago"))
+        lines.append(HealthLine(light: .fault, name: "Station", fact: "link stopped \(brandDuration(now.timeIntervalSince(lost))) ago", holds: "link"))
     } else {
         lines.append(HealthLine(light: o.station.answered ? .good : .unknown, name: "Station",
                                 fact: o.station.answered ? stationFact(o.station) : "not answering this Mac"))
@@ -204,7 +204,7 @@ func assess(_ o: Observation) -> (findings: [Finding], lines: [HealthLine], fact
 
     // ADS-B.
     if readAge > deafAfter {
-        lines.append(HealthLine(light: .fault, name: "ADS-B", fact: "nothing read for \(brandDuration(readAge))"))
+        lines.append(HealthLine(light: .fault, name: "ADS-B", fact: "nothing read for \(brandDuration(readAge))", holds: deafLine?.holds))
     } else if let a = d?.adsb {
         lines.append(HealthLine(light: .good, name: "ADS-B",
                                 fact: "\(brandNumber(a.aircraft)) aircraft, \(brandNumber(Int(a.messages_per_second.rounded()))) msg/s"))
@@ -234,7 +234,7 @@ func assess(_ o: Observation) -> (findings: [Finding], lines: [HealthLine], fact
     }
     if d == nil {
         lines.append(HealthLine(light: o.detailMissing ? .fault : .unknown, name: "Audio",
-                                fact: o.detailMissing ? "not watched: co-atc too old" : "unknown"))
+                                fact: o.detailMissing ? "not watched: this version of Clairance is too old" : "unknown"))
     } else if freqs.isEmpty && o.station.mode != "chaine" {
         lines.append(HealthLine(light: .off, name: "Audio", fact: "nothing on air"))
     } else if freqs.isEmpty {
@@ -279,7 +279,7 @@ func assess(_ o: Observation) -> (findings: [Finding], lines: [HealthLine], fact
                 notice: Notice(title: "Transcription silent", body: "The sidecar has not answered for 45 s.", click: .log),
                 recovery: { lasted, _ in Notice(title: "Transcription back", body: "After \(brandDuration(lasted)) silent.",
                                                 level: .passive, click: .clairance) }))
-            transcription = HealthLine(light: .fault, name: "Transcription", fact: "sidecar silent")
+            transcription = HealthLine(light: .fault, name: "Transcription", fact: "sidecar silent", holds: "sidecar")
         } else {
             for lang in s.degraded ?? [] {
                 let name = languageName(lang)
@@ -288,7 +288,7 @@ func assess(_ o: Observation) -> (findings: [Finding], lines: [HealthLine], fact
                     cause: "\(name) model not loaded",
                     notice: Notice(title: "\(name) transcription unavailable", body: "The \(name) model is not loaded\(fallback)", click: .log),
                     recovery: { lasted, _ in Notice(title: "\(name) transcription back", body: "After \(brandDuration(lasted)).", level: .passive) }))
-                transcription = HealthLine(light: .fault, name: "Transcription", fact: "\(name) model not loaded")
+                transcription = HealthLine(light: .fault, name: "Transcription", fact: "\(name) model not loaded", holds: "degraded-\(lang)")
             }
         }
     } else if !p.sidecarURL.isEmpty && p.sidecarHealth == "not answering" {
@@ -373,7 +373,7 @@ private func localLines(_ o: Observation, _ f: inout [Finding], _ facts: inout [
                 recovery: { _, facts in Notice(title: "Disk space back: \(facts["disk_free"] ?? "more") free", body: "", level: .passive) }))
             lines.append(HealthLine(light: .fault, name: "Disk", fact: "\(brandGB(free)) free"))
         } else if let a = d?.audio_archive, o.archiveVolume != nil, !a.available {
-            lines.append(HealthLine(light: .fault, name: "Disk", fact: "archive disk missing"))
+            lines.append(HealthLine(light: .fault, name: "Disk", fact: "archive disk missing", holds: "archive"))
         } else {
             var fact = "\(brandGB(free)) free"
             if let a = d?.audio_archive, let b = a.bytes, a.cap_bytes > 0 {
@@ -392,7 +392,7 @@ private func localLines(_ o: Observation, _ f: inout [Finding], _ facts: inout [
             cause: "Memory pressure \(level)",
             notice: Notice(title: "Memory pressure: \(level)", body: body, sound: o.pressure >= 4, click: .activityMonitor),
             recovery: { lasted, _ in Notice(title: "Memory pressure normal", body: "After \(brandDuration(lasted)).", level: .passive) }))
-        lines.append(HealthLine(light: .fault, name: "Memory", fact: "pressure \(level)"))
+        lines.append(HealthLine(light: .fault, name: "Memory", fact: "pressure \(level)", holds: "memory"))
     } else {
         lines.append(HealthLine(light: .good, name: "Memory", fact: "normal"))
     }
