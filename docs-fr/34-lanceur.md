@@ -478,6 +478,18 @@ passés ; lanceur réinstallé production arrêtée (build d267851, avec N1 à N
 15:09:20, a passé, et cette fois `clairance --start` l'a dit juste (« production running », correctif 360b656).
 49 connexions gardées, première transcription à 15:09:51, accès public répond.
 
+**Le premier démarrage refusé est réessayé, plus annoncé (2f43955, installé à 15:36)**. Le propriétaire, à 15:2x :
+« il fait un warning d'erreur de connexion dès le lancement qui se corrige derrière — c'est embêtant ». Quand
+co-atc n'a pas pu joindre sa source ADS-B à sa vérification alors que la station répond au porteur et à ce Mac, le
+lanceur redémarre de lui-même, deux fois au plus ; le signe reste « starting », le journal du lanceur dit chaque
+essai, et un troisième échec se dit comme avant. **Mesuré sur le banc**, avec une fausse source ADS-B : source
+absente, trois essais en 5 s (15:34:25, 27, 29) puis « did not start » ; absente au premier et présente au second,
+production en marche 3 s plus tard (15:35:01 → 15:35:04), rien d'annoncé, `--start` répond « production running ».
+**Non mesuré** : le cas réel, qui ne se produit qu'au premier démarrage après l'installation d'un nouveau build ;
+il se verra à la prochaine relance (une ligne « starting again » dans `runs/launcher.log`). Une bannière « Production
+did not start » est partie du banc à 15:34 vers l'écran du propriétaire : l'essai des trois échecs, lancé sans que
+la notification soit coupée (script interrompu par une erreur du shell).
+
 **Q64, un point de mesure de plus** : sur le banc, à 14:57, le premier démarrage sous le porteur d'un build tout
 neuf a joint la station du premier coup. L'échec n'est donc pas systématique sur le banc ; **en production il s'est produit aux deux relances du jour** (17 et 18), chaque fois après l'installation d'un nouveau build.
 

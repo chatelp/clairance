@@ -5487,7 +5487,7 @@ rien jusqu'au rechargement. **Vérifié** dans un navigateur sur une instance d'
 ports annexes en 200, son ouvert sur la tuile cliquée, source ajoutée en cours de route branchée
 sans rechargement. Sans cookie, le même flux répond 401 : c'était l'ancien comportement.
 
-### Q64 — Le premier démarrage sous le porteur d'un nouveau build échoue : réessayer seul ? *(20/11, ouverte)*
+### Q64 — Le premier démarrage sous le porteur d'un nouveau build échoue : réessayer seul ? *(20/11 — **tranchée le jour même : oui**)*
 
 Vu le 24/10 puis le 20/11 (relance 17) : après l'installation d'un nouveau build du lanceur, le premier démarrage
 de la production échoue à la vérification ADS-B de co-atc (« no route to host » vers la station), alors que le
@@ -5502,6 +5502,11 @@ nouveau build.
 15:09:14), chaque fois au premier démarrage après l'installation d'un nouveau build du lanceur, et le démarrage
 suivant a passé (14 s puis 6 s plus tard). Sur le banc, à 14:57, un build neuf a démarré du premier coup : pas
 systématique, mais deux fois sur deux là où cela compte.
+
+**Tranchée par le propriétaire le 20/11 à 15:2x** (« il fait un warning d'erreur de connexion dès le lancement
+qui se corrige derrière — c'est embêtant ») : le lanceur réessaie de lui-même, deux fois au plus, quand co-atc ne
+joint pas sa source ADS-B alors que la station répond au porteur et à ce Mac ; rien n'est annoncé tant qu'un essai
+reste (2f43955, mesures dans `34-lanceur.md`). La cause chez macOS n'est pas établie : on traite l'effet.
 
 ### Q63 — Comment la page joue le son *(26/10 — **tranchée par le propriétaire : la page joue le son elle-même, en μ-law**)*
 
