@@ -4947,6 +4947,10 @@ système de design : la séquence d'arrivée calculée dans le store pour tous l
   allumées par défaut. Choix de la session principale, à corriger si le propriétaire le veut autrement : ses
   propres visites ne sont pas annoncées ; une page rouverte dans les 10 minutes non plus ; une famille coupée se
   voit toujours sur l'icône et dans la fenêtre. **L'app s'installe dans `/Applications`** (demande du même jour).
+- **Une transcription lente est un défaut, au-delà de 10 s par transmission** (propriétaire, 20/11 au soir : « oui,
+  signale une transcription lente au-delà de 10 s »). Le seuil est le sien ; la retenue de 15 s, la sortie sous
+  7 s et l'abandon après 5 min sans texte sont de la session principale, tirés du journal du jour
+  (`34-lanceur.md`), à corriger s'il les veut autrement.
 
 Livraison, mesures et écarts à la fiche : `34-lanceur.md`, « L'étape 2 ».
 
@@ -5497,6 +5501,10 @@ co-atc lui-même qui est refusée. **À décider** : le lanceur réessaie-t-il u
 échoue ainsi dans les secondes qui suivent une réponse de la station au porteur ? Coût de ne rien faire : une
 relance qui dure 15 s de plus et un « did not start » à lire ; mesurer d'abord si l'échec se reproduit à chaque
 nouveau build.
+
+*Point de mesure du 20/11, 20:31* : reproduite sur le banc, au premier démarrage sous le porteur d'un build tout
+neuf (refus à 20:31:18, second démarrage bon à 20:33:10). Le 20/11 à 14:57, le même banc avait passé du premier
+coup : trois refus sur les quatre premiers démarrages relevés ce jour-là, production et banc confondus.
 
 **Mesuré le 20/11** : en production, l'échec s'est reproduit aux deux relances du jour (17 à 14:41:49, 18 à
 15:09:14), chaque fois au premier démarrage après l'installation d'un nouveau build du lanceur, et le démarrage

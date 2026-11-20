@@ -493,8 +493,38 @@ la notification soit coupée (script interrompu par une erreur du shell).
 **Q64, un point de mesure de plus** : sur le banc, à 14:57, le premier démarrage sous le porteur d'un build tout
 neuf a joint la station du premier coup. L'échec n'est donc pas systématique sur le banc ; **en production il s'est produit aux deux relances du jour** (17 et 18), chaque fois après l'installation d'un nouveau build.
 
+**Transcription lente, signalée au-delà de 10 s (20/11, 20:39 ; 9d1609c).** Demande du propriétaire : la ligne
+restait verte à 12 s par transmission. Le lanceur lit la moyenne glissante du serveur (`seconds_per_transmission`
+de `/api/v1/vitals` : envoi au sidecar → réponse, environ les dix dernières transmissions transcrites). Au-dessus
+de **10 s tenues 15 s**, un incident « Transcription slow » s'ouvre (▲, bannière, clic vers le Moniteur
+d'activité ; le corps dit la file et, si c'est le cas, que macOS manque de mémoire). Il se referme **sous 7 s**,
+ou quand aucun texte n'est revenu depuis 5 min : la moyenne ne dit alors plus rien du présent (« Transcription
+idle »). Famille « transcription » des réglages.
+
+*Pourquoi une retenue et une sortie plus basse* : rejouée sur le journal du 20/11 (3 298 transmissions, durée de
+décodage seule), la moyenne n'a dépassé 10 s que par bouffées de 5 à 25 s, entre 14:47 et 15:04 puis à 15:42 (pic
+13,1 s). Un seuil nu aurait fait cinq incidents de 5 à 25 s ; tenu 15 s et refermé sous 7 s, deux (14:48, 2 min ;
+15:01, 4 min 30). La moyenne du serveur compte aussi l'attente dans la file : elle est montée plus haut que ce
+rejeu (15,9 s relevés à 15:01).
+
+**Mesuré sur le banc** (instance 8020, source audio en salves de 3 s, faux sidecar à délai réglable) : moyenne à
+17,2 s, constat à 20:36:04, incident ouvert à 20:36:19 ; sidecar ramené à 0,4 s à 20:36:33, la ligne reste ▲ de
+10,1 à 7,5 s, redevient ● à 6,1 s (20:37:34), incident refermé à 20:37:44 (« 5.1 s a transmission, after 1 min
+slow »). Installé à 20:38 production en marche, sans perte de lecture. **Non mesuré** : la bannière elle-même
+(coupée pendant l'essai, lue au journal), la fin par absence de texte (« idle »), le cas réel. **Non couvert** :
+un sidecar qui répond à `/health` mais ne rend plus aucun texte ne fait pas bouger la moyenne ; c'est la file et
+« nothing transcribed » qui le diraient, pas ce contrôle. Les mots de la bannière sont de la session principale,
+à relire par le design.
+
+*Deux écarts du banc ce soir-là.* Le premier démarrage du banc, sous le porteur du build tout neuf, a été refusé
+(« no route to host », 20:31:18) : **Q64 reproduite sur le banc**, et le second démarrage a passé (20:33:10). Le
+script du banc n'ayant pas la forme que le réessai sait lire, une bannière « Production did not start » est
+partie du banc vers l'écran du propriétaire à 20:32:19, la seconde fausse de la journée. Les bannières
+« transcription » ont été coupées de 20:31:13 à 20:38:06 et « production » de 20:33:08 à 20:33:42, dans les
+réglages partagés avec le vrai lanceur : pendant ce temps un défaut réel se serait vu sur l'icône, sans bannière.
+
 **Reste** : les captures des états en défaut, du menu et de l'en-tête « -dirty », attendues par le design ; Q64 ;
-un seuil éventuel sur la durée de transcription ; l'étape 3 (journal, ressources, barre latérale). **Question ouverte (Q64)** : le premier démarrage sous le porteur d'un nouveau build échoue sur
+l'étape 3 (journal, ressources, barre latérale). **Question ouverte (Q64)** : le premier démarrage sous le porteur d'un nouveau build échoue sur
 « no route to host » (24/10, 20/11), alors que le porteur vient de joindre la station ; faut-il que le lanceur
 réessaie une fois de lui-même dans ce cas précis ?
 
