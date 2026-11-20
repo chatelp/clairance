@@ -373,7 +373,9 @@ struct DashboardHeader: View {
     /// "Version of 20 November 2026 · 9a4b5ce · up to date": the commit in
     /// fixed width, and selectable.
     private func version(_ b: BuildInfo) -> some View {
-        let what = "Version" + (b.version.isEmpty ? "" : " " + b.version) + (b.day.isEmpty ? "" : " of " + b.day) + " · "
+        // "Version of 20 November 2026 · 9a4b5ce", and without its day "Version 25d83ce-dirty".
+        let what = "Version" + (b.version.isEmpty ? "" : " " + b.version) + (b.day.isEmpty ? "" : " of " + b.day)
+            + (b.version.isEmpty && b.day.isEmpty ? " " : " · ")
         return (Text(what) + Text(b.commit).font(.body.monospaced()) + Text(b.behind.isEmpty ? "" : " · " + b.behind))
             .font(.body)
             .foregroundStyle(.secondary)

@@ -123,7 +123,8 @@ struct Instance: Identifiable, Sendable {
     var build = ""              // "c707f65, 3 commits behind local", the binary's own commit
     var behind = ""             // "up to date", "3 commits behind local", or nothing when not known
     var summary = ""            // vitalsLine, empty when the server did not answer
-    var sidecarHealth = ""
+    var sidecarHealth = ""      // "answering", "answering: French not loaded", "not answering"
+    var sidecarQueue = ""       // "4, 15 for a second reading", "0"; empty when it does not say
 
     var elapsed: String { shortElapsed(proc.elapsed) }
     var cwd: String { proc.cwd }
@@ -363,17 +364,17 @@ func vitalsLine(_ v: [String: Any]) -> String {
     return parts.joined(separator: " · ")
 }
 
-func sidecarHealthLine(_ h: [String: Any]) -> String {
+func sidecarHealthLine(_ h: [String: Any]) -> (health: String, queue: String) {
     let status = h["status"] as? String ?? "?"
     let degraded = (h["degraded"] as? [String]) ?? []
     let q = h["queue"] as? [String: Any]
     // Two queues: what waits for its first reading, and what waits for a second one.
     let queue = q.map { q -> String in
         let first = (q["first"] as? NSNumber)?.intValue ?? 0, second = (q["second"] as? NSNumber)?.intValue ?? 0
-        return " · queue \(brandNumber(first))" + (second > 0 ? ", \(brandNumber(second)) for a second reading" : "")
+        return brandNumber(first) + (second > 0 ? ", \(brandNumber(second)) for a second reading" : "")
     } ?? ""
     let word = status == "ok" ? "answering" : status
-    return (degraded.isEmpty ? word : "\(word): \(degraded.map(languageName).joined(separator: ", ")) not loaded") + queue
+    return (degraded.isEmpty ? word : "\(word): \(degraded.map(languageName).joined(separator: ", ")) not loaded", queue)
 }
 
 /// "2h", "90m", "1h30", "45s"; a number alone is minutes.
@@ -540,7 +541,7 @@ final class Production: ObservableObject {
                 }
             }
             if !found[i].sidecarURL.isEmpty {
-                found[i].sidecarHealth = await getJSON(found[i].sidecarURL + "/health").map(sidecarHealthLine) ?? "not answering"
+                (found[i].sidecarHealth, found[i].sidecarQueue) = await getJSON(found[i].sidecarURL + "/health").map(sidecarHealthLine) ?? ("not answering", "")
             }
         }
         instances = found
@@ -640,10 +641,9 @@ final class Production: ObservableObject {
         let branch = run("/usr/bin/git", ["-C", repo, "rev-parse", "--abbrev-ref", "HEAD"]).out.trimmingCharacters(in: .whitespacesAndNewlines)
         let count = run("/usr/bin/git", ["-C", repo, "rev-list", "--count", commit + "..HEAD"])
         let n = Int(count.out.trimmingCharacters(in: .whitespacesAndNewlines))
-        let behind = count.status != 0 || n == nil ? "" : n == 0 ? "up to date"
+        let behind = count.status != 0 || n == nil ? "not in \(branch)" : n == 0 ? "up to date"
             : "\(brandNumber(n!)) commit\(n == 1 ? "" : "s") behind \(branch)"
-        let line = count.status != 0 || n == nil ? "\(commit), not in \(branch)"
-            : n == 0 ? "\(commit), as \(branch)" : "\(commit), \(behind)"
+        let line = n == 0 && count.status == 0 ? "\(commit), as \(branch)" : "\(commit), \(behind)"
         if buildCache.count > 32 { buildCache.removeAll() }
         buildCache[commit + head] = (line, behind)
         return (line, behind)
@@ -657,7 +657,9 @@ final class Production: ObservableObject {
     private func buildInfo(_ prod: Instance) -> BuildInfo? {
         guard let commit = prod.build.split(separator: ",").first.map(String.init), prod.build != "commit unknown" else { return nil }
         if buildDays[commit] == nil {
-            let day = run("/usr/bin/git", ["-C", repo, "show", "-s", "--format=%cd", "--date=format:%Y-%m-%d", commit])
+            // A binary built from a changed checkout names its commit "-dirty": the day is the commit's.
+            let clean = commit.hasSuffix("-dirty") ? String(commit.dropLast("-dirty".count)) : commit
+            let day = run("/usr/bin/git", ["-C", repo, "show", "-s", "--format=%cd", "--date=format:%Y-%m-%d", clean])
             let parse = DateFormatter()
             parse.dateFormat = "yyyy-MM-dd"
             let write = DateFormatter()
@@ -1692,6 +1694,8 @@ func instanceFacts(_ i: Instance) -> [InstanceFact] {
         facts.append(InstanceFact(name: "Transcription",
                                   value: capitalised(kind.isEmpty ? i.sidecarHealth : "\(kind), \(i.sidecarHealth)")
                                       + (i.sidecarKind == "real model" ? " · uses the GPU" : "")))
+        // A line of its own: with the queue, Transcription no longer held in the window's width.
+        if !i.sidecarQueue.isEmpty { facts.append(InstanceFact(name: "Queue", value: i.sidecarQueue)) }
     }
     if i.stationLinks.isEmpty {
         facts.append(InstanceFact(name: "Station link", value: "None"))

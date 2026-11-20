@@ -9,7 +9,7 @@ import SwiftUI
 let showInDockKey = "showInDock"
 
 /// The kinds of notifications, each with its switch (owner's request, 20/11):
-/// the guard's threads (Checks.swift) and who connects. All on by default.
+/// the guard's threads (Checks.swift), then who connects. All on by default.
 let noticeKinds: [(kind: String, label: String)] = [
     ("production", "Production stops, does not start or stops answering"),
     ("station", "Production stops hearing the station"),
@@ -17,9 +17,10 @@ let noticeKinds: [(kind: String, label: String)] = [
     ("transcription", "Transcription stops or degrades"),
     ("disk", "A disk is missing or almost full"),
     ("memory", "macOS is short of memory"),
-    ("instances", "A test instance or a helper is left running"),
-    ("connections", "Someone connects"),
+    ("instances", "A test instance, a sidecar or a station link is left running"),
 ]
+/// Who connects is no fault: its switch stands apart.
+let connectionsKind = "connections"
 
 func notifies(_ kind: String) -> Bool {
     UserDefaults.standard.object(forKey: "notify." + kind) as? Bool ?? true
@@ -74,7 +75,14 @@ struct LauncherSettings: View {
             } header: {
                 Text("Notify when")
             } footer: {
-                Text("A fault shows on the icon, in the menu and in the window either way. Your own visits as an owner are not notified.")
+                Text("A fault shows on the icon, in the menu and in the window either way.")
+                    .foregroundStyle(.secondary)
+            }
+            Section {
+                NoticeSwitch(kind: connectionsKind, label: "Notify when someone connects")
+            } footer: {
+                // "Admin" is the page's word for the role the config calls owner.
+                Text("Visits from Admin accounts are not notified.")
                     .foregroundStyle(.secondary)
             }
         }
