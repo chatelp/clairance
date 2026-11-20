@@ -829,6 +829,13 @@ final class Production: ObservableObject {
             note = "Not found: \(script)"
             return
         }
+        // A start asked again after one that failed: the last failure is over, or
+        // the command line would answer with it before this one has begun (20/11:
+        // a second --start said "did not start" in 3 s, while production started).
+        if case .didNotStart = down {
+            down = nil
+            guardian.dismiss("production-start")
+        }
         busy = true
         note = "Starting…"
         updateSign([])
@@ -1755,7 +1762,8 @@ struct ClairanceLauncher: App {
                 Button("Settings…") { SettingsWindow.shared.show() }.keyboardShortcut(",")
             }
             CommandGroup(before: .windowList) {
-                Button("Dashboard") { DashboardWindow.shared.show() }.keyboardShortcut("0")
+                // "Show": the system lists the open window under its own name just below.
+                Button("Show Dashboard") { DashboardWindow.shared.show() }.keyboardShortcut("0")
             }
         }
     }
