@@ -4925,6 +4925,24 @@ système de design : la séquence d'arrivée calculée dans le store pour tous l
 (la PAR la relit), les gabarits français des consignes, puis la migration elle-même
 (`04-migration.md`).
 
+### D89 — Le lanceur a une fenêtre, dit qui est connecté, et Stop demande confirmation *(20/11)*
+
+> **Demande du propriétaire, 20/11** : « améliorer l'app pour qu'elle indique qui est connecté au serveur — et aussi
+> ne pas tout passer par le menu déroulant, il faudrait une vraie fenêtre », « en respectant la charte graphique si
+> possible (voir avec l'agent design) mais ça doit rester une app franchement macOS ». Fiche
+> `design/11-lanceur-fenetre.md` **validée le jour même** (« je valide la fiche »).
+
+- **Une fenêtre « Dashboard »**, en une colonne, aux contrôles du système : l'état et sa cause, la version, la
+  santé, les connectés, les instances. Le clic du Dock l'ouvre ; elle s'ouvre quand le propriétaire ouvre l'app.
+- **Le menu ne garde que l'essentiel** : l'état, ce qui est en défaut, qui est connecté, et quelques actions.
+  Les instances et le détail de la santé sont dans la fenêtre.
+- **Arrêter la production demande une confirmation** depuis le menu et la fenêtre : qui écoute perd le son. La
+  ligne de commande (`clairance --stop`) n'en demande pas : un agent ou un script a déjà décidé.
+- **Le serveur dit qui est là** dans sa santé détaillée (`present[]`, `accounts`), lisible de la boucle locale ou
+  par le propriétaire : c'est le contrat du lanceur (`36`), on y ajoute sans rien casser.
+
+Livraison, mesures et écarts à la fiche : `34-lanceur.md`, « L'étape 2 ».
+
 ### D88 — Le modèle anglais de la production lu sur le disque externe *(05/11)*
 
 > **Décision du propriétaire, 05/11** (« oui on déplace »), pour libérer 2,9 Go du disque interne.
