@@ -265,6 +265,9 @@ Retouches de ce tour :
 - **N4.** « A test instance, a sidecar or a station link is left running » remplace « … or a helper … » : ce sont
   les mots du menu et de la fenêtre.
 
+N1, N3 et N4 sont faites et vues à l'image (099f404, captures 40 et 41). N2 est codée mais pas vue : il faut un
+binaire construit d'un dépôt modifié. Elles s'installent avec le prochain redémarrage de la production.
+
 **Pas encore relu**, pas encore à l'image : le défaut avec sa cause longue et ses boutons du moment, la section
 Permissions, le serveur muet (○), le menu allégé. Leurs captures envoient de vraies notifications : elles se feront
 à un moment convenu avec le propriétaire.
