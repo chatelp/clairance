@@ -5480,6 +5480,17 @@ rien jusqu'au rechargement. **Vérifié** dans un navigateur sur une instance d'
 ports annexes en 200, son ouvert sur la tuile cliquée, source ajoutée en cours de route branchée
 sans rechargement. Sans cookie, le même flux répond 401 : c'était l'ancien comportement.
 
+### Q64 — Le premier démarrage sous le porteur d'un nouveau build échoue : réessayer seul ? *(20/11, ouverte)*
+
+Vu le 24/10 puis le 20/11 (relance 17) : après l'installation d'un nouveau build du lanceur, le premier démarrage
+de la production échoue à la vérification ADS-B de co-atc (« no route to host » vers la station), alors que le
+porteur vient de joindre la station à sa première tentative ; le démarrage suivant passe du premier coup. Le
+porteur attend déjà que la station lui réponde (24/10) ; cela ne suffit pas, c'est la première connexion de
+co-atc lui-même qui est refusée. **À décider** : le lanceur réessaie-t-il une fois de lui-même quand un démarrage
+échoue ainsi dans les secondes qui suivent une réponse de la station au porteur ? Coût de ne rien faire : une
+relance qui dure 15 s de plus et un « did not start » à lire ; mesurer d'abord si l'échec se reproduit à chaque
+nouveau build.
+
 ### Q63 — Comment la page joue le son *(26/10 — **tranchée par le propriétaire : la page joue le son elle-même, en μ-law**)*
 
 **Le constat (26/10, mesuré)** : la page confiait chaque fréquence à un élément `<audio>`, et chaque navigateur

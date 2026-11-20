@@ -424,12 +424,24 @@ ancien lanceur arrêté, nouveau installé production arrêtée, serveur acfdc2b
 démarrage a échoué** à 14:41:49 : « no route to host » vers la station à la première connexion sous le porteur du
 nouveau build, alors que le porteur lui-même venait de la joindre (le phénomène du 24/10) ; le second, à 14:42:03,
 a passé du premier coup. 47 connexions gardées, première transcription à 14:42:34 ; la station confirme 47 s
-d'absence sur les deux flux et rien d'anormal. **Défaut trouvé au passage et corrigé (360b656, pas encore
-installé)** : le second `--start` a répondu « did not start » en 3 s, avec l'échec du premier, pendant que la
+d'absence sur les deux flux et rien d'anormal. **Défaut trouvé au passage et corrigé (360b656, installé à 14:47)** : le second `--start` a répondu « did not start » en 3 s, avec l'échec du premier, pendant que la
 production démarrait ; le signe du menu s'est corrigé seul 10 s après.
 
-**Reste** : la relecture du design sur captures ; les trois points non vérifiés ; installer 360b656 à la prochaine
-occasion ; l'étape 3 (journal, ressources, barre latérale).
+**Installé dans `/Applications` le 20/11 à 14:47** (demande du propriétaire : « elle doit aller dans le dossier
+applications général » ; `build.sh --install` y copie désormais, l'ancienne copie de `~/Applications` est à la
+Corbeille). Fait production en marche, lanceur quitté puis rouvert : build 38f2ab7, qui porte aussi 360b656.
+
+**Quitter l'app sans arrêter la production : oui, mesuré le 20/11** (question du propriétaire). Depuis A3 la
+production tourne dans « Clairance Server », pas dans le lanceur : « Quit launcher » ne demande rien et la laisse
+tourner. Lanceur quitté à 14:46:00, relevé toutes les 10 s pendant 30 s : ADS-B lu à 14:46:11, 21 et 32, les deux
+flux décodés à la seconde près (1,9 Mo par minute chacun), une transcription à 14:46:29. Rouvert à 14:47, le
+lanceur retrouve la production (« Production running · 5 min », « Depends on: Clairance »). Ce qui s'arrête avec
+lui : l'icône, le gardien et ses notifications — personne ne prévient plus si la production tombe.
+
+**Reste** : la relecture du design sur captures ; les trois points non vérifiés ; l'étape 3 (journal, ressources,
+barre latérale). **Question ouverte (Q64)** : le premier démarrage sous le porteur d'un nouveau build échoue sur
+« no route to host » (24/10, 20/11), alors que le porteur vient de joindre la station ; faut-il que le lanceur
+réessaie une fois de lui-même dans ce cas précis ?
 
 ## Les garde-fous
 

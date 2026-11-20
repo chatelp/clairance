@@ -42,7 +42,7 @@ transcription sidecar, then the station link `bin/radio-ctl-sync`, and stops all
 three on SIGTERM.
 
 ```sh
-tools/menubar/build.sh --install   # builds Clairance.app, copies it to ~/Applications
+tools/menubar/build.sh --install   # builds Clairance.app, copies it to /Applications
 ```
 
 Needs Xcode's command line tools and macOS 13 or later. Optional settings in
@@ -155,13 +155,13 @@ production: `CLAIRANCE_LAUNCHER_CONFIG` names its launcher.json,
 ## From a terminal, a Shortcut or an agent
 
 ```sh
-C=~/Applications/Clairance.app/Contents/MacOS/clairance
+C=/Applications/Clairance.app/Contents/MacOS/clairance
 $C --status
 $C --start                                   # or --stop
 $C --start-test runs/my-test/config.toml --for 2h [--binary path/to/co-atc]
 $C --stop-test runs/my-test/config.toml
 $C --snapshot window.png [--light | --dark] [--unfold] [600x680]
-open -g ~/Applications/Clairance.app --args --background   # the launcher, without its window
+open -g /Applications/Clairance.app --args --background   # the launcher, without its window
 ```
 
 `--start` and `--start-test` never start anything themselves: they ask the
