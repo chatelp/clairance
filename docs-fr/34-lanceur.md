@@ -466,6 +466,13 @@ co-atc ». Le dépliage d'une instance au clic marche (confirmé par le proprié
   propriétaire sont annoncées comme les autres.
 - `clairance --snapshot --settings` écrit la fenêtre des réglages.
 
+**Seconde relecture du design, 15:1x** (fiche 11) : R1 à R6 acceptés, la notification de connexion acceptée telle
+quelle, quatre retouches (N1 à N4) **faites** : la file d'une instance sur sa propre ligne « Queue » ; l'en-tête
+d'un binaire hors de la branche (« … · 25d83ce-dirty · not in local ») ; les réglages en deux sections, les sept
+défauts puis « Notify when someone connects » à part, « Visits from Admin accounts are not notified » ; « a sidecar
+or a station link » au lieu de « a helper ». Vues à l'image (captures 40 et 41), sauf l'en-tête « -dirty », qui
+demande un binaire construit d'un dépôt modifié. **Pas encore installées** : elles partiront avec la relance 18.
+
 **Q64, un point de mesure de plus** : sur le banc, à 14:57, le premier démarrage sous le porteur d'un build tout
 neuf a joint la station du premier coup. L'échec n'est donc pas systématique.
 
