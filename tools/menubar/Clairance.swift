@@ -417,6 +417,7 @@ struct Starting {
     var sawCoAtc = false
     var stationSilent: Date?    // when the carrier wrote that the station did not answer
     var script: Started?        // the script, once its carrier has started it
+    var attempt = 1             // 2 and 3 are the launcher's own, after a first connection refused
 
     /// co-atc wrote a fatal line since the start: it gave up, whether or not a scan saw it run.
     var fatal: String? { coatcLines.last { $0.contains("\tfatal\t") } }
@@ -699,18 +700,27 @@ final class Production: ObservableObject {
                 let scriptGone = s.script.map { Proc.read($0.pid)?.start != $0.start } ?? false
                 if s.sawCoAtc || scriptGone || s.fatal != nil || s.stationSilent.map({ now.timeIntervalSince($0) > 10 }) == true
                     || now.timeIntervalSince(s.at) > 300 {
-                    // A new failure replaces the last one's notification, with its own cause.
-                    if case .didNotStart = down { guardian.dismiss("production-start") }
-                    down = .didNotStart(at: s.at, cause: failedStartCause(s), notify: s.origin == .commandLine)
                     // The failed start's script goes too: still waiting for a co-atc, it would
                     // take the next start's for its own and start a second station link
                     // (seen on the bench, 24/10).
-                    if let st = started.last(where: { $0.role == "production" }), let sp = Proc.read(st.pid), sp.start == st.start {
-                        terminate(sp)
-                    }
+                    let script = started.last(where: { $0.role == "production" }).flatMap { st in Proc.read(st.pid).flatMap { $0.start == st.start ? $0 : nil } }
+                    if let script { terminate(script) }
                     starting = nil
-                    busy = false
-                    note = ""
+                    if s.attempt < 3, refusedAtItsFirstConnection(s) {
+                        // Said in the log, not on the sign: it stays "starting" while the launcher tries again.
+                        appendLauncherLog("co-atc did not reach the station at its ADS-B check though the station answers (attempt \(s.attempt)): starting again")
+                        let (origin, next) = (s.origin, s.attempt + 1)
+                        Task {
+                            for _ in 0..<25 where script?.alive == true { try? await Task.sleep(nanoseconds: 200_000_000) }
+                            await self.start(from: origin, attempt: next)
+                        }
+                    } else {
+                        // A new failure replaces the last one's notification, with its own cause.
+                        if case .didNotStart = down { guardian.dismiss("production-start") }
+                        down = .didNotStart(at: s.at, cause: failedStartCause(s), notify: s.origin == .commandLine)
+                        busy = false
+                        note = ""
+                    }
                 } else {
                     starting = s
                 }
@@ -784,6 +794,19 @@ final class Production: ObservableObject {
         guard let stop = tail.lastIndex(where: { $0.contains("arret demande") }) else { return false }
         let ready = tail.lastIndex(where: { $0.contains("co-atc pret") }) ?? -1
         return stop > ready
+    }
+
+    /// co-atc could not reach its ADS-B source when it started, though the station
+    /// had just answered the carrier and answers this Mac. After a new build of
+    /// the launcher is installed, the first connection of what its carrier runs
+    /// is refused ("no route to host") and the next start passes: seen on 24/10
+    /// and at both restarts of 20/11, where the owner saw "did not start" each
+    /// time. The launcher then starts again by itself, twice at most (Q64).
+    private func refusedAtItsFirstConnection(_ s: Starting) -> Bool {
+        guard s.stationSilent == nil, observation.station.answered,
+              let line = s.coatcLines.last(where: { $0.contains("ADS-B source validation failed") }) else { return false }
+        let error = jsonField(line, "error") ?? ""
+        return ["no route to host", "connection refused", "i/o timeout", "Client.Timeout", "deadline exceeded"].contains(where: error.contains)
     }
 
     /// A failed start's cause, as far as the launcher can tell it (design 10).
@@ -881,9 +904,17 @@ final class Production: ObservableObject {
     // Clairance.app of its own, and depends on it rather than on the menu: the
     // menu can then quit, crash or be updated without production losing the
     // station (Q59, measured on 24/10).
-    func start(from origin: Origin = .menu) async {
-        guard serving, !running, !busy else { return }
+    func start(from origin: Origin = .menu, attempt: Int = 1) async {
+        // Its own second attempt comes in while the launcher is still "starting".
+        guard serving, !running, attempt > 1 || !busy else {
+            if attempt > 1 {
+                busy = false
+                note = ""
+            }
+            return
+        }
         guard FileManager.default.isExecutableFile(atPath: script) else {
+            busy = false
             note = "Not found: \(script)"
             return
         }
@@ -904,7 +935,7 @@ final class Production: ObservableObject {
         day.dateFormat = "yyyy-MM-dd"
         let coatcLog = file.isEmpty ? nil : LogTail(((file as NSString).deletingPathExtension) + "-" + day.string(from: Date())
                                                      + ((file as NSString).pathExtension.isEmpty ? "" : "." + (file as NSString).pathExtension))
-        starting = Starting(origin: origin, at: Date(), carrierLog: LogTail(log), coatcLog: coatcLog)
+        starting = Starting(origin: origin, at: Date(), carrierLog: LogTail(log), coatcLog: coatcLog, attempt: attempt)
         guard let pid = await carry(["/bin/sh", script], log: log), let proc = Proc.read(pid) else {
             starting = nil
             busy = false
