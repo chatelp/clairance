@@ -110,6 +110,20 @@ func TestTheOwnerSeesWhatEachAccountDid(t *testing.T) {
 		t.Fatalf("the viewer, now: %+v (all: %+v)", here, seen.Now)
 	}
 
+	// The launcher reads the same, in the health detail, from this machine.
+	var detail HealthDetail
+	rec := s.do("GET", "/api/v1/health/detail", "", fromLoopback("127.0.0.1:50123", "127.0.0.1:8000"))
+	decode(t, rec, &detail)
+	var seenByLauncher *usage.Present
+	for i := range detail.Present {
+		if detail.Present[i].User == viewerUser {
+			seenByLauncher = &detail.Present[i]
+		}
+	}
+	if p := seenByLauncher; p == nil || p.Pages != 1 || p.Since == nil || len(p.Listening) != 1 || p.Listening[0].Freq != "station" {
+		t.Errorf("the viewer, in the health detail: %+v (all: %+v)", p, detail.Present)
+	}
+
 	// Cut off: its page and its stream are written as cut.
 	if rec := s.do("POST", "/api/v1/accounts/"+viewerUser+"/cut", ""); rec.Code != http.StatusOK {
 		t.Fatalf("cut: %d %s", rec.Code, rec.Body.String())

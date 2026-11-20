@@ -88,47 +88,17 @@ func (j *Journal) Report(loc *time.Location) Report {
 	return build(done, open, now, loc, j.Days())
 }
 
-func build(done, open []Record, now time.Time, loc *time.Location, days int) Report {
-	rep := Report{Days: days, Now: []Present{}, Accounts: []Account{}}
+// Present is who is here now, without the week's figures: what the launcher
+// reads every few seconds (the server's health detail).
+func (j *Journal) Present() []Present {
+	if j == nil {
+		return []Present{}
+	}
+	return present(j.opened())
+}
 
-	// Who is here now.
-	present := map[string]*Present{}
-	var order []string
-	for _, r := range open {
-		p := present[r.User]
-		if p == nil {
-			p = &Present{User: r.User, Listening: []Listening{}}
-			present[r.User] = p
-			order = append(order, r.User)
-		}
-		switch r.Kind {
-		case KindPage:
-			p.Pages++
-			if p.Since == nil || r.Start.Before(*p.Since) {
-				t := r.Start
-				p.Since = &t
-			}
-		case KindSound:
-			p.Listening = append(p.Listening, Listening{Freq: r.Freq, Since: r.Start})
-		}
-	}
-	for _, u := range order {
-		p := present[u]
-		sort.Slice(p.Listening, func(a, b int) bool { return p.Listening[a].Freq < p.Listening[b].Freq })
-		// Two pages listening to the same frequency: once, the earliest.
-		var l []Listening
-		for _, x := range p.Listening {
-			if n := len(l); n > 0 && l[n-1].Freq == x.Freq {
-				continue
-			}
-			l = append(l, x)
-		}
-		if l == nil {
-			l = []Listening{}
-		}
-		p.Listening = l
-		rep.Now = append(rep.Now, *p)
-	}
+func build(done, open []Record, now time.Time, loc *time.Location, days int) Report {
+	rep := Report{Days: days, Now: present(open), Accounts: []Account{}}
 
 	// Each account's last 7 days. What is open counts up to now.
 	local := now.In(loc)
@@ -313,4 +283,47 @@ func seconds(ss []span, a, b time.Time) int64 {
 		}
 	}
 	return int64(d.Round(time.Second) / time.Second)
+}
+
+// present groups what is open by account, in the order each arrived.
+func present(open []Record) []Present {
+	now := []Present{}
+	present := map[string]*Present{}
+	var order []string
+	for _, r := range open {
+		p := present[r.User]
+		if p == nil {
+			p = &Present{User: r.User, Listening: []Listening{}}
+			present[r.User] = p
+			order = append(order, r.User)
+		}
+		switch r.Kind {
+		case KindPage:
+			p.Pages++
+			if p.Since == nil || r.Start.Before(*p.Since) {
+				t := r.Start
+				p.Since = &t
+			}
+		case KindSound:
+			p.Listening = append(p.Listening, Listening{Freq: r.Freq, Since: r.Start})
+		}
+	}
+	for _, u := range order {
+		p := present[u]
+		sort.Slice(p.Listening, func(a, b int) bool { return p.Listening[a].Freq < p.Listening[b].Freq })
+		// Two pages listening to the same frequency: once, the earliest.
+		var l []Listening
+		for _, x := range p.Listening {
+			if n := len(l); n > 0 && l[n-1].Freq == x.Freq {
+				continue
+			}
+			l = append(l, x)
+		}
+		if l == nil {
+			l = []Listening{}
+		}
+		p.Listening = l
+		now = append(now, *p)
+	}
+	return now
 }

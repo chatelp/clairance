@@ -313,9 +313,21 @@ func (j *Journal) snapshot() (done []Record, open []Record, now time.Time) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	done = append([]Record(nil), j.done...)
+	return done, j.openedLocked(), j.now()
+}
+
+// opened is what is open now, oldest first, without the journal's past.
+func (j *Journal) opened() []Record {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	return j.openedLocked()
+}
+
+func (j *Journal) openedLocked() []Record {
+	var open []Record
 	for _, it := range j.open {
 		open = append(open, it.rec)
 	}
 	sort.Slice(open, func(a, b int) bool { return open[a].Start.Before(open[b].Start) })
-	return done, open, j.now()
+	return open
 }

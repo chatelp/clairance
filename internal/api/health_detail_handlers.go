@@ -14,6 +14,7 @@ import (
 	"github.com/yegors/co-atc/internal/auth"
 	"github.com/yegors/co-atc/internal/frequencies"
 	"github.com/yegors/co-atc/internal/startcheck"
+	"github.com/yegors/co-atc/internal/usage"
 	"github.com/yegors/co-atc/pkg/disk"
 	"github.com/yegors/co-atc/pkg/logger"
 )
@@ -51,6 +52,10 @@ type HealthDetail struct {
 	Receiver     *receiverState                `json:"receiver"`
 	AudioArchive HealthArchive                 `json:"audio_archive"`
 	Databases    HealthDatabases               `json:"databases"`
+
+	// Who has a page or a stream open now, by account (internal/usage): the
+	// launcher's "who is connected" (20/11). Empty without sign-in or usage.
+	Present []usage.Present `json:"present"`
 
 	// What the startup check found missing, with what suffers from each
 	// (internal/startcheck); empty when nothing is. Said at start: a program
@@ -238,6 +243,7 @@ func (h *Handler) computeHealthDetail(r *http.Request) HealthDetail {
 	}
 
 	d.Receiver = h.receiverNow()
+	d.Present = h.usage.Present()
 	d.Missing = h.missing
 	if d.Missing == nil {
 		d.Missing = []startcheck.Missing{}

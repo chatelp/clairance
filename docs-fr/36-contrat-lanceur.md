@@ -99,6 +99,11 @@ Le statut de sortie est 0.
 Ajouté par la fiche R : `contract` (1) ; `receiver.channels[]` (`id`, `designation`, `mhz`, `stream`), **ce qui est à
 l'antenne**, relayé par la liaison depuis `/radio/etat` ; une liaison qui ne rapporte plus se voit à `receiver.stale`.
 
+Ajouté le 20/11 (demande du propriétaire : le lanceur dit qui est connecté) : `present[]`, **qui a une page ou un
+flux ouvert maintenant**, par compte : `user`, `pages`, `since` (sa plus ancienne page ouverte, absent sans page),
+`listening[]` (`freq`, `since`). Liste vide sans connexion obligatoire ou sans suivi d'usage (D84). Même lecture que
+le « now » de `/api/v1/usage`, sans les sept jours ; elle a 5 s au plus, comme le reste de la réponse.
+
 ## 6. La description du processus : `process`
 
 | Champ | Contenu |

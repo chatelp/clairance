@@ -59,6 +59,15 @@ page.commit                                string   optional
 page.dir                                   string   optional
 page.source                                string   required
 pid                                        number   required
+present                                    array    required
+present[]                                  object   required
+present[].listening                        array    required
+present[].listening[]                      object   required
+present[].listening[].freq                 string   required
+present[].listening[].since                time     required
+present[].pages                            number   required
+present[].since                            time     optional
+present[].user                             string   required
 process                                    object   required
 process.adsb_source                        object   optional
 process.adsb_source.type                   string   required
