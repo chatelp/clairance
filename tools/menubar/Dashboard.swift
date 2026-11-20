@@ -410,7 +410,7 @@ final class DashboardWindow: NSObject, NSToolbarDelegate, NSMenuItemValidation {
     /// `clairance --snapshot`, for a review of the real window without a screen
     /// recording.
     func snapshot(look: String?, size: [Double]?, unfold: Bool) async -> Data? {
-        guard make(), let w = window, let frame = w.contentView?.superview, let p = Production.shared else { return nil }
+        guard make(), let w = window, let p = Production.shared else { return nil }
         let before = (look: w.appearance, frame: w.frame, unfolded: unfolded.pids)
         if let look { w.appearance = NSAppearance(named: look == "dark" ? .darkAqua : .aqua) }
         if let size, size.count == 2 { w.setContentSize(NSSize(width: size[0], height: size[1])) }
@@ -423,11 +423,7 @@ final class DashboardWindow: NSObject, NSToolbarDelegate, NSMenuItemValidation {
         // The view takes its new state at the next turn of the run loop.
         try? await Task.sleep(nanoseconds: 300_000_000)
         sync()
-        frame.layoutSubtreeIfNeeded()
-        frame.displayIfNeeded()
-        guard let rep = frame.bitmapImageRepForCachingDisplay(in: frame.bounds) else { return nil }
-        frame.cacheDisplay(in: frame.bounds, to: rep)
-        return rep.representation(using: .png, properties: [:])
+        return windowPNG(w)
     }
 
     private func make() -> Bool {

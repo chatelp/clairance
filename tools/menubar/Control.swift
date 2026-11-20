@@ -29,6 +29,7 @@ struct ControlRequest: Codable {
     var look: String?            // snapshot: "light" or "dark"; the system's otherwise
     var size: [Double]?          // snapshot: the content's width and height; the window's otherwise
     var unfold: Bool?            // snapshot: every instance unfolded
+    var window: String?          // snapshot: "settings" for the settings window; the Dashboard otherwise
 }
 
 struct ControlReply: Codable {

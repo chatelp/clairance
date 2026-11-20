@@ -93,6 +93,23 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     private(set) var window: NSWindow?
 
     func show() {
+        make()
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// The settings as they are drawn, in PNG, shown or not (`clairance --snapshot --settings`).
+    func snapshot(look: String?) async -> Data? {
+        make()
+        guard let w = window else { return nil }
+        let before = w.appearance
+        if let look { w.appearance = NSAppearance(named: look == "dark" ? .darkAqua : .aqua) }
+        defer { w.appearance = before }
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        return windowPNG(w)
+    }
+
+    private func make() {
         if window == nil {
             let w = NSWindow(contentViewController: NSHostingController(rootView: LauncherSettings()))
             w.title = "Clairance Settings"
@@ -102,9 +119,18 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
             w.center()
             window = w
         }
-        NSApplication.shared.activate(ignoringOtherApps: true)
-        window?.makeKeyAndOrderFront(nil)
     }
+}
+
+/// A window with its title bar, as it is drawn now, in PNG.
+@MainActor
+func windowPNG(_ w: NSWindow) -> Data? {
+    guard let frame = w.contentView?.superview else { return nil }
+    frame.layoutSubtreeIfNeeded()
+    frame.displayIfNeeded()
+    guard let rep = frame.bitmapImageRepForCachingDisplay(in: frame.bounds) else { return nil }
+    frame.cacheDisplay(in: frame.bounds, to: rep)
+    return rep.representation(using: .png, properties: [:])
 }
 
 /// The launcher's app delegate: the Dock policy and the window at launch, the

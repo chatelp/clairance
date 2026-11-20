@@ -244,7 +244,8 @@ final class Guard {
     private(set) var open: [String: Incident] = [:]
     private var since: [String: Date] = [:]
     private var clearing: [String: Date] = [:]
-    var post: (String, String, Notice) -> Void = { _, _, _ in } // key, thread, notice
+    /// Posts a notification (key, thread, notice); false when its kind is switched off.
+    var post: (String, String, Notice) -> Bool = { _, _, _ in true }
     private let journal = (supportDir as NSString).appendingPathComponent("events.jsonl")
 
     /// When an open incident's condition began.
@@ -260,8 +261,8 @@ final class Guard {
                 guard now.timeIntervalSince(begun) >= f.hold else { continue }
                 let i = Incident(finding: f, began: f.began ?? begun, opened: now)
                 open[f.key] = i
-                write("open", f.key, f.notice, began: i.began)
-                if !f.quiet { post(f.key, f.kind, f.notice) }
+                let posted = f.quiet || post(f.key, f.kind, f.notice)
+                write("open", f.key, f.notice, began: i.began, muted: !posted)
             } else if let i = open[f.key] {
                 open[f.key] = Incident(finding: f, began: i.began, opened: i.opened) // keep the menu's cause current
             }
@@ -276,8 +277,8 @@ final class Guard {
             let lasted = c.timeIntervalSince(i.began)
             if let r = i.finding.recovery, !i.finding.quiet {
                 let n = r(lasted, facts)
-                write("close", key, n, began: i.began)
-                post(key, i.finding.kind, n)
+                let posted = post(key, i.finding.kind, n)
+                write("close", key, n, began: i.began, muted: !posted)
             } else {
                 write("close", key, nil, began: i.began)
             }
@@ -295,15 +296,18 @@ final class Guard {
 
     /// A notification that is no incident: "Transcription restarted".
     func event(_ key: String, thread: String, _ n: Notice) {
-        write("event", key, n, began: nil)
-        post(key + "." + String(Int(Date().timeIntervalSince1970)), thread, n)
+        let posted = post(key + "." + String(Int(Date().timeIntervalSince1970)), thread, n)
+        write("event", key, n, began: nil, muted: !posted)
     }
 
-    private func write(_ event: String, _ key: String, _ n: Notice?, began: Date?) {
+    /// muted: its kind of notification is switched off in the settings; the
+    /// journal then says why nothing was shown.
+    private func write(_ event: String, _ key: String, _ n: Notice?, began: Date?, muted: Bool = false) {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         var line: [String: String] = ["at": f.string(from: Date()), "event": event, "key": key]
         if let b = began { line["began"] = f.string(from: b) }
+        if muted { line["muted"] = "true" }
         if let n {
             line["title"] = n.title
             line["body"] = n.body

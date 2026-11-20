@@ -496,8 +496,9 @@ final class Production: ObservableObject {
             // Each kind of notification has its switch in the settings; an incident
             // shows on the icon, in the menu and in the window either way.
             guardian.post = { [weak self] key, thread, n in
-                guard notifies(thread) else { return }
+                guard notifies(thread) else { return false }
                 self?.notifier.post(key, thread: thread, n)
+                return true
             }
             timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
                 Task { @MainActor in await self?.refresh() }
@@ -1142,7 +1143,9 @@ final class Production: ObservableObject {
         case "snapshot":
             // The window as it is drawn, for a review without a screen recording.
             guard let file = r.file else { return reply(.end(false, "no file given")) }
-            guard let png = await DashboardWindow.shared.snapshot(look: r.look, size: r.size, unfold: r.unfold ?? false) else { return reply(.end(false, "the window could not be drawn")) }
+            let png = r.window == "settings" ? await SettingsWindow.shared.snapshot(look: r.look)
+                : await DashboardWindow.shared.snapshot(look: r.look, size: r.size, unfold: r.unfold ?? false)
+            guard let png else { return reply(.end(false, "the window could not be drawn")) }
             do {
                 try png.write(to: URL(fileURLWithPath: file))
                 reply(.end(true, "wrote \(file)"))
@@ -1495,7 +1498,7 @@ enum Entry {
     static let usage = """
         usage: clairance --status
                clairance --background              (the launcher, without its window)
-               clairance --snapshot <file.png> [--light | --dark] [--unfold] [600x680]
+               clairance --snapshot <file.png> [--settings] [--light | --dark] [--unfold] [600x680]
                clairance --start | --stop
                clairance --start-test <config> [--for 2h] [--binary <co-atc>]
                clairance --stop-test <config>
@@ -1620,6 +1623,7 @@ enum Entry {
                 let size = option.split(separator: "x").compactMap { Double($0) }
                 if size.count == 2 { request.size = size }
                 else if option == "--unfold" { request.unfold = true }
+                else if option == "--settings" { request.window = "settings" }
                 else { request.look = String(option.dropFirst(2)) }
             }
             exit(send(request, open: false) ? 0 : 1)

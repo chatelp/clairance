@@ -65,8 +65,12 @@ Needs Xcode's command line tools and macOS 13 or later. Optional settings in
 of this Mac's keychain that build.sh signs the app with (otherwise ad hoc): the
 app then keeps one identity from one build to the next.
 
-The app's own settings (Settings…, ⌘,) say whether it also shows in the Dock;
-by default it does, and a click on its Dock icon opens the window.
+The app's own settings (Settings…, ⌘,) say whether it also shows in the Dock
+(by default it does, and a click on its Dock icon opens the window), and which
+kinds of notifications it sends, each with its switch, all on by default:
+production, the station, audio, transcription, disks, memory, instances left
+running, and someone connecting. A kind switched off still shows on the icon,
+in the menu and in the window, and `events.jsonl` marks its events `muted`.
 
 The app's icon is `AppIcon.icon`, an Icon Composer document: since macOS 26 the
 system draws an app's icon from such a file, and shrinks an older one into a
@@ -139,6 +143,13 @@ been gone for 10 s, and is written to `events.jsonl` beside the socket:
 | Archive disk missing, disk under 20 GB (5 GB), memory pressure for 2 min | | Fault |
 | A test instance running 12 h, a helper left 10 min without an instance | | — |
 
+The launcher also notifies when an account connects ("gabriel connected", with
+its open pages and what it listens to; a click opens the window): not for who
+was there when the launcher or the server started (pages come back by
+themselves within two minutes of a restart), not for a page reopened within
+10 minutes, which the server counts as the same visit, and not for an owner's
+own visits, which the server tells by `present[].role`.
+
 Notifications are macOS's own, one per incident and replaced by a second when
 it ends; their buttons that stop or restart ask first. They need Clairance
 allowed in System Settings > Notifications: switched off there, macOS refuses
@@ -160,7 +171,7 @@ $C --status
 $C --start                                   # or --stop
 $C --start-test runs/my-test/config.toml --for 2h [--binary path/to/co-atc]
 $C --stop-test runs/my-test/config.toml
-$C --snapshot window.png [--light | --dark] [--unfold] [600x680]
+$C --snapshot window.png [--settings] [--light | --dark] [--unfold] [600x680]
 open -g /Applications/Clairance.app --args --background   # the launcher, without its window
 ```
 
