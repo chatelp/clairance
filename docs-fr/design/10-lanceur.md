@@ -376,7 +376,8 @@ Règles d'écriture :
   la notification elle-même. « journal » ouvre le journal de la production à sa fin ; « Finder »
   montre le volume ou le dossier des données ; « Moniteur d'activité » ouvre l'application.
 
-## Ce qui reste à l'étape 2
+## L'étape 2
 
-La fenêtre du tableau de bord : les blocs de `34-lanceur.md`, avec les mêmes formes, les mêmes
-nombres et le même ton. Sa fiche viendra à la demande de l'agent.
+La fenêtre (« Dashboard »), le menu allégé, le Dock et l'ouverture au lancement : `11-lanceur-fenetre.md`
+(proposée le 20/11). Ce qu'elle change ici : le clic sur le Dock ouvre la fenêtre, le menu ne garde de la santé
+que ce qui demande un regard, les instances passent dans la fenêtre, « Stop production » demande une confirmation.
