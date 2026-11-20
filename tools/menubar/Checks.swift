@@ -12,6 +12,14 @@ enum Down: Sendable {
     case didNotStart(at: Date, cause: String, notify: Bool)
 }
 
+/// Production's build, as the window's header says it.
+struct BuildInfo: Equatable, Sendable {
+    var version = ""   // its tag, when it has one
+    var day = ""       // "20 November 2026", the day of its commit
+    var commit = ""
+    var behind = ""    // "up to date", "4 commits behind local", or nothing
+}
+
 /// A helper left without an instance, and since when the launcher has seen it so.
 struct Orphan: Sendable {
     let helper: Helper
@@ -86,7 +94,15 @@ func assess(_ o: Observation) -> (findings: [Finding], lines: [HealthLine], fact
         break
     }
 
-    guard let p else { return (f, lines, facts) }
+    // Stopped: what the launcher reads itself keeps its fact, the rest says why
+    // it has none (design 11).
+    guard let p else {
+        lines.append(HealthLine(light: o.station.answered ? .good : .unknown, name: "Station",
+                                fact: o.station.answered ? stationFact(o.station) : "not answering this Mac"))
+        for name in ["ADS-B", "Audio", "Transcription"] { lines.append(HealthLine(light: .off, name: name, fact: "production stopped")) }
+        lines += localLines(o, &f, &facts)
+        return (f, lines, facts)
+    }
 
     // The server answers.
     if !p.answers {
@@ -327,10 +343,20 @@ func stationFact(_ s: StationRead) -> String {
     return "nothing on air"
 }
 
+/// What is free on a folder's volume, as statfs counts it for this user.
+func localDiskFree(_ path: String) -> Int64? {
+    guard !path.isEmpty, let a = try? FileManager.default.attributesOfFileSystem(forPath: path) else { return nil }
+    return (a[.systemFreeSize] as? NSNumber)?.int64Value
+}
+
 /// Disk and memory: read on this Mac, whether the server answers or not.
 private func localLines(_ o: Observation, _ f: inout [Finding], _ facts: inout [String: String]) -> [HealthLine] {
     var lines: [HealthLine] = []
     let d = o.detail
+    if d?.databases.disk_free_bytes == nil, let free = localDiskFree(o.dataDir) {
+        // The server does not say: the launcher's own reading, a line and no incident.
+        lines.append(HealthLine(light: free < diskFault ? .fault : .good, name: "Disk", fact: "\(brandGB(free)) free"))
+    }
     if let free = d?.databases.disk_free_bytes {
         facts["disk_free"] = brandGB(free)
         if free < diskCritical {

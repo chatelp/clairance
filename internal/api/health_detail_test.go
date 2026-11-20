@@ -93,6 +93,10 @@ func TestTheHealthDetailSaysWhatTheLauncherWatches(t *testing.T) {
 	if d.Receiver != nil {
 		t.Errorf("a receiver before any report: %+v", d.Receiver)
 	}
+	// No usage journal here: an empty list, and said to be no reading.
+	if d.Present == nil || len(d.Present) != 0 || d.Accounts.Usage {
+		t.Errorf("present without a usage journal: %+v, accounts %+v", d.Present, d.Accounts)
+	}
 	if d.AudioArchive.CapBytes != 60<<30 || d.AudioArchive.Bytes != nil || d.AudioArchive.MeasuredAt != nil {
 		t.Errorf("the archive before any purge: %+v", d.AudioArchive)
 	}

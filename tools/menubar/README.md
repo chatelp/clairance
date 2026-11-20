@@ -4,10 +4,20 @@ An icon in the menu bar, and by default in the Dock, that says whether co-atc's
 production runs and whether it is healthy, starts and stops it, and opens the
 page. It notifies when production goes deaf, stops by itself or degrades.
 Nothing starts on its own: production runs only when asked. The forms and the
-words are docs-fr/design/10-lanceur.md; the checks and their measures are
-docs-fr/34-lanceur.md.
+words are docs-fr/design/10-lanceur.md and 11-lanceur-fenetre.md; the checks
+and their measures are docs-fr/34-lanceur.md.
 
-Below, every co-atc running on this Mac, production and test alike, read from
+Its window, "Dashboard" (Show Dashboard in the menu, ⌘0, or a click on the
+Dock icon), says the same at a glance: the state and its cause, production's
+version, the six health lines, who is connected (each account's open pages and
+the frequencies it listens to, read from the server's
+`/api/v1/health/detail`), and every instance with its details and actions. The
+menu keeps the state, the health lines that need a look, who is connected, and
+the few actions one reaches for from the bar. The window opens when the app is
+opened by its owner, not when a command opened the launcher. Stopping
+production from the menu or the window asks first.
+
+In the window, every co-atc running on this Mac, production and test alike, read from
 the kernel by PID and from its own config and server: the page it serves (the
 branch and commit when its `www` is a checkout's), the server's version, its
 aircraft and transmissions of the day, its transcription (real model or fake,
@@ -32,7 +42,7 @@ transcription sidecar, then the station link `bin/radio-ctl-sync`, and stops all
 three on SIGTERM.
 
 ```sh
-tools/menubar/build.sh --install   # builds Clairance.app, copies it to ~/Applications
+tools/menubar/build.sh --install   # builds Clairance.app, copies it to /Applications
 ```
 
 Needs Xcode's command line tools and macOS 13 or later. Optional settings in
@@ -56,7 +66,7 @@ of this Mac's keychain that build.sh signs the app with (otherwise ad hoc): the
 app then keeps one identity from one build to the next.
 
 The app's own settings (Settings…, ⌘,) say whether it also shows in the Dock;
-by default it does, and a click on its Dock icon opens them.
+by default it does, and a click on its Dock icon opens the window.
 
 The app's icon is `AppIcon.icon`, an Icon Composer document: since macOS 26 the
 system draws an app's icon from such a file, and shrinks an older one into a
@@ -145,16 +155,24 @@ production: `CLAIRANCE_LAUNCHER_CONFIG` names its launcher.json,
 ## From a terminal, a Shortcut or an agent
 
 ```sh
-C=~/Applications/Clairance.app/Contents/MacOS/clairance
+C=/Applications/Clairance.app/Contents/MacOS/clairance
 $C --status
 $C --start                                   # or --stop
 $C --start-test runs/my-test/config.toml --for 2h [--binary path/to/co-atc]
 $C --stop-test runs/my-test/config.toml
+$C --snapshot window.png [--light | --dark] [--unfold] [600x680]
+open -g /Applications/Clairance.app --args --background   # the launcher, without its window
 ```
 
 `--start` and `--start-test` never start anything themselves: they ask the
 running launcher, through a socket in `~/Library/Application Support/Clairance/`
-open to this user only, and open the launcher first if it does not run. What
+open to this user only, and open the launcher first if it does not run, without
+its window. `--stop` from the command line does not ask: the confirmation is
+the menu's and the window's.
+
+`--snapshot` has the running launcher write its window to a PNG, as it is
+drawn, shown or not: how the window is reviewed, in both looks and at any
+size, without a screen recording. What
 starts then runs in a carrier, not under the terminal or the agent that typed
 the command; the command shows what the launcher does, and ends when the
 server answers (with production: once its station link runs and its sidecar is

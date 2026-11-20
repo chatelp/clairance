@@ -4925,6 +4925,24 @@ système de design : la séquence d'arrivée calculée dans le store pour tous l
 (la PAR la relit), les gabarits français des consignes, puis la migration elle-même
 (`04-migration.md`).
 
+### D89 — Le lanceur a une fenêtre, dit qui est connecté, et Stop demande confirmation *(20/11)*
+
+> **Demande du propriétaire, 20/11** : « améliorer l'app pour qu'elle indique qui est connecté au serveur — et aussi
+> ne pas tout passer par le menu déroulant, il faudrait une vraie fenêtre », « en respectant la charte graphique si
+> possible (voir avec l'agent design) mais ça doit rester une app franchement macOS ». Fiche
+> `design/11-lanceur-fenetre.md` **validée le jour même** (« je valide la fiche »).
+
+- **Une fenêtre « Dashboard »**, en une colonne, aux contrôles du système : l'état et sa cause, la version, la
+  santé, les connectés, les instances. Le clic du Dock l'ouvre ; elle s'ouvre quand le propriétaire ouvre l'app.
+- **Le menu ne garde que l'essentiel** : l'état, ce qui est en défaut, qui est connecté, et quelques actions.
+  Les instances et le détail de la santé sont dans la fenêtre.
+- **Arrêter la production demande une confirmation** depuis le menu et la fenêtre : qui écoute perd le son. La
+  ligne de commande (`clairance --stop`) n'en demande pas : un agent ou un script a déjà décidé.
+- **Le serveur dit qui est là** dans sa santé détaillée (`present[]`, `accounts`), lisible de la boucle locale ou
+  par le propriétaire : c'est le contrat du lanceur (`36`), on y ajoute sans rien casser.
+
+Livraison, mesures et écarts à la fiche : `34-lanceur.md`, « L'étape 2 ».
+
 ### D88 — Le modèle anglais de la production lu sur le disque externe *(05/11)*
 
 > **Décision du propriétaire, 05/11** (« oui on déplace »), pour libérer 2,9 Go du disque interne.
@@ -5461,6 +5479,17 @@ rien jusqu'au rechargement. **Vérifié** dans un navigateur sur une instance d'
 (`runs/son-test/`, ports 8020, 8023, 8024 ; le 8021 est pris par un service système) : flux des
 ports annexes en 200, son ouvert sur la tuile cliquée, source ajoutée en cours de route branchée
 sans rechargement. Sans cookie, le même flux répond 401 : c'était l'ancien comportement.
+
+### Q64 — Le premier démarrage sous le porteur d'un nouveau build échoue : réessayer seul ? *(20/11, ouverte)*
+
+Vu le 24/10 puis le 20/11 (relance 17) : après l'installation d'un nouveau build du lanceur, le premier démarrage
+de la production échoue à la vérification ADS-B de co-atc (« no route to host » vers la station), alors que le
+porteur vient de joindre la station à sa première tentative ; le démarrage suivant passe du premier coup. Le
+porteur attend déjà que la station lui réponde (24/10) ; cela ne suffit pas, c'est la première connexion de
+co-atc lui-même qui est refusée. **À décider** : le lanceur réessaie-t-il une fois de lui-même quand un démarrage
+échoue ainsi dans les secondes qui suivent une réponse de la station au porteur ? Coût de ne rien faire : une
+relance qui dure 15 s de plus et un « did not start » à lire ; mesurer d'abord si l'échec se reproduit à chaque
+nouveau build.
 
 ### Q63 — Comment la page joue le son *(26/10 — **tranchée par le propriétaire : la page joue le son elle-même, en μ-law**)*
 

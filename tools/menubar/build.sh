@@ -1,6 +1,6 @@
 #!/bin/sh
 # Build the menu bar launcher into tools/menubar/build/Clairance.app.
-# With --install, also copy it to ~/Applications.
+# With --install, also copy it to /Applications.
 #
 # Needs the Xcode command line tools (swiftc) and macOS 13 or later.
 set -e
@@ -105,20 +105,25 @@ fi
 echo "built $app"
 
 if [ "$install" = "--install" ]; then
+	# Into /Applications, where a Mac's apps live (owner's request, 20/11; it was
+	# ~/Applications until then).
+	dest=/Applications
 	# Never while a carrier runs from the installed app: replacing the bundle under it
 	# took production's local network away at once, though the carrier ran on
 	# (26/10, 10:49). Carriers are read by their exact name and arguments.
 	for pid in $(pgrep -x clairance); do
 		args=$(ps -o args= -p "$pid")
 		case "$args" in
-		"$HOME/Applications/Clairance.app/Contents/MacOS/clairance --carry"*)
-			echo "not installed: a carrier runs from $HOME/Applications/Clairance.app (pid $pid);" >&2
+		"$dest/Clairance.app/Contents/MacOS/clairance --carry"* | "$HOME/Applications/Clairance.app/Contents/MacOS/clairance --carry"*)
+			echo "not installed: a carrier runs from the installed app (pid $pid);" >&2
 			echo "replacing the app now would take the local network from what it carries. Stop production first." >&2
 			exit 1 ;;
 		esac
 	done
-	mkdir -p "$HOME/Applications"
-	rm -rf "$HOME/Applications/Clairance.app"
-	cp -R "$app" "$HOME/Applications/"
-	echo "installed $HOME/Applications/Clairance.app"
+	rm -rf "$dest/Clairance.app"
+	cp -R "$app" "$dest/"
+	echo "installed $dest/Clairance.app"
+	if [ -d "$HOME/Applications/Clairance.app" ]; then
+		echo "an older copy remains in $HOME/Applications: move it to the Trash, or macOS may open either" >&2
+	fi
 fi

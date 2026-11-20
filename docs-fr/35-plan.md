@@ -116,7 +116,7 @@ une cause par relance) : A3 seul, puis le nouveau co-atc (P, Q, R), puis `b1-ter
 | C2. Le serveur expose ce qui manque, et un test de contrat échoue si une modification casse le lanceur | principale ; **fait le 26/10 par la fiche R**, schéma figé |
 | C3. Le lanceur cesse de lire `config.toml`, les journaux, `git`, `lsof` et les noms de processus : il démarre un programme et lit l'API | lanceur |
 | C4. Où vit le lanceur | **décidé le 26/10 : dans ce dépôt, rangé à part**, sans dépendance aux fichiers du serveur |
-| C5. Les étapes 2 (tableau de bord) et 3 (poste de commande) du lanceur, sur le contrat | lanceur, design |
+| C5. Les étapes 2 (tableau de bord) et 3 (poste de commande) du lanceur, sur le contrat | **étape 2 livrée le 20/11** par la session principale sur la fiche `design/11` (D89) : fenêtre « Dashboard », qui est connecté, menu allégé ; en production à la relance 17. Étape 3 à venir |
 
 **Sortie** : le lanceur pilote un co-atc installé ailleurs que dans ce dépôt ; le test de contrat est vert ; le
 lanceur ne lit plus aucun fichier du serveur.

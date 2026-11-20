@@ -54,6 +54,29 @@ struct HealthDetail: Decodable, Sendable {
     struct Databases: Decodable, Sendable {
         let disk_free_bytes: Int64?
     }
+    /// An account with a page or a stream open now (internal/usage/report.go).
+    struct Present: Decodable, Sendable {
+        struct Listening: Decodable, Sendable {
+            let freq: String
+            let since: Date
+        }
+        let user: String
+        let pages: Int
+        let since: Date?
+        let listening: [Listening]
+    }
+    /// Whether `present` is a reading: sign-in required, and usage followed.
+    struct Accounts: Decodable, Sendable {
+        let sign_in: Bool
+        let usage: Bool
+    }
+    struct Process: Decodable, Sendable {
+        struct Repository: Decodable, Sendable {
+            let branch: String?
+            let commits_behind: Int?
+        }
+        let repository: Repository?
+    }
     let pid: Int32
     let uptime_s: Int64
     let adsb: ADSB?
@@ -61,6 +84,10 @@ struct HealthDetail: Decodable, Sendable {
     let sidecar: Sidecar?
     let audio_archive: Archive
     let databases: Databases
+    // Absent from a co-atc built before 20/11: who is here cannot be told then.
+    let present: [Present]?
+    let accounts: Accounts?
+    let process: Process?
 
     /// The server writes RFC 3339 times, with or without fractions of a second.
     static func decode(_ data: Data) -> HealthDetail? {

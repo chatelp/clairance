@@ -348,7 +348,7 @@ pas voulu me laisser prendre en pilotant l'écran ; le niveau « sensible au tem
 notifications de panne, non vérifié, qui demande peut-être un droit que la signature de
 développeur ne donne pas ; le démarrage de la vraie production par ce lanceur.
 
-## L'étape 2, ouverte le 20/11 : la fenêtre, et qui est connecté
+## L'étape 2, livrée le 20/11 : la fenêtre, et qui est connecté
 
 > **Demande du propriétaire, 20/11** : « améliorer l'app pour qu'elle indique qui est connecté au serveur — et
 > aussi ne pas tout passer par le menu déroulant, il faudrait une vraie fenêtre — au passage la fenêtre settings
@@ -366,24 +366,82 @@ développeur ne donne pas ; le démarrage de la vraie production par ce lanceur.
   pages ouvertes, depuis quand, fréquences écoutées. Testé de bout en bout (un viewer avec une page et un flux,
   lu depuis la boucle locale). En production à la prochaine relance du serveur.
 
-**Ce que la fenêtre contiendrait** (proposition de la session principale, à mettre en forme par le design ; les
-huit blocs du « 2 » ci-dessus restent la cible, ceci est la première livraison) :
+**La forme** : fiche `design/11-lanceur-fenetre.md` de la session design (fenêtre « Dashboard » en une colonne,
+menu allégé, confirmation de Stop, ouverture au lancement par le propriétaire). **Validée par le propriétaire le
+20/11** (« je valide la fiche, installe le correctif avec la fenêtre »), décision D89.
 
-| Bloc | Contenu | D'où |
+**Livré le 20/11 (acfdc2b, 360b656), installé et en production à 14:42 (relance 17) :**
+
+- **La fenêtre** (`tools/menubar/Dashboard.swift`) : le signe à 48 points, la première ligne du menu en titre, la
+  cause en entier, les actions du moment, la version de la production (« Version of 20 November 2026 · acfdc2b ·
+  up to date » : le jour du commit lu dans le dépôt, le retard donné par le serveur) ; puis Permissions (s'il en
+  manque), Health, Connected, Instances (dépliables, avec leurs détails et leurs boutons). Barre d'outils : Start,
+  ou Stop et Restart, et Open Clairance. Contrôles, polices et couleurs du système.
+- **Qui est connecté** : `present[]` et `accounts` de la santé détaillée (af8eebe, 7db54f8), par compte trié par
+  nom ; une phrase par raison quand personne ne peut être nommé (production arrêtée, serveur muet, pas de comptes,
+  et, ajoutée ici, « Not known: this co-atc is too old to say » pour un serveur d'avant le 20/11).
+- **Le menu allégé** : l'état et sa cause, les lignes de santé en défaut (▲ ■ ○) seulement, « 2 connected ·
+  pierre, famille », Show Dashboard (⌘0), Open Clairance, Show production log, Stop… et Restart…, Settings…, Quit.
+- **Stop demande confirmation** depuis le menu et la fenêtre (« Stop production? ») ; `clairance --stop` n'en
+  demande pas, comme avant.
+- **Le clic du Dock ouvre la fenêtre** ; elle s'ouvre quand le propriétaire ouvre l'app, pas quand une commande a
+  ouvert le lanceur (`--background`, que `clairance --start` passe) ni à l'ouverture de session.
+- **La santé garde ses lignes à l'arrêt** : ce que le lanceur lit lui-même (station, disque, mémoire), et
+  « production stopped » pour le reste. Le disque lu par le lanceur et celui du serveur donnent le même chiffre
+  (75 GB le 20/11).
+- **`clairance --snapshot fichier.png [--light|--dark] [--unfold] [600x680]`** : le lanceur en marche écrit sa
+  fenêtre telle qu'elle est dessinée, affichée ou non. Né d'une contrainte (le shell n'a pas le droit de capturer
+  l'écran, et l'outil de contrôle confond deux lanceurs de même identité) ; sert aux relectures du design.
+  `--status` dit aussi qui est connecté.
+- **Les réglages** s'ouvrent enfin avec leur contenu (65e8b49, installé avec le reste).
+
+**Écarts à la fiche 11, mesurés :**
+
+| Fiche | Livré | Pourquoi |
 |---|---|---|
-| État | le signe et sa phrase (« Production running · 2 h 14 min »), version et commit ; Start, Stop, Restart, Open Clairance | ce que dit l'en-tête du menu |
-| Santé | Station, ADS-B, Audio, Transcription, Disk, Memory : une ligne chacun, voyant et mots | les lignes « Health » du menu |
-| **Connectés** | par compte : nom, pages ouvertes, depuis quand, ce qu'il écoute ; « No one connected » | `present[]`, nouveau |
-| Instances | la production et les instances d'essai, avec ce que portent aujourd'hui leurs sous-menus (adresse, journal, configuration, arrêt) | la section « Instances » du menu |
-| Autorisations | seulement quand il en manque une | les lignes d'autorisations du menu |
+| scène `Window` de SwiftUI | une `NSWindow` qui porte la vue SwiftUI, barre d'outils `NSToolbar` | une scène s'ouvre seule à chaque lancement ; il faut l'ouvrir du Dock, du menu et au lancement, jamais pour une commande |
+| 560 × 680 par défaut | **600 × 680** | à 560, « Open Clairance » ne tenait pas à côté du titre (les trois boutons demandent 316 points, il en restait 304) et passait dans le menu « » » de la barre ; à 600 les trois tiennent. Sous 580 environ, ce menu prend le relais, et il marche |
+| paires nom / valeur des instances | une ligne « Activity » (avions, transmissions, part appariée), qui n'avait pas de nom au menu ; « Server: answering / not answering » quand il n'y a pas de version | une paire a besoin d'un nom ; `--status` dit les mêmes |
+| menu Fenêtre : « Dashboard » listé par le système | en plus, une commande « Show Dashboard » (⌘0) | ⌘0 marche ainsi quand l'app est au premier plan |
 
-**Le menu, allégé** : l'en-tête d'état, une ligne « N connected » quand il y a quelqu'un, « Show Clairance » (la
-fenêtre), « Open Clairance » (la page), Start / Stop / Restart, Settings…, Quit. Les instances et le détail de la
-santé passent dans la fenêtre. Le clic sur l'icône du Dock ouvre la fenêtre (prévu par la fiche du design), plus
-les réglages.
+**Vérifié** : sur le banc (`runs/lanceur/fenetre/`, un second lanceur sur l'instance d'essai 8020, serveur du
+jour, trois comptes d'essai connectés par script) : arrêt, marche, trois connectés avec pages et écoutes, personne,
+instances dépliées, clair et sombre, 480 et 600 de large (captures dans `runs/lanceur/fenetre/captures/`). Sur
+l'app installée, par l'outil de contrôle : la fenêtre s'ouvre au lancement, les trois boutons tiennent, **Stop
+ouvre la confirmation et Cancel laisse la production en marche**, le menu Fenêtre liste la fenêtre.
 
-**À trancher par le propriétaire** : ce qui reste dans le menu (proposition ci-dessus) ; si la fenêtre s'ouvre au
-lancement de l'app.
+**Non vérifié, à dire tel quel :**
+
+- **le dépliage d'une instance au clic** : l'outil de contrôle « presse » le chevron sans effet visible ; le
+  dépliage par le programme marche (captures `--unfold`). Un vrai clic du propriétaire tranchera ;
+- **les états en défaut dans la fenêtre** (cause sur plusieurs lignes, boutons du moment, section Permissions) :
+  les provoquer sur le banc aurait envoyé de fausses alertes à l'écran du propriétaire un jour où un proche se
+  connecte ; à faire à un moment convenu ;
+- **le menu de la barre des menus** : relu dans le code, pas à l'image (aucun outil ne le capture ici).
+
+**La relance 17 (20/11, 14:41:21 – 14:42:08, 47 s)**, accord du propriétaire (« on peut faire une micro coupure ») :
+ancien lanceur arrêté, nouveau installé production arrêtée, serveur acfdc2b essayé d'abord sur 8020. **Le premier
+démarrage a échoué** à 14:41:49 : « no route to host » vers la station à la première connexion sous le porteur du
+nouveau build, alors que le porteur lui-même venait de la joindre (le phénomène du 24/10) ; le second, à 14:42:03,
+a passé du premier coup. 47 connexions gardées, première transcription à 14:42:34 ; la station confirme 47 s
+d'absence sur les deux flux et rien d'anormal. **Défaut trouvé au passage et corrigé (360b656, installé à 14:47)** : le second `--start` a répondu « did not start » en 3 s, avec l'échec du premier, pendant que la
+production démarrait ; le signe du menu s'est corrigé seul 10 s après.
+
+**Installé dans `/Applications` le 20/11 à 14:47** (demande du propriétaire : « elle doit aller dans le dossier
+applications général » ; `build.sh --install` y copie désormais, l'ancienne copie de `~/Applications` est à la
+Corbeille). Fait production en marche, lanceur quitté puis rouvert : build 38f2ab7, qui porte aussi 360b656.
+
+**Quitter l'app sans arrêter la production : oui, mesuré le 20/11** (question du propriétaire). Depuis A3 la
+production tourne dans « Clairance Server », pas dans le lanceur : « Quit launcher » ne demande rien et la laisse
+tourner. Lanceur quitté à 14:46:00, relevé toutes les 10 s pendant 30 s : ADS-B lu à 14:46:11, 21 et 32, les deux
+flux décodés à la seconde près (1,9 Mo par minute chacun), une transcription à 14:46:29. Rouvert à 14:47, le
+lanceur retrouve la production (« Production running · 5 min », « Depends on: Clairance »). Ce qui s'arrête avec
+lui : l'icône, le gardien et ses notifications — personne ne prévient plus si la production tombe.
+
+**Reste** : la relecture du design sur captures ; les trois points non vérifiés ; l'étape 3 (journal, ressources,
+barre latérale). **Question ouverte (Q64)** : le premier démarrage sous le porteur d'un nouveau build échoue sur
+« no route to host » (24/10, 20/11), alors que le porteur vient de joindre la station ; faut-il que le lanceur
+réessaie une fois de lui-même dans ce cas précis ?
 
 ## Les garde-fous
 

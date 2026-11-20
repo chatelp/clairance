@@ -1,6 +1,9 @@
 # The schema of /api/v1/health/detail, the launcher's contract (docs-fr/36-contrat-lanceur.md).
 # Written by ATC_WRITE_CONTRACT=1 go test ./internal/api -run FrozenSchema; read by contract_test.go.
 # A field the launcher decodes is never removed, renamed or retyped: add, do not change.
+accounts                                   object   required
+accounts.sign_in                           boolean  required
+accounts.usage                             boolean  required
 adsb                                       object   optional
 adsb.aircraft                              number   required
 adsb.failing_since                         time     optional
