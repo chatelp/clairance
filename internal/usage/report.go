@@ -29,7 +29,10 @@ type Report struct {
 
 // Present is an account with a page or a stream open now.
 type Present struct {
-	User      string      `json:"user"`
+	User string `json:"user"`
+	// Role is the account's, filled where the answer is the launcher's (the
+	// health detail): it tells the owner's own visit from a guest's.
+	Role      string      `json:"role,omitempty"`
 	Pages     int         `json:"pages"`
 	Since     *time.Time  `json:"since,omitempty"` // its oldest page still open
 	Listening []Listening `json:"listening"`

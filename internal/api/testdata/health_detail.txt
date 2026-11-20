@@ -69,6 +69,7 @@ present[].listening[]                      object   required
 present[].listening[].freq                 string   required
 present[].listening[].since                time     required
 present[].pages                            number   required
+present[].role                             string   optional
 present[].since                            time     optional
 present[].user                             string   required
 process                                    object   required

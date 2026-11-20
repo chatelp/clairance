@@ -48,6 +48,13 @@ type Account struct {
 	LastSignIn *SignInEvent `json:"last_sign_in,omitempty"`
 }
 
+// RoleOf is an account's role by its name, empty for a name that is not one.
+func (s *Service) RoleOf(name string) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.roles[name]
+}
+
 // Accounts lists every account, owners first, then by name.
 func (s *Service) Accounts() []Account {
 	stats := s.store.byUser()

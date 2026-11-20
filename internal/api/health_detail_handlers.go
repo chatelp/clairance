@@ -254,6 +254,11 @@ func (h *Handler) computeHealthDetail(r *http.Request) HealthDetail {
 
 	d.Receiver = h.receiverNow()
 	d.Present = h.usage.Present()
+	if h.auth != nil {
+		for i := range d.Present {
+			d.Present[i].Role = h.auth.RoleOf(d.Present[i].User)
+		}
+	}
 	d.Accounts = HealthAccounts{SignIn: h.auth != nil && h.auth.Enabled(), Usage: h.usage != nil}
 	d.Missing = h.missing
 	if d.Missing == nil {
